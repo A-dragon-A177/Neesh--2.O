@@ -4,6 +4,7 @@ import { useInView } from "../../hooks/useScrollProgress";
 
 const NAV_LINKS = {
   Product: [
+    { label: "Ecosystem", to: "/innovation-ecosystem" },
     { label: "Features", to: "/features" },
     { label: "Simulation", to: "/simulation" },
     { label: "Pricing", to: "/pricing" },
@@ -17,8 +18,8 @@ export default function FooterSection() {
   const { ref, inView } = useInView(0.1);
 
   return (
-    <footer className="bg-white/50 border-t border-gray-100 pt-16 pb-8">
-      <div className="w-full h-px bg-gradient-to-r from-transparent via-[#09daed]/30 to-transparent mb-16" />
+    <footer className="bg-slate-200/80 backdrop-blur-xs border-t border-slate-300 pt-10 pb-6">
+      <div className="w-full h-px bg-gradient-to-r from-transparent via-[#09daed]/30 to-transparent mb-8" />
       <div className="max-w-[1440px] mx-auto px-6">
         <div
           ref={ref as React.RefObject<HTMLDivElement>}

@@ -42,4 +42,17 @@ public class PromotionDTOs {
             String customBrandingText,
             boolean showNeeshBranding
     ) {}
+
+    /** Public Reels feed item — returned by GET /api/public/pitches */
+    public record PitchFeedItemDTO(
+            UUID projectId,
+            String title,
+            String oneLineSummary,
+            String slug,
+            String elevatorPitchUrl,
+            String elevatorPitchThumbnail,
+            Integer elevatorPitchDuration,
+            String coverImageUrl,
+            String authorName
+    ) {}
 }

@@ -148,8 +148,8 @@ export default function ClusterDetailModal({
     const sc = statusColors[detail?.status || cluster.status] || statusColors.UNANSWERED;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            <div className="bg-card rounded-2xl border border-border/30 shadow-2xl w-[95vw] max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="bg-card rounded-t-3xl sm:rounded-2xl border-t sm:border border-border/30 shadow-2xl w-full sm:w-[95vw] max-w-5xl h-[85vh] sm:max-h-[90vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom sm:zoom-in duration-300">
                 {/* Header */}
                 <div className="p-6 border-b border-border/30 flex-shrink-0">
                     <div className="flex items-start justify-between gap-4">
@@ -185,9 +185,9 @@ export default function ClusterDetailModal({
                 </div>
 
                 {/* Body */}
-                <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+                <div className="flex-1 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row">
                     {/* Left: Audience List */}
-                    <div className="flex-1 overflow-y-auto border-r border-border/30 p-4">
+                    <div className="w-full lg:flex-1 lg:overflow-y-auto border-b lg:border-b-0 lg:border-r border-border/30 p-4">
                         {detailLoading ? (
                             <div className="flex items-center justify-center py-12">
                                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground mr-2" />
@@ -259,7 +259,7 @@ export default function ClusterDetailModal({
                     </div>
 
                     {/* Right: Reply Panel */}
-                    <div className="w-full lg:w-[380px] flex flex-col p-4 flex-shrink-0">
+                    <div className="w-full lg:w-[380px] flex flex-col p-4 lg:overflow-y-auto flex-shrink-0">
                         <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                             <Mail className="w-4 h-4 text-primary" />
                             Reply & Notify

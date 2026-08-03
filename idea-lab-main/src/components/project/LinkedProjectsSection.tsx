@@ -52,84 +52,80 @@ const LinkedProjectsSection = ({ linkedProjects, loading, onUnlink }: LinkedProj
 
     if (linkedProjects.length === 0) {
         return (
-            <div className="border border-border bg-card rounded-lg">
-                <div className="p-6">
-                    <div className="flex items-center gap-2 mb-3">
-                        <Link2 className="w-5 h-5 text-primary" />
-                        <h2 className="text-lg font-semibold text-foreground">Linked Projects</h2>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                        No linked projects yet. Use the + button above to connect related projects and enable knowledge sharing.
-                    </p>
+            <div className="border border-dashed border-cyan-200/80 bg-cyan-50/30 rounded-xl p-5 font-sans">
+                <div className="flex items-center gap-2 mb-2">
+                    <Link2 className="w-4 h-4 text-cyan-600" />
+                    <h2 className="text-sm font-bold text-slate-900 font-display">Linked Development Projects</h2>
                 </div>
+                <p className="text-xs text-slate-500 font-medium">
+                    No linked projects yet. Click the "Link Repo / Project" button above to connect related projects and enable knowledge sharing.
+                </p>
             </div>
         );
     }
 
     return (
-        <div className="border border-border bg-card">
-            <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                        <Link2 className="w-5 h-5 text-primary" />
-                        <h2 className="text-lg font-semibold text-foreground">Linked Projects</h2>
-                        <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                            {linkedProjects.length}
-                        </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                        Knowledge is shared across linked projects
-                    </p>
+        <div className="border border-slate-200/80 bg-white rounded-xl p-5 font-sans space-y-3">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <Link2 className="w-4 h-4 text-cyan-600" />
+                    <h2 className="text-sm font-bold text-slate-900 font-display">Linked Projects</h2>
+                    <span className="text-xs font-bold text-cyan-800 bg-cyan-100 border border-cyan-200 px-2 py-0.5 rounded-full font-sans">
+                        {linkedProjects.length}
+                    </span>
                 </div>
+                <p className="text-xs text-slate-400 font-medium font-sans">
+                    Knowledge is shared across linked projects
+                </p>
+            </div>
 
-                <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
-                    {linkedProjects.map((project) => {
-                        const typeConfig = LINK_TYPE_CONFIG[project.linkType] || LINK_TYPE_CONFIG.RESEARCH;
+            <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
+                {linkedProjects.map((project) => {
+                    const typeConfig = LINK_TYPE_CONFIG[project.linkType] || LINK_TYPE_CONFIG.RESEARCH;
 
-                        return (
-                            <div
-                                key={project.linkId}
-                                className="group flex items-center justify-between p-3 rounded-lg border border-border/50 bg-muted/20 hover:bg-muted/40 hover:border-primary/30 transition-all cursor-pointer"
-                                onClick={() => navigate(`/project/${project.projectId}`)}
-                            >
-                                <div className="flex items-center gap-3 min-w-0 flex-1">
-                                    <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                        <ExternalLink className="w-4 h-4 text-primary" />
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <h3 className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
-                                            {project.projectTitle}
-                                        </h3>
-                                        {project.projectSummary && (
-                                            <p className="text-xs text-muted-foreground truncate mt-0.5">
-                                                {project.projectSummary}
-                                            </p>
-                                        )}
-                                    </div>
+                    return (
+                        <div
+                            key={project.linkId}
+                            className="group flex items-center justify-between p-3 rounded-xl border border-slate-200/70 bg-slate-50/50 hover:bg-cyan-50/40 hover:border-cyan-300 transition-all cursor-pointer"
+                            onClick={() => navigate(`/project/${project.projectId}`)}
+                        >
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <div className="w-8 h-8 rounded-lg bg-cyan-100/80 border border-cyan-200 flex items-center justify-center flex-shrink-0">
+                                    <ExternalLink className="w-4 h-4 text-cyan-700" />
                                 </div>
-
-                                <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                                    <span
-                                        className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full border ${typeConfig.bg} ${typeConfig.color}`}
-                                    >
-                                        {typeConfig.icon}
-                                        {typeConfig.label}
-                                    </span>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onUnlink(project.linkId);
-                                        }}
-                                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
-                                        title="Unlink project"
-                                    >
-                                        <Unlink className="w-3.5 h-3.5" />
-                                    </button>
+                                <div className="min-w-0 flex-1">
+                                    <h3 className="text-xs font-bold text-slate-900 truncate group-hover:text-cyan-700 transition-colors font-display">
+                                        {project.projectTitle}
+                                    </h3>
+                                    {project.projectSummary && (
+                                        <p className="text-xs text-slate-500 truncate mt-0.5 font-sans">
+                                            {project.projectSummary}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
-                        );
-                    })}
-                </div>
+
+                            <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                                <span
+                                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-bold rounded-full border ${typeConfig.bg} ${typeConfig.color} font-sans`}
+                                >
+                                    {typeConfig.icon}
+                                    {typeConfig.label}
+                                </span>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onUnlink(project.linkId);
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-all"
+                                    title="Unlink project"
+                                >
+                                    <Unlink className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );

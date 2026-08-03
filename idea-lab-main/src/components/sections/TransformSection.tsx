@@ -52,49 +52,57 @@ function ChaosSide() {
 
 function ClaritySide() {
   const items = [
-    { label: "Clarity Index", val: 87, color: "#09daed" },
-    { label: "Market Fit", val: 92, color: "#10b981" },
-    { label: "Gap Closed", val: 78, color: "#7c3aed" },
-    { label: "Validation Momentum", val: 94, color: "#f59e0b" },
-    { label: "Gap Remaining", val: 22, color: "#ef4444" },
-    { label: "Persona Coverage", val: 87, color: "#8b5cf6" },
+    { label: "Core Value Proposition", val: 88, color: "#09daed" },
+    { label: "Market Viability", val: 92, color: "#10b981" },
+    { label: "User Acquisition", val: 79, color: "#7c3aed" },
+    { label: "Competitive Defensibility", val: 84, color: "#f59e0b" },
+    { label: "Technical Buildability", val: 95, color: "#09daed" },
   ];
   return (
     <div
-      className="relative h-full min-h-[360px]"
+      className="relative h-full p-4 flex flex-col justify-between"
       style={{ background: "linear-gradient(135deg, #f0fdfe, #e8fafa)" }}
     >
       <div
-        className="absolute inset-0 opacity-[0.06]"
+        className="absolute inset-0 opacity-[0.06] pointer-events-none"
         style={{
           backgroundImage: `linear-gradient(#09daed 1px, transparent 1px), linear-gradient(90deg, #09daed 1px, transparent 1px)`,
           backgroundSize: "28px 28px",
         }}
       />
-      <div className="absolute inset-4 border border-[#09daed]/15 flex flex-col justify-between p-4">
-        <div>
-          <div className="flex items-center gap-2 mb-4">
-            <img src="/neesh-logo.png" alt="Neesh AI" className="w-5 h-5 object-contain" />
-            <span className="text-[#09daed] text-xs font-semibold tracking-widest">VALIDATION LOOP ACTIVE</span>
-          </div>
-          <div className="space-y-2.5">
-            {items.map((item) => (
-              <div key={item.label}>
-                <div className="flex justify-between mb-1">
-                  <span className="text-gray-700 text-xs font-medium">{item.label}</span>
-                  <span className="text-gray-950 text-xs font-bold">{item.val}%</span>
-                </div>
-                <div className="h-1.5 bg-gray-100">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${item.val}%` }}
-                    transition={{ duration: 1, delay: 0.3 }}
-                    className="h-full"
-                    style={{ background: item.color, boxShadow: `0 0 8px ${item.color}40` }}
-                  />
-                </div>
+      <div className="relative z-10 border border-[#09daed]/25 p-4 bg-white/80 rounded-xl shadow-xs">
+        <div className="flex items-center gap-2 mb-4">
+          <img src="/neesh-logo.png" alt="Neesh AI" className="w-5 h-5 object-contain" />
+          <span className="text-[#008494] text-xs font-black tracking-widest uppercase">VALIDATION LOOP ACTIVE</span>
+        </div>
+        <div className="space-y-3">
+          {items.map((item) => (
+            <div key={item.label}>
+              <div className="flex justify-between mb-1">
+                <span className="text-slate-800 text-xs font-bold">{item.label}</span>
+                <span className="text-slate-950 text-xs font-black">{item.val}%</span>
               </div>
-            ))}
+              <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${item.val}%` }}
+                  transition={{ duration: 1, delay: 0.3 }}
+                  className="h-full rounded-full"
+                  style={{ background: item.color, boxShadow: `0 0 8px ${item.color}40` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Live Validation Metric Bar */}
+        <div className="mt-4 pt-3 border-t border-[#09daed]/30 flex items-center justify-between">
+          <div className="text-[11px] font-extrabold text-slate-800 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[#09daed] animate-pulse" />
+            Overall Validation Score
+          </div>
+          <div className="text-xs font-black text-[#008494] bg-[#09daed]/15 px-2.5 py-1 rounded-md border border-[#09daed]/30">
+            87.6% · HIGH INTENT
           </div>
         </div>
       </div>
@@ -129,9 +137,9 @@ export default function TransformSection() {
   }, []);
 
   return (
-    <section ref={sectionRef} className="relative bg-white/50 py-24">
+    <section ref={sectionRef} className="relative bg-gradient-to-b from-slate-200/70 via-slate-100/70 to-slate-200/70 py-14 md:py-16">
       <div className="max-w-[1440px] mx-auto px-6">
-        <div ref={ref as React.RefObject<HTMLDivElement>} className="text-center mb-16">
+        <div ref={ref as React.RefObject<HTMLDivElement>} className="text-center mb-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={inView ? { opacity: 1, y: 0 } : {}}

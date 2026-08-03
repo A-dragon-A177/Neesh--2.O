@@ -51,8 +51,17 @@ public class AdminController {
     // --- Users ---
 
     @GetMapping("/users")
-    public ResponseEntity<?> getAllUsers(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+    public ResponseEntity<?> getAllUsers(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false, defaultValue = "20") int size) {
         if (!isAuthorized(authHeader)) return unauthorized();
+        if (page != null) {
+            org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(
+                    Math.max(0, page), Math.min(Math.max(1, size), 100)
+            );
+            return ResponseEntity.ok(adminService.getAllUsersWithStats(pageable));
+        }
         List<AdminDTOs.AdminUserDTO> users = adminService.getAllUsersWithStats();
         return ResponseEntity.ok(users);
     }
@@ -107,8 +116,17 @@ public class AdminController {
     }
 
     @GetMapping("/coupons")
-    public ResponseEntity<?> getAllCoupons(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+    public ResponseEntity<?> getAllCoupons(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false, defaultValue = "20") int size) {
         if (!isAuthorized(authHeader)) return unauthorized();
+        if (page != null) {
+            org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(
+                    Math.max(0, page), Math.min(Math.max(1, size), 100)
+            );
+            return ResponseEntity.ok(adminService.getAllCoupons(pageable));
+        }
         return ResponseEntity.ok(adminService.getAllCoupons());
     }
 

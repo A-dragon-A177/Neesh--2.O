@@ -24,3 +24,14 @@ dist-ssr
 *.sw?
 .env
 *.env
+
+# Vite timestamp temp files
+vite.config.ts.timestamp-*
+
+# Dev log files
+boot_log*.txt
+compile*.txt
+run_log.txt
+output.txt
+startup_log.txt
+frontend_log.txt

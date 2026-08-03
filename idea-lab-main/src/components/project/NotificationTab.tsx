@@ -134,9 +134,10 @@ export default function NotificationTab({ projectId }: NotificationTabProps) {
                 </div>
 
                 {/* Filters Bar */}
-                <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+                {/* Filters Bar */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
                     <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-muted-foreground">
+                        <span className="text-sm font-semibold text-muted-foreground">
                             {unansweredCount > 0 ? `${unansweredCount} need attention` : "All caught up!"}
                         </span>
                         {unansweredCount > 0 && (
@@ -146,13 +147,13 @@ export default function NotificationTab({ projectId }: NotificationTabProps) {
                         )}
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                         {/* Status Filter */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm" className="rounded-xl gap-2">
+                                <Button variant="outline" size="sm" className="rounded-xl gap-1.5 h-10 flex-1 sm:flex-initial">
                                     Status: {statusFilter === "all" ? "All" : statusColors[statusFilter]?.label || statusFilter}
-                                    <ChevronDown className="w-4 h-4" />
+                                    <ChevronDown className="w-3.5 h-3.5" />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="rounded-xl">
@@ -166,9 +167,9 @@ export default function NotificationTab({ projectId }: NotificationTabProps) {
                         {/* Sort */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm" className="rounded-xl gap-2">
+                                <Button variant="outline" size="sm" className="rounded-xl gap-1.5 h-10 flex-1 sm:flex-initial">
                                     Sort: {sortLabels[sort]}
-                                    <ChevronDown className="w-4 h-4" />
+                                    <ChevronDown className="w-3.5 h-3.5" />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="rounded-xl">
@@ -179,11 +180,11 @@ export default function NotificationTab({ projectId }: NotificationTabProps) {
                         </DropdownMenu>
 
                         {/* Search */}
-                        <div className="relative">
+                        <div className="relative w-full sm:w-[200px]">
                             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 placeholder="Search questions..."
-                                className="pl-10 w-[200px] h-10"
+                                className="pl-9 w-full h-10 rounded-xl"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                             />
@@ -226,27 +227,27 @@ export default function NotificationTab({ projectId }: NotificationTabProps) {
                                 <div
                                     key={cluster.id}
                                     onClick={() => handleClusterClick(cluster)}
-                                    className="flex items-center justify-between p-5 border border-border/50 rounded-2xl hover:bg-muted/30 hover:border-primary/30 transition-all duration-200 cursor-pointer group"
+                                    className="block sm:flex items-start sm:items-center justify-between p-4 sm:p-5 border border-border/50 rounded-2xl hover:bg-muted/30 hover:border-primary/30 transition-all duration-200 cursor-pointer group space-y-3 sm:space-y-0"
                                 >
-                                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                                        <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
-                                            <Users className="w-6 h-6 text-muted-foreground" />
+                                    <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+                                            <Users className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground" />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-medium text-foreground mb-1 truncate">{cluster.canonicalQuestion}</p>
-                                            <div className="flex items-center gap-3 flex-wrap">
-                                                <span className="text-sm text-muted-foreground">
+                                            <p className="font-semibold text-foreground text-sm sm:text-base mb-1 line-clamp-2 sm:truncate">{cluster.canonicalQuestion}</p>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="text-xs text-muted-foreground">
                                                     {cluster.totalAskCount} {cluster.totalAskCount === 1 ? "user" : "users"} asked
                                                 </span>
-                                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${sc.bg} ${sc.text}`}>
+                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${sc.bg} ${sc.text}`}>
                                                     {sc.label}
                                                 </span>
                                                 {topPersonas.length > 0 && (
-                                                    <div className="flex items-center gap-1">
+                                                    <div className="flex items-center gap-1 flex-wrap">
                                                         {topPersonas.map(([persona, count]) => (
                                                             <span
                                                                 key={persona}
-                                                                className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
+                                                                className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground capitalize"
                                                             >
                                                                 {persona} ({count})
                                                             </span>
@@ -257,15 +258,18 @@ export default function NotificationTab({ projectId }: NotificationTabProps) {
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-3 flex-shrink-0 ml-4">
+                                    {/* Stats Align */}
+                                    <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-border/30 sm:border-t-0 flex-shrink-0">
                                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                             <Clock className="w-3.5 h-3.5" />
                                             {timeAgo(cluster.lastAskedAt)}
                                         </div>
-                                        <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-base">
-                                            {cluster.totalAskCount}
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-xs sm:text-sm">
+                                                {cluster.totalAskCount}
+                                            </div>
+                                            <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                                         </div>
-                                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
                                     </div>
                                 </div>
                             );

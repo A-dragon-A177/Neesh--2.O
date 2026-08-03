@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { supabase } from '../config/supabase';
 
 interface User {
     id: string;
@@ -22,31 +23,42 @@ export const supabaseAuth = async (req: Request, res: Response, next: NextFuncti
             return res.status(401).json({ error: 'Missing or invalid authorization header' });
         }
 
-        const token = authHeader.substring(7); // Remove 'Bearer '
+        const token = authHeader.substring(7);
 
         if (!token) {
             return res.status(401).json({ error: 'No token provided' });
         }
 
-        console.log('[Auth] Verifying token...');
+        const jwtSecret = process.env.SUPABASE_JWT_SECRET;
+        let userId: string | undefined;
+        let userEmail: string | undefined;
 
-        // Decode the JWT to get user info (Supabase tokens are signed by Supabase)
-        const decoded = jwt.decode(token) as any;
-
-        if (!decoded || !decoded.sub) {
-            return res.status(401).json({ error: 'Invalid token structure' });
+        if (jwtSecret) {
+            const decoded = jwt.verify(token, jwtSecret) as any;
+            userId = decoded.sub;
+            userEmail = decoded.email || decoded.user_metadata?.email || '';
+        } else {
+            // Verify token via Supabase Auth API
+            const { data: { user }, error } = await supabase.auth.getUser(token);
+            if (error || !user) {
+                return res.status(401).json({ error: 'Invalid or expired token' });
+            }
+            userId = user.id;
+            userEmail = user.email || '';
         }
 
-        // Add user info to request
+        if (!userId) {
+            return res.status(401).json({ error: 'Invalid token payload' });
+        }
+
         req.user = {
-            id: decoded.sub,
-            email: decoded.email || decoded.user_metadata?.email || ''
+            id: userId,
+            email: userEmail || ''
         };
 
-        console.log('[Auth] User authenticated:', req.user.email);
         next();
-    } catch (error) {
-        console.error('[Auth] Token verification error:', error);
-        return res.status(401).json({ error: 'Invalid token' });
+    } catch (error: any) {
+        console.error('[Auth] Token verification error:', error.message || error);
+        return res.status(401).json({ error: 'Invalid or expired token' });
     }
-};
+};

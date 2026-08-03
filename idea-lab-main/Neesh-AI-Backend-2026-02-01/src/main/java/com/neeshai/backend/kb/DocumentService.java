@@ -141,12 +141,19 @@ public class DocumentService {
         return saved;
     }
 
-    public List<KnowledgeDocumentDTO> getActiveDocuments(UUID projectId) {
-        // Public/Private access? Assuming private list for now.
+    public List<KnowledgeDocumentDTO> getActiveDocuments(UUID projectId, UUID userId) {
+        validateProject(projectId, userId);
         return documentRepository.findByProjectIdAndIsActiveTrue(projectId)
                 .stream()
                 .map(KnowledgeDocumentDTO::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    public com.neeshai.backend.util.PageResponse<KnowledgeDocumentDTO> getActiveDocuments(
+            UUID projectId, UUID userId, org.springframework.data.domain.Pageable pageable) {
+        validateProject(projectId, userId);
+        org.springframework.data.domain.Page<Document> page = documentRepository.findByProjectIdAndIsActiveTrue(projectId, pageable);
+        return com.neeshai.backend.util.PageResponse.from(page.map(KnowledgeDocumentDTO::fromEntity));
     }
 
     @Transactional

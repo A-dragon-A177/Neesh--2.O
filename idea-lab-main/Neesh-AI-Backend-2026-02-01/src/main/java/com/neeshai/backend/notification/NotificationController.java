@@ -25,25 +25,32 @@ public class NotificationController {
      * Query params: status (all|UNANSWERED|PARTIALLY_ANSWERED|ANSWERED), sort
      * (priority|recent|most_asked), search
      */
+    private UUID getUserIdFromJwt(Jwt jwt) {
+        return UUID.fromString(jwt.getSubject());
+    }
+
     @GetMapping("/projects/{projectId}/notifications")
-    public ResponseEntity<NotificationDTOs.ClusterListResponse> getClusters(
+    public ResponseEntity<?> getClusters(
             @PathVariable UUID projectId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false, defaultValue = "priority") String sort,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(required = false, defaultValue = "20") int limit,
             @AuthenticationPrincipal Jwt jwt) {
-        log.info("GET /projects/{}/notifications?status={}&sort={}&search={}", projectId, status, sort, search);
-        return ResponseEntity.ok(notificationService.getClusters(projectId, status, sort, search));
+        UUID userId = getUserIdFromJwt(jwt);
+        if (cursor != null) {
+            return ResponseEntity.ok(notificationService.getClustersCursor(projectId, userId, cursor, limit));
+        }
+        return ResponseEntity.ok(notificationService.getClusters(projectId, userId, status, sort, search));
     }
 
-    /**
-     * Get unanswered cluster count for sidebar badge.
-     */
     @GetMapping("/projects/{projectId}/notifications/count")
     public ResponseEntity<NotificationDTOs.BadgeCountResponse> getBadgeCount(
             @PathVariable UUID projectId,
             @AuthenticationPrincipal Jwt jwt) {
-        long count = notificationService.getUnansweredCount(projectId);
+        UUID userId = getUserIdFromJwt(jwt);
+        long count = notificationService.getUnansweredCount(projectId, userId);
         return ResponseEntity.ok(new NotificationDTOs.BadgeCountResponse(count));
     }
 
@@ -54,8 +61,9 @@ public class NotificationController {
     public ResponseEntity<NotificationDTOs.ClusterDetailResponse> getClusterDetail(
             @PathVariable UUID clusterId,
             @AuthenticationPrincipal Jwt jwt) {
-        log.info("GET /notifications/clusters/{}", clusterId);
-        return ResponseEntity.ok(notificationService.getClusterDetail(clusterId));
+        UUID userId = getUserIdFromJwt(jwt);
+        log.info("GET /notifications/clusters/{} by user {}", clusterId, userId);
+        return ResponseEntity.ok(notificationService.getClusterDetail(clusterId, userId));
     }
 
     /**
@@ -66,9 +74,9 @@ public class NotificationController {
             @PathVariable UUID clusterId,
             @RequestBody NotificationDTOs.SendReplyRequest request,
             @AuthenticationPrincipal Jwt jwt) {
-        UUID adminId = UUID.fromString(jwt.getSubject());
-        log.info("POST /notifications/clusters/{}/reply by admin {}", clusterId, adminId);
-        return ResponseEntity.ok(notificationService.sendReply(clusterId, request, adminId));
+        UUID userId = getUserIdFromJwt(jwt);
+        log.info("POST /notifications/clusters/{}/reply by user {}", clusterId, userId);
+        return ResponseEntity.ok(notificationService.sendReply(clusterId, request, userId));
     }
 
     /**

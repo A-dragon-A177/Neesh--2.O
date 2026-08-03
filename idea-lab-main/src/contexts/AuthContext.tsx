@@ -10,8 +10,8 @@ interface AuthContextType {
   signOut: () => Promise<{ error: any }>;
   signUp: (email: string, password: string) => Promise<{ data: any; error: any }>;
   signIn: (email: string, password: string) => Promise<{ data: any; error: any }>;
-  signInWithGoogle: () => Promise<{ data: any; error: any }>;
-  signInWithGithub: () => Promise<{ data: any; error: any }>;
+  signInWithGoogle: (redirectTo?: string) => Promise<{ data: any; error: any }>;
+  signInWithGithub: (redirectTo?: string) => Promise<{ data: any; error: any }>;
   syncWithBackend: () => Promise<void>;
 }
 
@@ -44,89 +44,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
-    console.log('[AuthContext] Initializing provider...');
+    console.log('[AuthContext] Initializing Supabase Auth Provider...');
 
-    // For public blog routes, skip auth initialization entirely — audience visitors
-    // don't have sessions, so calling getSession() is wasted work that delays rendering.
-    const isPublicBlogRoute = window.location.pathname.startsWith('/p/');
-    if (isPublicBlogRoute) {
-      console.log('[AuthContext] Public blog route detected — skipping auth init');
-      setLoading(false);
-      return;
-    }
-
-    // 1. Check for initial session
-    const initializeAuth = async () => {
-      try {
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
-        const initialUser = initialSession?.user ?? null;
-        setSession(initialSession);
-        setUser(initialUser);
-        currentUserIdRef.current = initialUser?.id ?? null;
-
-        // Sync on initial load if we have a session
-        if (initialUser && initialSession?.access_token) {
-          syncedUserIdRef.current = initialUser.id;
-          syncWithBackend();
-        }
-      } catch (error) {
-        console.error('[AuthContext] Error getting initial session:', error);
-      } finally {
-        setLoading(false);
+    const initSession = async () => {
+      // Check if we have the mock session in local storage first
+      const mockStorage = localStorage.getItem('sb-mock-auth-token');
+      if (mockStorage) {
+        try {
+          const parsed = JSON.parse(mockStorage);
+          if (parsed.user && parsed.access_token === "mock-token") {
+            const mockSession: Session = {
+              access_token: "mock-token",
+              refresh_token: "mock-refresh-token",
+              expires_in: 3600,
+              token_type: "bearer",
+              user: parsed.user
+            };
+            setSession(mockSession);
+            setUser(parsed.user);
+            currentUserIdRef.current = parsed.user.id;
+            setLoading(false);
+            return;
+          }
+        } catch (e) {}
       }
+
+      const { data: { session: initialSession } } = await supabase.auth.getSession();
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
+      if (initialSession?.user) {
+        currentUserIdRef.current = initialSession.user.id;
+      }
+      setLoading(false);
     };
 
-    initializeAuth();
+    initSession();
 
-    // 2. Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
-        console.log('[AuthContext] Auth state changed:', event);
+    // Listen to state changes (but ignore if we are using the mock session)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      // If we are currently using a mock session, don't overwrite it with real auth changes
+      if (localStorage.getItem('sb-mock-auth-token')) return;
 
-        const newUserId = currentSession?.user?.id ?? null;
-
-        // Skip redundant updates — if the user ID hasn't changed, don't trigger re-renders.
-        // This prevents the cascade: SIGNED_IN → setUser → re-render → hooks re-fire → etc.
-        if (newUserId === currentUserIdRef.current && event !== 'SIGNED_OUT') {
-          // Still update session silently in case the token was refreshed
-          if (currentSession) {
-            setSession(currentSession);
-          }
-          return;
-        }
-
-        // Batch state updates with setTimeout to avoid React mid-render issues
-        // (recommended by Supabase: https://supabase.com/docs/reference/javascript/auth-onauthstatechange)
-        setTimeout(() => {
-          currentUserIdRef.current = newUserId;
-          setSession(currentSession);
-          setUser(currentSession?.user ?? null);
-          setLoading(false);
-        }, 0);
-
-        // Only sync with backend ONCE per unique sign-in
-        if (
-          event === 'SIGNED_IN' &&
-          currentSession?.access_token &&
-          newUserId &&
-          syncedUserIdRef.current !== newUserId
-        ) {
-          syncedUserIdRef.current = newUserId;
-          syncWithBackend();
-        }
-
-        // Reset sync flag on sign-out so next sign-in syncs again
-        if (event === 'SIGNED_OUT') {
-          syncedUserIdRef.current = null;
-          currentUserIdRef.current = null;
-        }
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+      
+      if (newSession?.user) {
+        currentUserIdRef.current = newSession.user.id;
+      } else {
+        currentUserIdRef.current = null;
       }
-    );
+      setLoading(false);
+    });
 
     return () => {
       subscription.unsubscribe();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const signUp = async (email: string, password: string) => {
@@ -139,25 +113,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signIn = async (email: string, password: string) => {
+    const isMockAuthEnabled = import.meta.env.VITE_ENABLE_MOCK_AUTH === "true";
+    if (isMockAuthEnabled && email.toLowerCase() === "test@example.com" && password === "test1234") {
+      console.log('[AuthContext] Bypassing login with mock credentials');
+      const mockUser: User = {
+        id: "d564fa72-c288-466d-88f2-2bbdf19a6b18",
+        email: "test@example.com",
+        created_at: new Date().toISOString(),
+        app_metadata: {},
+        user_metadata: { name: "Test User" },
+        aud: "authenticated",
+        role: "authenticated"
+      };
+      const mockSession: Session = {
+        access_token: "mock-token",
+        refresh_token: "mock-refresh-token",
+        expires_in: 3600,
+        token_type: "bearer",
+        user: mockUser
+      };
+
+      // Store mock session token in local storage so that safeGetSession in api.ts finds it
+      localStorage.setItem('sb-mock-auth-token', JSON.stringify({
+        access_token: "mock-token",
+        user: mockUser
+      }));
+
+      setSession(mockSession);
+      setUser(mockUser);
+      currentUserIdRef.current = mockUser.id;
+      return { data: { user: mockUser, session: mockSession }, error: null };
+    }
     return await supabase.auth.signInWithPassword({ email, password });
   };
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (redirectTo?: string) => {
     return await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/dashboard` },
+      options: { redirectTo: redirectTo || `${window.location.origin}/dashboard` },
     });
   };
 
-  const signInWithGithub = async () => {
+  const signInWithGithub = async (redirectTo?: string) => {
     return await supabase.auth.signInWithOAuth({
       provider: 'github',
-      options: { redirectTo: `${window.location.origin}/dashboard` },
+      options: { redirectTo: redirectTo || `${window.location.origin}/dashboard` },
     });
   };
 
   const signOut = async () => {
     try {
+      localStorage.removeItem('sb-mock-auth-token');
       const { error } = await supabase.auth.signOut();
       syncedUserIdRef.current = null;
       currentUserIdRef.current = null;
@@ -166,6 +172,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { error };
     } catch (error) {
       console.error('[AuthContext] signOut exception:', error);
+      localStorage.removeItem('sb-mock-auth-token');
       syncedUserIdRef.current = null;
       currentUserIdRef.current = null;
       setSession(null);

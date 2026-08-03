@@ -170,7 +170,7 @@ export default function ScrollCanvas() {
         scrollTrigger: {
           trigger: document.documentElement,
           start: "top top",
-          end: "bottom bottom",
+          end: () => Math.max(document.documentElement.scrollHeight, 11000),
           scrub: 0.5, // Slight smoothing for buttery feel
         },
         onUpdate: () => {

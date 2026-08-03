@@ -14,7 +14,8 @@ public class BlogDTOs {
                         String coverImageUrl,
                         String introduction,
                         String content,
-                        List<Map<String, Object>> customFields) {
+                        List<Map<String, Object>> customFields,
+                        List<Map<String, Object>> interestTags) {
         }
 
         public record UpdateBlogRequest(
@@ -22,6 +23,7 @@ public class BlogDTOs {
                         String coverImageUrl,
                         String introduction,
                         String content,
-                        List<Map<String, Object>> customFields) {
+                        List<Map<String, Object>> customFields,
+                        List<Map<String, Object>> interestTags) {
         }
 }

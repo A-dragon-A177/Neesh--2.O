@@ -14,31 +14,23 @@ interface Comment {
 
 interface CommentSectionProps {
     projectId: string;
+    onRequireSignIn?: () => void;
+    user?: any;
 }
 
-const CommentSection = ({ projectId }: CommentSectionProps) => {
+const CommentSection = ({ projectId, onRequireSignIn, user }: CommentSectionProps) => {
     const [comments, setComments] = useState<Comment[]>([]);
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [text, setText] = useState("");
     const [submitting, setSubmitting] = useState(false);
 
-    // Fetch comments and subscribe to changes
+    // Fetch comments from backend REST API
     const fetchComments = async () => {
         try {
-            const { data, error } = await (supabase as any)
-                .from('blog_comments')
-                .select('*')
-                .eq('project_id', projectId)
-                .order('created_at', { ascending: false });
-
-            if (data && !error) {
-                setComments(data.map((row: any) => ({
-                    id: row.id,
-                    name: row.name,
-                    text: row.text,
-                    timestamp: row.created_at
-                })));
+            const data = await apiClient.get<Comment[]>(`/api/public/projects/${projectId}/comments`, { skipAuth: true });
+            if (data && Array.isArray(data)) {
+                setComments(data);
             }
         } catch (err) {
             console.error("Error fetching comments:", err);
@@ -46,55 +38,47 @@ const CommentSection = ({ projectId }: CommentSectionProps) => {
     };
 
     useEffect(() => {
+        if (user) {
+            const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "";
+            const userEmail = user.email || "";
+            if (displayName) setName(prev => prev || displayName);
+            if (userEmail) setEmail(prev => prev || userEmail);
+        }
+    }, [user]);
+
+    useEffect(() => {
         fetchComments();
-
-        // Subscribe to real-time changes
-        const channel = supabase
-            .channel(`blog_comments_project_${projectId}`)
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'blog_comments',
-                filter: `project_id=eq.${projectId}`
-            }, (payload) => {
-                console.log("[CommentSection] Received real-time update:", payload);
-                fetchComments();
-            })
-            .subscribe((status) => {
-                console.log(`[CommentSection] Subscription status for project ${projectId}:`, status);
-            });
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
+        // Periodically refresh comments every 15s
+        const timer = setInterval(fetchComments, 15000);
+        return () => clearInterval(timer);
     }, [projectId]);
 
+    const handleInputFocus = () => {
+        if (!user && onRequireSignIn) {
+            onRequireSignIn();
+        }
+    };
+
     const handleSubmit = async () => {
+        if (!user && onRequireSignIn) {
+            onRequireSignIn();
+            return;
+        }
         if (!name.trim() || !text.trim() || submitting) return;
         setSubmitting(true);
 
         try {
-            const { error } = await (supabase as any).from('blog_comments').insert({
-                project_id: projectId,
+            const resolvedEmail = email.trim() ||
+                `${name.trim().toLowerCase().replace(/\s+/g, '.')}.${Date.now()}@comment.anonymous`;
+
+            await apiClient.post(`/api/public/projects/${projectId}/feedback`, {
                 name: name.trim(),
-                text: text.trim()
-            });
+                email: resolvedEmail,
+                feedbackText: text.trim(),
+            }, { skipAuth: true });
 
-            if (!error) {
-                // Also record this commenter as an audience member
-                const resolvedEmail = email.trim() ||
-                    `${name.trim().toLowerCase().replace(/\s+/g, '.')}.${Date.now()}@comment.anonymous`;
-                apiClient.post(`/api/public/projects/${projectId}/feedback`, {
-                    name: name.trim(),
-                    email: resolvedEmail,
-                    feedbackText: text.trim(),
-                }, { skipAuth: true }).catch(() => {});
-
-                setText("");
-                fetchComments();
-            } else {
-                console.error("Failed to post comment:", error);
-            }
+            setText("");
+            fetchComments();
         } catch (err) {
             console.error("Exception posting comment:", err);
         } finally {
@@ -135,25 +119,28 @@ const CommentSection = ({ projectId }: CommentSectionProps) => {
 
                     {/* Comment Form */}
                     <div className="space-y-3 mb-8 p-4 bg-muted/30 rounded-2xl border border-border/30">
-                        <div className="flex gap-2">
+                        <div className="flex flex-col sm:flex-row gap-2">
                             <Input
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
+                                onFocus={handleInputFocus}
                                 placeholder="Your name *"
-                                className="bg-background"
+                                className="bg-background h-10"
                             />
                             <Input
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
+                                onFocus={handleInputFocus}
                                 placeholder="Email (optional)"
                                 type="email"
-                                className="bg-background"
+                                className="bg-background h-10"
                             />
                         </div>
                         <div className="flex gap-2">
                             <Input
                                 value={text}
                                 onChange={(e) => setText(e.target.value)}
+                                onFocus={handleInputFocus}
                                 placeholder="Write a comment..."
                                 className="flex-1 bg-background"
                                 onKeyDown={(e) => {

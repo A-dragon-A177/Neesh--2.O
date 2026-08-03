@@ -344,11 +344,16 @@ function GapDetectionDashboard() {
   );
 }
 
-/* ─── Main Page ─── */
+import { SeoHead } from "../components/SeoHead";
 
 export default function SimulationPage() {
   return (
     <PageLayout>
+      <SeoHead
+        title="Interactive Startup Simulation & Validation | Neesh AI"
+        description="Simulate audience reactions, test positioning parameters, and stress-test your startup concept with AI-powered feedback loops."
+        canonicalUrl="https://neeshglobal.com/simulation"
+      />
       {/* Section 1: Hero */}
       <section className="relative bg-white/50 pt-32 pb-20 overflow-hidden">
         <div className="absolute inset-0 opacity-[0.025]" style={{ backgroundImage: `linear-gradient(#09daed 1px, transparent 1px), linear-gradient(90deg, #09daed 1px, transparent 1px)`, backgroundSize: "60px 60px" }} />

@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { Session } from '@supabase/supabase-js';
 
-const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8081';
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8082';
 const IS_DEV = import.meta.env.DEV;
 
 interface RequestConfig extends RequestInit {
@@ -89,6 +90,15 @@ class ApiClient {
             
             // Perform signOut safely - don't let a lock timeout here block the failure
             try {
+                // Aggressively clear local storage auth tokens to prevent redirect loops
+                localStorage.removeItem('sb-mock-auth-token');
+                for (let i = localStorage.length - 1; i >= 0; i--) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+                        localStorage.removeItem(key);
+                    }
+                }
+
                 // Use a non-blocking timeout for signOut to avoid long hangs
                 const signOutPromise = supabase.auth.signOut();
                 const timeoutPromise = new Promise((_, reject) => 

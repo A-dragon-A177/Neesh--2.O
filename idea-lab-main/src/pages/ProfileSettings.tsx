@@ -201,7 +201,7 @@ const ProfileSettings = () => {
         <div className="min-h-screen bg-background">
             {/* Header */}
             <header className="bg-card border-b border-border/50 sticky top-0 z-40 shadow-sm">
-                <div className="container mx-auto px-6 py-4">
+                <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                             <button
@@ -225,7 +225,7 @@ const ProfileSettings = () => {
             </header>
 
             {/* Main Content */}
-            <main className="container mx-auto px-6 py-8 max-w-3xl">
+            <main className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 max-w-3xl">
                 {/* Profile Card */}
                 <div className="bg-card border border-border/30 rounded-lg overflow-hidden shadow-sm mb-6">
                     {/* Cover gradient */}
@@ -610,7 +610,7 @@ const ProfileSettings = () => {
 
                 {/* Danger Zone — Sign Out */}
                 <div className="mt-6 bg-card border border-destructive/20 rounded-lg shadow-sm p-6">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row gap-4 justify-between sm:items-center">
                         <div>
                             <h3 className="text-sm font-semibold text-foreground">
                                 Sign Out
@@ -621,7 +621,7 @@ const ProfileSettings = () => {
                         </div>
                         <Button
                             variant="outline"
-                            className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                            className="w-full sm:w-auto border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors h-11"
                             onClick={handleSignOut}
                         >
                             <LogOut className="w-4 h-4 mr-2" />

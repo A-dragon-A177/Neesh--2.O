@@ -26,4 +26,9 @@ public interface AudienceMemberRepository extends JpaRepository<AudienceMember, 
            "AND NOT (m.feedbackSource = 'Chatbot' AND m.email LIKE '%@chatbot') " +
            "ORDER BY m.lastInteractionAt DESC")
     List<AudienceMember> findRealAudienceByProjectId(@Param("projectId") UUID projectId);
+
+    @Query("SELECT m FROM AudienceMember m WHERE m.project.id = :projectId " +
+           "AND NOT (m.feedbackSource = 'Chatbot' AND m.email LIKE '%@chatbot') " +
+           "ORDER BY m.lastInteractionAt DESC")
+    List<AudienceMember> findRealAudienceByProjectIdCursor(@Param("projectId") UUID projectId, org.springframework.data.domain.Pageable pageable);
 }

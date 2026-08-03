@@ -20,7 +20,7 @@ interface IterationTimelineProps {
 }
 
 const eventConfig = {
-  knowledge_update: { icon: BookOpen, color: "text-primary", label: "Knowledge Base" },
+  knowledge_update: { icon: BookOpen, color: "text-primary", label: "Train your ChatBot" },
   blog_update: { icon: FileEdit, color: "text-muted-foreground", label: "Blog Update" },
   gap_resolved: { icon: CheckCircle2, color: "text-success", label: "Gap Resolved" },
 };

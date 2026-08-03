@@ -49,55 +49,98 @@ const GapDetectionPanel = ({ activeGaps, resolvedGaps, onFixGap }: GapDetectionP
             <span className="w-2 h-2 bg-warning rounded-full" />
             <h3 className="text-sm font-medium text-foreground">Active Gaps ({activeGaps.length})</h3>
           </div>
-          
           {activeGaps.length > 0 ? (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left">
-                  <th className="pb-2 font-medium text-muted-foreground">Topic</th>
-                  <th className="pb-2 font-medium text-muted-foreground">Questions</th>
-                  <th className="pb-2 font-medium text-muted-foreground">Personas</th>
-                  <th className="pb-2 font-medium text-muted-foreground">Priority</th>
-                  <th className="pb-2"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden md:block">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left">
+                      <th className="pb-2 font-medium text-muted-foreground">Topic</th>
+                      <th className="pb-2 font-medium text-muted-foreground">Questions</th>
+                      <th className="pb-2 font-medium text-muted-foreground">Personas</th>
+                      <th className="pb-2 font-medium text-muted-foreground">Priority</th>
+                      <th className="pb-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {activeGaps.map((gap) => {
+                      const severity = severityConfig[gap.severity];
+                      return (
+                        <tr key={gap.id} className="hover:bg-muted/50">
+                          <td className="py-3 font-medium text-foreground">{gap.topic}</td>
+                          <td className="py-3 text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5" />
+                              {gap.questionCount}
+                            </span>
+                          </td>
+                          <td className="py-3 text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Users className="w-3.5 h-3.5" />
+                              {gap.personas.length}
+                            </span>
+                          </td>
+                          <td className="py-3">
+                            <span className={`text-xs px-2 py-0.5 ${severity.bgColor} ${severity.color}`}>
+                              {severity.label}
+                            </span>
+                          </td>
+                          <td className="py-3 text-right">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => onFixGap?.(gap.id)}
+                            >
+                              Fix <ArrowRight className="w-3 h-3 ml-1" />
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card List View */}
+              <div className="block md:hidden space-y-3">
                 {activeGaps.map((gap) => {
                   const severity = severityConfig[gap.severity];
                   return (
-                    <tr key={gap.id} className="hover:bg-muted/50">
-                      <td className="py-3 font-medium text-foreground">{gap.topic}</td>
-                      <td className="py-3 text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" />
-                          {gap.questionCount}
-                        </span>
-                      </td>
-                      <td className="py-3 text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Users className="w-3.5 h-3.5" />
-                          {gap.personas.length}
-                        </span>
-                      </td>
-                      <td className="py-3">
-                        <span className={`text-xs px-2 py-0.5 ${severity.bgColor} ${severity.color}`}>
+                    <div key={gap.id} className="p-4 border border-border bg-card/50 rounded-xl space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="font-semibold text-sm text-foreground line-clamp-2">{gap.topic}</h4>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${severity.bgColor} ${severity.color}`}>
                           {severity.label}
                         </span>
-                      </td>
-                      <td className="py-3 text-right">
+                      </div>
+                      
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <div className="flex items-center gap-3">
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5" />
+                            {gap.questionCount}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Users className="w-3.5 h-3.5" />
+                            {gap.personas.length}
+                          </span>
+                        </div>
+                        
                         <Button
                           size="sm"
-                          variant="ghost"
+                          variant="outline"
                           onClick={() => onFixGap?.(gap.id)}
+                          className="h-8 px-3 rounded-lg text-xs"
                         >
-                          Fix <ArrowRight className="w-3 h-3 ml-1" />
+                          Fix <ArrowRight className="w-3.5 h-3.5 ml-1" />
                         </Button>
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+            </>
           ) : (
             <div className="text-center py-8 bg-muted/30 border border-border">
               <CheckCircle2 className="w-8 h-8 text-success mx-auto mb-2" />

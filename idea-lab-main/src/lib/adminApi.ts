@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8081';
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8082';
 const ADMIN_TOKEN_KEY = 'neesh_admin_token';
 
 function getToken(): string | null {

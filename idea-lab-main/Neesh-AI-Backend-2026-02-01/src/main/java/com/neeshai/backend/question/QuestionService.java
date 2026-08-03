@@ -31,7 +31,12 @@ public class QuestionService {
         this.notificationService = notificationService;
     }
 
-    public QuestionDTOs.QuestionListResponse getUnansweredQuestions(UUID projectId) {
+    public QuestionDTOs.QuestionListResponse getUnansweredQuestions(UUID projectId, UUID userId) {
+        Project project = projectRepository.findById(projectId)
+                .filter(p -> !p.isDeleted())
+                .filter(p -> p.getOwnerId().equals(userId))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found or unauthorized"));
+
         List<UnansweredQuestion> questions = questionRepository
                 .findByProjectIdAndIsResolvedFalseOrderByCreatedAtDesc(projectId);
         List<QuestionDTOs.QuestionResponse> responses = questions.stream()

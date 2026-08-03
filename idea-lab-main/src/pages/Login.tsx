@@ -10,8 +10,9 @@ import { adminLogin } from "@/lib/adminApi";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { SeoHead } from "@/components/SeoHead";
 
-const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8081";
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8082";
 
 // ─── Password validation ───
 const passwordRules = [
@@ -124,17 +125,20 @@ const Login = () => {
 
     setIsSubmitting(true);
 
-    // Check for admin login
-    try {
-      const adminResult = await adminLogin(email, password);
-      if (adminResult && adminResult.token) {
-        setAdminSession(adminResult.token, adminResult.displayName);
-        toast.success("Admin login successful!");
-        navigate("/admin");
-        return;
+    // Check for admin login only if email ends with @neeshai.com or @neeshi.ai
+    const isAdminEmail = email.toLowerCase().endsWith("@neeshai.com") || email.toLowerCase().endsWith("@neeshi.ai");
+    if (isAdminEmail) {
+      try {
+        const adminResult = await adminLogin(email, password);
+        if (adminResult && adminResult.token) {
+          setAdminSession(adminResult.token, adminResult.displayName);
+          toast.success("Admin login successful!");
+          navigate("/admin");
+          return;
+        }
+      } catch (err) {
+        console.warn("Admin login failed, falling back to user login:", err);
       }
-    } catch {
-      // Not admin credentials — fall through to normal Supabase auth
     }
 
     const { error } = await signIn(email, password);
@@ -291,17 +295,23 @@ const Login = () => {
   }
 
   return (
-    <div className="min-h-screen hero-gradient flex items-center justify-center p-4">
+    <div className="min-h-screen-mobile hero-gradient flex items-center justify-center p-4 md:p-6">
+      <SeoHead
+        title="Sign In to Your Dashboard | Neesh AI"
+        description="Access your Neesh AI account to manage startup spotlights, elevator pitch reels, custom chatbots, and audience validation signals."
+        canonicalUrl="https://neeshglobal.com/login"
+      />
       {/* Back button */}
       <Link
         to="/"
-        className="absolute top-6 left-6 w-11 h-11 rounded-full bg-card shadow-card flex items-center justify-center hover:shadow-md transition-all duration-200"
+        className="absolute top-4 left-4 md:top-6 md:left-6 w-11 h-11 md:w-11 md:h-11 rounded-full bg-card shadow-card flex items-center justify-center hover:shadow-md active:scale-95 transition-all duration-200"
+        style={{ marginTop: "env(safe-area-inset-top, 0px)" }}
       >
         <ArrowLeft className="w-5 h-5 text-muted-foreground" />
       </Link>
 
       <div className="w-full max-w-md animate-slide-up">
-        <div className="bg-card rounded-3xl shadow-lg p-8 border border-border/30">
+        <div className="bg-card rounded-2xl md:rounded-3xl shadow-lg p-5 md:p-8 border border-border/30">
           {/* Logo */}
           <div className="flex justify-center mb-8">
             <NeeshLogo size="lg" />
@@ -327,6 +337,7 @@ const Login = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isSubmitting}
+                className="h-12 rounded-xl text-base"
               />
             </div>
 
@@ -338,12 +349,12 @@ const Login = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="pr-12"
+                className="pr-14 h-12 rounded-xl text-base"
                 disabled={isSubmitting}
               />
               <button
                 type="button"
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors rounded-lg"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -374,7 +385,7 @@ const Login = () => {
             {/* Submit button */}
             <Button
               type="submit"
-              className="w-full"
+              className="w-full h-12 text-base rounded-xl"
               size="lg"
               disabled={isSubmitting || lockoutRemaining > 0}
             >
@@ -405,11 +416,11 @@ const Login = () => {
               <Button
                 type="button"
                 variant="outline"
-                className="h-12"
+                className="h-12 rounded-xl text-sm font-semibold gap-2"
                 disabled={isSubmitting}
                 onClick={() => signInWithGoogle()}
               >
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
@@ -421,11 +432,11 @@ const Login = () => {
               <Button
                 type="button"
                 variant="outline"
-                className="h-12"
+                className="h-12 rounded-xl text-sm font-semibold gap-2"
                 disabled={isSubmitting}
                 onClick={() => signInWithGithub()}
               >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
                 </svg>
                 GitHub
@@ -451,7 +462,7 @@ const Login = () => {
           if (!open) resetForgotState();
         }}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md mx-4 rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-center">
               {forgotStep === "email" && "Reset Password"}
@@ -511,10 +522,11 @@ const Login = () => {
                   value={forgotEmail}
                   onChange={(e) => setForgotEmail(e.target.value)}
                   disabled={isForgotLoading}
+                  className="h-12 rounded-xl text-base"
                 />
                 <Button
                   type="button"
-                  className="w-full"
+                  className="w-full h-12 rounded-xl"
                   size="lg"
                   disabled={isForgotLoading || !forgotEmail}
                   onClick={handleForgotSendOtp}
@@ -566,7 +578,7 @@ const Login = () => {
 
                 <Button
                   type="button"
-                  className="w-full"
+                  className="w-full h-12 rounded-xl"
                   size="lg"
                   disabled={isForgotLoading || forgotOtp.length !== 6}
                   onClick={handleForgotVerifyOtp}

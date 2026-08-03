@@ -72,6 +72,11 @@ public class ProjectService {
         return projectRepository.findByOwnerId(ownerId);
     }
 
+    public com.neeshai.backend.util.PageResponse<ProjectDTOs.PrivateProjectDTO> getMyProjects(UUID ownerId, org.springframework.data.domain.Pageable pageable) {
+        org.springframework.data.domain.Page<Project> page = projectRepository.findByOwnerId(ownerId, pageable);
+        return com.neeshai.backend.util.PageResponse.from(page.map(ProjectDTOs.PrivateProjectDTO::fromEntity));
+    }
+
     public Optional<Project> getProject(UUID id, UUID ownerId) {
         return projectRepository.findById(id)
                 .filter(p -> {
@@ -119,6 +124,15 @@ public class ProjectService {
                     if (request.onboardingCompleted() != null)
                         project.setOnboardingCompleted(request.onboardingCompleted());
 
+                    if (request.elevatorPitchUrl() != null)
+                        project.setElevatorPitchUrl(request.elevatorPitchUrl());
+                    if (request.elevatorPitchThumbnail() != null)
+                        project.setElevatorPitchThumbnail(request.elevatorPitchThumbnail());
+                    if (request.elevatorPitchDuration() != null)
+                        project.setElevatorPitchDuration(request.elevatorPitchDuration());
+                    if (request.earlyAccessPrice() != null)
+                        project.setEarlyAccessPrice(request.earlyAccessPrice());
+
                     // Status Transition Logic
                     if (request.status() != null) {
                         String statusUpper = request.status().toUpperCase();
@@ -152,6 +166,23 @@ public class ProjectService {
         return projectRepository.findBySlug(slug)
                 .filter(p -> "PUBLISHED".equals(p.getStatus()))
                 .filter(p -> !p.isDeleted()); // Double check, though repo handles it
+    }
+
+    public Optional<Project> getPublicProjectById(UUID id) {
+        return projectRepository.findById(id)
+                .filter(p -> !p.isDeleted());
+    }
+
+    /**
+     * Increment the pitch view count for a project (fire-and-forget from public endpoints).
+     */
+    @Transactional
+    public void incrementPitchViewCount(UUID projectId) {
+        projectRepository.findById(projectId).ifPresent(project -> {
+            int current = project.getPitchViewCount() != null ? project.getPitchViewCount() : 0;
+            project.setPitchViewCount(current + 1);
+            projectRepository.save(project);
+        });
     }
 
     // Deterministic Slug Resolution

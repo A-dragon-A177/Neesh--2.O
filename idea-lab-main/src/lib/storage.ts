@@ -71,7 +71,9 @@ export async function uploadToStorage(
     .from(BUCKET_NAME)
     .getPublicUrl(path);
 
-  console.log(`[Storage] Uploaded ${type}: ${urlData.publicUrl}`);
+  if (import.meta.env.DEV) {
+    console.log(`[Storage] Uploaded ${type}: ${urlData.publicUrl}`);
+  }
   return urlData.publicUrl;
 }
 

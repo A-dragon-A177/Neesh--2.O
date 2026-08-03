@@ -68,6 +68,21 @@ public class Project {
     @Column(name = "onboarding_completed")
     private Boolean onboardingCompleted = false;
 
+    @Column(name = "elevator_pitch_url", columnDefinition = "TEXT")
+    private String elevatorPitchUrl;
+
+    @Column(name = "elevator_pitch_thumbnail", columnDefinition = "TEXT")
+    private String elevatorPitchThumbnail;
+
+    @Column(name = "elevator_pitch_duration")
+    private Integer elevatorPitchDuration;
+
+    @Column(name = "early_access_price")
+    private Double earlyAccessPrice;
+
+    @Column(name = "pitch_view_count")
+    private Integer pitchViewCount = 0;
+
     public Project() {
     }
 
@@ -224,5 +239,45 @@ public class Project {
 
     public void setOnboardingCompleted(Boolean onboardingCompleted) {
         this.onboardingCompleted = onboardingCompleted;
+    }
+
+    public String getElevatorPitchUrl() {
+        return elevatorPitchUrl;
+    }
+
+    public void setElevatorPitchUrl(String elevatorPitchUrl) {
+        this.elevatorPitchUrl = elevatorPitchUrl;
+    }
+
+    public String getElevatorPitchThumbnail() {
+        return elevatorPitchThumbnail;
+    }
+
+    public void setElevatorPitchThumbnail(String elevatorPitchThumbnail) {
+        this.elevatorPitchThumbnail = elevatorPitchThumbnail;
+    }
+
+    public Integer getElevatorPitchDuration() {
+        return elevatorPitchDuration;
+    }
+
+    public void setElevatorPitchDuration(Integer elevatorPitchDuration) {
+        this.elevatorPitchDuration = elevatorPitchDuration;
+    }
+
+    public Double getEarlyAccessPrice() {
+        return earlyAccessPrice;
+    }
+
+    public void setEarlyAccessPrice(Double earlyAccessPrice) {
+        this.earlyAccessPrice = earlyAccessPrice;
+    }
+
+    public Integer getPitchViewCount() {
+        return pitchViewCount;
+    }
+
+    public void setPitchViewCount(Integer pitchViewCount) {
+        this.pitchViewCount = pitchViewCount;
     }
 }

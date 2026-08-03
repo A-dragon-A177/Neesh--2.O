@@ -128,31 +128,26 @@ public class AdminService {
 
     public List<AdminDTOs.AdminUserDTO> getAllUsersWithStats() {
         List<User> users = userRepository.findAll();
-        return users.stream().map(user -> {
-            long projectCount = projectRepository.findByOwnerId(user.getId()).size();
-            String plan = user.getSubscriptionPlan() != null ? user.getSubscriptionPlan() : "FREE";
-            // Capitalize for display: FREE -> Free, PRO -> Pro, ENTERPRISE -> Enterprise
-            String displayPlan = plan.substring(0, 1).toUpperCase() + plan.substring(1).toLowerCase();
-            long promotedBlogCount = promotionService.getPromotionCountForUser(user.getId());
-            List<String> promotionTags = promotionService.getTagsForUser(user.getId());
-            return new AdminDTOs.AdminUserDTO(
-                    user.getId(),
-                    user.getEmail(),
-                    user.getName(),
-                    user.getStatus(),
-                    user.getOccupation(),
-                    user.getPhone(),
-                    user.getLocation(),
-                    user.getProfileImageUrl(),
-                    user.getCreatedAt(),
-                    user.getUpdatedAt(),
-                    projectCount,
-                    displayPlan,
-                    promotedBlogCount,
-                    promotionTags,
-                    user.getSubscriptionExpiresAt()
-            );
-        }).collect(Collectors.toList());
+        return users.stream().map(this::mapToAdminUserDTO).collect(Collectors.toList());
+    }
+
+    public com.neeshai.backend.util.PageResponse<AdminDTOs.AdminUserDTO> getAllUsersWithStats(org.springframework.data.domain.Pageable pageable) {
+        org.springframework.data.domain.Page<User> usersPage = userRepository.findAll(pageable);
+        return com.neeshai.backend.util.PageResponse.from(usersPage.map(this::mapToAdminUserDTO));
+    }
+
+    private AdminDTOs.AdminUserDTO mapToAdminUserDTO(User user) {
+        long projectCount = projectRepository.findByOwnerId(user.getId()).size();
+        String plan = user.getSubscriptionPlan() != null ? user.getSubscriptionPlan() : "FREE";
+        String displayPlan = plan.substring(0, 1).toUpperCase() + plan.substring(1).toLowerCase();
+        long promotedBlogCount = promotionService.getPromotionCountForUser(user.getId());
+        List<String> promotionTags = promotionService.getTagsForUser(user.getId());
+        return new AdminDTOs.AdminUserDTO(
+                user.getId(), user.getEmail(), user.getName(), user.getStatus(),
+                user.getOccupation(), user.getPhone(), user.getLocation(), user.getProfileImageUrl(),
+                user.getCreatedAt(), user.getUpdatedAt(), projectCount, displayPlan,
+                promotedBlogCount, promotionTags, user.getSubscriptionExpiresAt()
+        );
     }
 
     // --- Coupons ---
@@ -182,6 +177,11 @@ public class AdminService {
         return couponCodeRepository.findAll().stream()
                 .map(AdminDTOs.CouponDTO::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    public com.neeshai.backend.util.PageResponse<AdminDTOs.CouponDTO> getAllCoupons(org.springframework.data.domain.Pageable pageable) {
+        org.springframework.data.domain.Page<CouponCode> couponPage = couponCodeRepository.findAll(pageable);
+        return com.neeshai.backend.util.PageResponse.from(couponPage.map(AdminDTOs.CouponDTO::fromEntity));
     }
 
     @Transactional

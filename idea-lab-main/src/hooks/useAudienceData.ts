@@ -121,32 +121,53 @@ export const useAudienceData = (projectId: string | undefined) => {
   }, [projectId]);
 
   useEffect(() => {
-    fetchData();
+    let isMounted = true;
 
-    if (!projectId) return;
+    if (!projectId) {
+      setLoading(false);
+      return;
+    }
 
-    // Subscribe to real-time changes
-    const channel = supabase
-      .channel(`public:audience_members:project_id=eq.${projectId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "audience_members",
-          filter: `project_id=eq.${projectId}`,
-        },
-        () => {
-          console.log("[useAudienceData] Data changed, refetching...");
-          fetchData();
-        }
-      )
-      .subscribe();
+    const loadAudience = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await apiClient.get<BackendAudienceListResponse>(
+          `/api/projects/${projectId}/audience`
+        );
+        if (!isMounted) return;
+
+        const mappedMembers: AudienceMember[] = data.members.map((m) => ({
+          id: m.id,
+          name: m.name,
+          email: m.email,
+          occupation: m.occupation,
+          detected_persona: mapOccupationToPersona(m.occupation, m.personaType),
+          persona_confidence: m.confidenceScore,
+          total_questions: m.questionCount || 0,
+          total_feedback: m.feedbackSummary ? 1 : 0,
+          first_interaction_at: m.firstInteractionAt || new Date().toISOString(),
+          last_interaction_at: m.lastInteractionAt || new Date().toISOString(),
+          project_id: projectId,
+          feedbackSummary: m.feedbackSummary,
+        }));
+
+        setMembers(mappedMembers);
+      } catch (err) {
+        if (!isMounted) return;
+        setMembers([]);
+        setError(err instanceof Error ? err.message : "Failed to fetch audience data");
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    loadAudience();
 
     return () => {
-      supabase.removeChannel(channel);
+      isMounted = false;
     };
-  }, [projectId, fetchData]);
+  }, [projectId]);
 
   // Compute aggregated persona data from members
   const getAggregatedPersonaData = useCallback((): AggregatedPersonaData[] => {

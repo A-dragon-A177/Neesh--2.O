@@ -37,9 +37,12 @@ public class AudienceService {
      * List all audience members for a project.
      */
     @Transactional(readOnly = true)
-    public AudienceDTOs.AudienceMemberListResponse getAudienceMembers(UUID projectId) {
-        // Only return real audience members — excludes anonymous chatbot-generated entries
-        // (those with feedbackSource='Chatbot' and auto-generated '@chatbot' emails)
+    public AudienceDTOs.AudienceMemberListResponse getAudienceMembers(UUID projectId, UUID ownerId) {
+        projectRepository.findById(projectId)
+                .filter(p -> !p.isDeleted())
+                .filter(p -> p.getOwnerId().equals(ownerId))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found or unauthorized"));
+
         List<AudienceMember> members = memberRepository.findRealAudienceByProjectId(projectId);
         List<AudienceDTOs.AudienceMemberSummary> summaries = members.stream()
                 .map(AudienceDTOs.AudienceMemberSummary::fromEntity)
@@ -48,11 +51,42 @@ public class AudienceService {
     }
 
     /**
+     * Cursor-only pagination (NO COUNT(*) query issued).
+     */
+    @Transactional(readOnly = true)
+    public com.neeshai.backend.util.CursorResponse<AudienceDTOs.AudienceMemberSummary> getAudienceMembersCursor(
+            UUID projectId, UUID ownerId, String cursor, int limit) {
+        projectRepository.findById(projectId)
+                .filter(p -> !p.isDeleted())
+                .filter(p -> p.getOwnerId().equals(ownerId))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found or unauthorized"));
+
+        int fetchSize = Math.min(Math.max(1, limit), 100);
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, fetchSize + 1);
+        
+        List<AudienceMember> members = memberRepository.findRealAudienceByProjectIdCursor(projectId, pageable);
+        boolean hasMore = members.size() > fetchSize;
+        if (hasMore) {
+            members = members.subList(0, fetchSize);
+        }
+        String nextCursor = hasMore ? members.get(members.size() - 1).getId().toString() : null;
+        List<AudienceDTOs.AudienceMemberSummary> summaries = members.stream()
+                .map(AudienceDTOs.AudienceMemberSummary::fromEntity)
+                .toList();
+        return new com.neeshai.backend.util.CursorResponse<>(summaries, nextCursor, hasMore);
+    }
+
+    /**
      * Get detailed audience member info with all their questions.
      */
-    public AudienceDTOs.AudienceMemberDetail getMemberDetail(UUID memberId) {
+    public AudienceDTOs.AudienceMemberDetail getMemberDetail(UUID memberId, UUID ownerId) {
         AudienceMember member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Audience member not found"));
+
+        projectRepository.findById(member.getProject().getId())
+                .filter(p -> !p.isDeleted())
+                .filter(p -> p.getOwnerId().equals(ownerId))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Audience member not found or unauthorized"));
 
         List<AudienceQuestion> questions = questionRepository.findByAudienceMemberIdOrderByAskedAtDesc(memberId);
         return AudienceDTOs.AudienceMemberDetail.fromEntity(member, questions);
@@ -62,13 +96,18 @@ public class AudienceService {
      * Answer a question (Reply & Notify flow).
      */
     @Transactional
-    public AudienceDTOs.AnswerQuestionResponse answerQuestion(UUID questionId, String answerText, UUID adminId) {
+    public AudienceDTOs.AnswerQuestionResponse answerQuestion(UUID questionId, String answerText, UUID ownerId) {
         if (answerText == null || answerText.trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Answer cannot be empty");
         }
 
         AudienceQuestion question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question not found"));
+
+        projectRepository.findById(question.getAudienceMember().getProject().getId())
+                .filter(p -> !p.isDeleted())
+                .filter(p -> p.getOwnerId().equals(ownerId))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question not found or unauthorized"));
 
         Instant now = Instant.now();
 
@@ -89,7 +128,7 @@ public class AudienceService {
         // Email notification stub
         sendEmailNotification(member, question, answerText);
 
-        log.info("Question {} answered by admin {} at {}", questionId, adminId, now);
+        log.info("Question {} answered by owner {} at {}", questionId, ownerId, now);
 
         return new AudienceDTOs.AnswerQuestionResponse(questionId, "answered", now);
     }
@@ -141,6 +180,27 @@ public class AudienceService {
         log.info("Public feedback submitted for project {} by {}", projectId, request.email());
 
         return new AudienceDTOs.PublicFeedbackResponse(member.getId(), "Feedback submitted successfully!");
+    }
+
+    /**
+     * Get public comments for a project (feedback submitted by viewers).
+     */
+    @Transactional(readOnly = true)
+    public List<java.util.Map<String, Object>> getPublicComments(UUID projectId) {
+        List<AudienceMember> members = memberRepository.findRealAudienceByProjectId(projectId);
+        return members.stream()
+                .filter(m -> m.getFeedbackText() != null && !m.getFeedbackText().isBlank())
+                .map(m -> {
+                    java.util.Map<String, Object> map = new java.util.HashMap<>();
+                    map.put("id", m.getId().toString());
+                    map.put("name", m.getName() != null ? m.getName() : "Anonymous");
+                    map.put("text", m.getFeedbackText());
+                    map.put("timestamp", m.getFeedbackSubmittedAt() != null
+                            ? m.getFeedbackSubmittedAt().toString()
+                            : (m.getFirstInteractionAt() != null ? m.getFirstInteractionAt().toString() : java.time.Instant.now().toString()));
+                    return map;
+                })
+                .collect(java.util.stream.Collectors.toList());
     }
 
     /**
@@ -198,6 +258,131 @@ public class AudienceService {
     }
 
     /**
+     * Record audience interest selection from Spotlight "Interested" button.
+     */
+    @Transactional
+    public AudienceDTOs.InterestSubmitResponse recordInterest(
+            UUID projectId, AudienceDTOs.InterestSubmitRequest request) {
+
+        if (request.name() == null || request.name().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name is required");
+        }
+        if (request.email() == null || request.email().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is required");
+        }
+
+        com.neeshai.backend.project.Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
+
+        // Find existing member or create new one
+        AudienceMember member = memberRepository
+                .findByProjectIdAndEmail(projectId, request.email())
+                .orElseGet(() -> {
+                    AudienceMember newMember = new AudienceMember(project, request.name(), request.email());
+                    return newMember;
+                });
+
+        // Check if user has already submitted interest — prevent duplicate
+        if (member.getInterestedAt() != null) {
+            String tier = AudienceDTOs.computeValidationTier(member);
+            log.info("Duplicate interest attempt for project {} by {} — already submitted", projectId, request.email());
+            return new AudienceDTOs.InterestSubmitResponse(member.getId(), tier, "You have already expressed interest!", true);
+        }
+
+        member.setName(request.name());
+        member.setHasExplicitIntent(true);
+        member.setExplicitIntentAt(Instant.now());
+        member.setInterestTagId(request.tagId());
+        member.setInterestTagLabel(request.tagLabel());
+        member.setInterestTagPriority(request.tagPriority());
+        member.setInterestOtherText(request.otherText());
+        member.setInterestedAt(Instant.now());
+        member.setLastInteractionAt(Instant.now());
+        memberRepository.save(member);
+
+        // Recompute scores
+        computeAndSetScores(member);
+        memberRepository.save(member);
+
+        String tier = AudienceDTOs.computeValidationTier(member);
+        log.info("Interest recorded for project {} by {} — tag: {}, tier: {}", projectId, request.email(), request.tagLabel(), tier);
+
+        return new AudienceDTOs.InterestSubmitResponse(member.getId(), tier, "Interest recorded successfully!", false);
+    }
+
+    /**
+     * Get interest / Neeshed count for a project.
+     * Only counts users who actually clicked the Interested button and submitted.
+     */
+    @Transactional(readOnly = true)
+    public int getInterestCount(UUID projectId) {
+        List<AudienceMember> members = memberRepository.findRealAudienceByProjectId(projectId);
+        return (int) members.stream()
+                .filter(m -> m.getInterestedAt() != null)
+                .count();
+    }
+
+    /**
+     * Check if a user (by email) has already submitted interest for a project.
+     */
+    @Transactional(readOnly = true)
+    public AudienceDTOs.InterestCheckResponse checkUserInterest(UUID projectId, String email) {
+        return memberRepository.findByProjectIdAndEmail(projectId, email)
+                .filter(m -> m.getInterestedAt() != null)
+                .map(m -> new AudienceDTOs.InterestCheckResponse(true, m.getInterestTagLabel()))
+                .orElse(new AudienceDTOs.InterestCheckResponse(false, null));
+    }
+
+    /**
+     * Get spotlight analytics for the project dashboard (Stage 2).
+     */
+    @Transactional(readOnly = true)
+    public AudienceDTOs.SpotlightAnalyticsResponse getSpotlightAnalytics(UUID projectId) {
+        // Get pitch view count from project
+        int pitchViews = projectRepository.findById(projectId)
+                .map(p -> p.getPitchViewCount() != null ? p.getPitchViewCount() : 0)
+                .orElse(0);
+
+        List<AudienceMember> members = memberRepository.findRealAudienceByProjectId(projectId);
+
+        int spotlightOpens = members.size();
+
+        int chatbotInteractions = (int) members.stream()
+                .filter(m -> m.getQuestions() != null && !m.getQuestions().isEmpty())
+                .count();
+
+        int interestClicks = (int) members.stream()
+                .filter(m -> m.getInterestedAt() != null)
+                .count();
+
+        int feedbackSubmissions = (int) members.stream()
+                .filter(m -> m.getFeedbackSubmittedAt() != null)
+                .count();
+
+        return new AudienceDTOs.SpotlightAnalyticsResponse(
+                pitchViews, spotlightOpens, chatbotInteractions, interestClicks, feedbackSubmissions);
+    }
+
+    /**
+     * Get all validated buyers (Gold/Silver/Bronze) for a project.
+     */
+    @Transactional(readOnly = true)
+    public AudienceDTOs.ValidatedBuyersResponse getValidatedBuyers(UUID projectId) {
+        List<AudienceMember> allMembers = memberRepository.findRealAudienceByProjectId(projectId);
+
+        List<AudienceDTOs.ValidatedBuyerSummary> buyers = allMembers.stream()
+                .filter(m -> !"NONE".equals(AudienceDTOs.computeValidationTier(m)))
+                .map(AudienceDTOs.ValidatedBuyerSummary::fromEntity)
+                .toList();
+
+        int gold = (int) buyers.stream().filter(b -> "GOLD".equals(b.validationTier())).count();
+        int silver = (int) buyers.stream().filter(b -> "SILVER".equals(b.validationTier())).count();
+        int bronze = (int) buyers.stream().filter(b -> "BRONZE".equals(b.validationTier())).count();
+
+        return new AudienceDTOs.ValidatedBuyersResponse(buyers, gold, silver, bronze, buyers.size());
+    }
+
+    /**
      * Compute and set confidence + engagement scores on an audience member.
      *
      * confidenceScore (0.0–1.0): How confident we are in persona detection
@@ -227,10 +412,13 @@ public class AudienceService {
 
         // Engagement score
         double engagement = 0.0;
-        engagement += questionCount * 10;
-        if (member.getFeedbackText() != null && !member.getFeedbackText().isBlank()) {
-            engagement += 20;
+        if (member.getInterestedAt() != null || (member.getHasExplicitIntent() != null && member.getHasExplicitIntent())) {
+            engagement += 25; // Expressed explicit buy intent
         }
+        if (member.getFeedbackText() != null && !member.getFeedbackText().isBlank()) {
+            engagement += 25; // Submitted feedback/comment
+        }
+        engagement += questionCount * 15; // Each chatbot question = 15 pts
         if (member.getOccupation() != null && !member.getOccupation().isBlank()) {
             engagement += 10;
         }
@@ -298,6 +486,21 @@ public class AudienceService {
         } catch (Exception e) {
             log.error("Failed to send reply email to '{}' <{}>: {}", member.getName(), email, e.getMessage());
         }
+    }
+
+    @Transactional
+    public AudienceDTOs.ValidatedBuyersResponse updatePilotCohortStatus(UUID projectId, List<UUID> memberIds, boolean enroll) {
+        if (memberIds != null && !memberIds.isEmpty()) {
+            List<AudienceMember> members = memberRepository.findAllById(memberIds);
+            for (AudienceMember m : members) {
+                if (m.getProject() != null && m.getProject().getId().equals(projectId)) {
+                    m.setInPilotCohort(enroll);
+                    m.setPilotEnrolledAt(enroll ? Instant.now() : null);
+                    memberRepository.save(m);
+                }
+            }
+        }
+        return getValidatedBuyers(projectId);
     }
 }
 

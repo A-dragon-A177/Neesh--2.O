@@ -1,552 +1,376 @@
 package com.neeshai.backend.project;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
-/**
- * Stateless scoring engine for startup validation.
- * Implements 5 modules (CVP, Market, Acquisition, Defensibility, Buildability),
- * each scoring 0-3, with an overall multiplicative composite.
- *
- * All internal scores and algorithm details are stripped from the report —
- * only user-friendly insights, confidence percentages, and statuses are exposed.
- */
-@Component
+@Service
 public class ValidationEngine {
+    private static final Logger logger = LoggerFactory.getLogger(ValidationEngine.class);
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private static final Logger log = LoggerFactory.getLogger(ValidationEngine.class);
+    public String generateReport(String validationAnswersJson) {
+        if (validationAnswersJson == null || validationAnswersJson.trim().isEmpty()) {
+            return "{}";
+        }
 
-    private final ObjectMapper objectMapper;
-
-    public ValidationEngine(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
-
-    // ───────────────────────────────────────────────────────────
-    //  PUBLIC API
-    // ───────────────────────────────────────────────────────────
-
-    /**
-     * Run the full validation pipeline and return a JSON report string.
-     */
-    public String generateReport(String answersJson) {
         try {
-            Map<String, Object> answers = parseAnswers(answersJson);
-            if (answers.isEmpty()) {
-                return "{}";
+            JsonNode answers = objectMapper.readTree(validationAnswersJson);
+
+            // 1. Process Modules
+            ModuleResult cvp = evaluateCVP(answers);
+            ModuleResult market = evaluateMarket(answers);
+            ModuleResult acquisition = evaluateAcquisition(answers);
+            ModuleResult defensibility = evaluateDefensibility(answers);
+            ModuleResult buildability = evaluateBuildability(answers);
+
+            // 2. Final Output Engine (Average of percentages & Fatal Flaw detection)
+            boolean hasFatalFlaw = (cvp.score == 0 || market.score == 0 || acquisition.score == 0 || defensibility.score == 0 || buildability.score == 0 
+                || cvp.confidencePercent < 50 || market.confidencePercent < 50 || acquisition.confidencePercent < 50 || defensibility.confidencePercent < 50 || buildability.confidencePercent < 50);
+            
+            int sumConfidence = cvp.confidencePercent + market.confidencePercent + acquisition.confidencePercent + defensibility.confidencePercent + buildability.confidencePercent;
+            int overallConfidence = Math.round((float) sumConfidence / 5.0f);
+
+            // 3. Build Final Report JSON
+            ObjectNode report = objectMapper.createObjectNode();
+            report.put("overallScore", overallConfidence);
+            report.put("hasFatalZero", hasFatalFlaw);
+            
+            String status = determineStatus(overallConfidence, hasFatalFlaw);
+            report.put("status", status);
+            report.put("overallStatus", status);
+
+            ArrayNode modules = report.putArray("modules");
+            modules.add(moduleToJson("Core Value Proposition", cvp));
+            modules.add(moduleToJson("Market Size", market));
+            modules.add(moduleToJson("Customer Acquisition", acquisition));
+            modules.add(moduleToJson("Defensibility", defensibility));
+            modules.add(moduleToJson("Buildability", buildability));
+
+            // AI Action Plan
+            ObjectNode actionPlan = report.putObject("actionPlan");
+            ArrayNode strengths = actionPlan.putArray("strengths");
+            ArrayNode weaknesses = actionPlan.putArray("weaknesses");
+
+            List<ModuleResult> allModules = List.of(cvp, market, acquisition, defensibility, buildability);
+            for (ModuleResult m : allModules) {
+                if (m.score >= 2 && !m.strengthInsight.isEmpty()) strengths.add(m.strengthInsight);
+                if (m.score <= 1 && !m.weaknessInsight.isEmpty()) weaknesses.add(m.weaknessInsight);
             }
-
-            // Module scores
-            ModuleResult cvp = scoreCVP(answers);
-            ModuleResult market = scoreMarket(answers);
-            ModuleResult acquisition = scoreAcquisition(answers);
-            ModuleResult defensibility = scoreDefensibility(answers);
-            ModuleResult buildability = scoreBuildability(answers);
-
-            // Overall composite
-            int rawProduct = cvp.score * market.score * acquisition.score
-                    * defensibility.score * buildability.score;
-            double normalized = rawProduct / 243.0; // 3^5 = 243
-            double validationPct = 50.0 + normalized * 48.0;
-
-            // Fatal zero rule
-            boolean hasFatalZero = cvp.score == 0 || market.score == 0
-                    || acquisition.score == 0 || defensibility.score == 0
-                    || buildability.score == 0;
-            if (hasFatalZero) {
-                validationPct = 35.0 + (normalized * 14.0); // 35-49 range
-                if (validationPct > 49.0) validationPct = 49.0;
-                if (validationPct < 35.0) validationPct = 35.0;
+            
+            if (hasFatalFlaw) {
+                actionPlan.put("nextStep", "CRITICAL STOP: You have at least one fatal flaw (Score 0). Stop all execution and fix the fundamental gaps identified before building further.");
+            } else if (overallConfidence >= 80) {
+                actionPlan.put("nextStep", "Proceed to the 20-Hour Validation Framework. Launch your Spotlight blog to collect real-world waitlist signups.");
+            } else {
+                actionPlan.put("nextStep", "Focus on strengthening your weak areas. Do not spend money on scaling until you have stronger evidence.");
             }
-
-            int overallScore = (int) Math.round(validationPct);
-            String overallStatus = deriveOverallStatus(overallScore, hasFatalZero);
-
-            // Collect warnings
-            List<String> warnings = new ArrayList<>();
-            warnings.addAll(cvp.warnings);
-            warnings.addAll(market.warnings);
-            warnings.addAll(acquisition.warnings);
-            warnings.addAll(defensibility.warnings);
-            warnings.addAll(buildability.warnings);
-
-            // Collect strengths & weaknesses
-            List<String> strengths = new ArrayList<>();
-            List<String> weaknesses = new ArrayList<>();
-            collectStrengthsWeaknesses(cvp, "Core Value Proposition", strengths, weaknesses);
-            collectStrengthsWeaknesses(market, "Market Size", strengths, weaknesses);
-            collectStrengthsWeaknesses(acquisition, "Customer Acquisition", strengths, weaknesses);
-            collectStrengthsWeaknesses(defensibility, "Defensibility", strengths, weaknesses);
-            collectStrengthsWeaknesses(buildability, "Buildability", strengths, weaknesses);
-
-            // Next step
-            String nextStep = deriveNextStep(cvp, market, acquisition, defensibility, buildability, hasFatalZero);
-
-            // Build report map
-            Map<String, Object> report = new LinkedHashMap<>();
-            report.put("overallScore", overallScore);
-            report.put("overallStatus", overallStatus);
-            report.put("hasFatalZero", hasFatalZero);
-
-            Map<String, Object> modules = new LinkedHashMap<>();
-            modules.put("cvp", moduleToMap(cvp));
-            modules.put("market", moduleToMap(market));
-            modules.put("acquisition", moduleToMap(acquisition));
-            modules.put("defensibility", moduleToMap(defensibility));
-            modules.put("buildability", moduleToMap(buildability));
-            report.put("modules", modules);
-
-            report.put("strengths", strengths);
-            report.put("weaknesses", weaknesses);
-            report.put("warnings", warnings);
-            report.put("nextStep", nextStep);
 
             return objectMapper.writeValueAsString(report);
+
         } catch (Exception e) {
-            log.error("Error generating validation report", e);
+            logger.error("Error generating validation report", e);
             return "{}";
         }
     }
 
-    // ───────────────────────────────────────────────────────────
-    //  MODULE 1 — Core Value Proposition
-    // ───────────────────────────────────────────────────────────
+    private String determineStatus(int score, boolean hasFatalFlaw) {
+        if (hasFatalFlaw || score < 50) return "Slight Adjustments Needed";
+        if (score < 65) return "Slight Adjustments Needed";
+        if (score < 80) return "Refinement Needed";
+        if (score < 90) return "Strong Opportunity";
+        return "100% Market Ready Startup";
+    }
 
-    private ModuleResult scoreCVP(Map<String, Object> a) {
-        ModuleResult r = new ModuleResult("Core Value Proposition");
+    private ObjectNode moduleToJson(String name, ModuleResult result) {
+        ObjectNode node = objectMapper.createObjectNode();
+        node.put("name", name);
+        node.put("internalScore", result.score);
+        node.put("confidencePercent", result.confidencePercent);
+        node.put("insight", result.insight);
+        return node;
+    }
 
-        String alternative = str(a, "cvp_customer_alternative");
-        String valueDriver = str(a, "cvp_value_driver");
-        double currentCost = num(a, "cvp_current_solution_cost");
-        double mvpCost = num(a, "cvp_mvp_cost");
-        String sourceOfNumbers = str(a, "cvp_source_of_numbers");
+    // ─── Module 1: Core Value Proposition ──────────────────────────────────────
+    private ModuleResult evaluateCVP(JsonNode answers) {
+        String inputA = getString(answers, "cvp_input_a"); // Alternative
+        double inputC = getDouble(answers, "cvp_input_c"); // Alt Cost
+        double inputD = getDouble(answers, "cvp_input_d"); // MVP Cost
+        String inputE = getString(answers, "cvp_input_e"); // Reality Check
 
-        // Improvement multiplier
-        double multiplier = (mvpCost > 0) ? currentCost / mvpCost : 0;
+        if ("Doing Nothing".equalsIgnoreCase(inputA)) {
+            return new ModuleResult(0, 42, 
+                "Fatal Flaw: If the customer is doing nothing, they have accepted the problem. Problems untouched are usually not profitable.",
+                "", "Customers have accepted the problem; low motivation to change.");
+        }
 
-        int score = 0;
-        if (multiplier >= 10) {
-            score = 3;
-            r.insight = "Exceptional value — your solution delivers 10x+ improvement over existing alternatives. This is a strong investor signal.";
-        } else if (multiplier >= 3) {
+        double multiplier = 0;
+        if (inputD > 0) multiplier = inputC / inputD;
+
+        int score;
+        int conf;
+        String insight;
+        String weakness = "";
+        String strength = "";
+
+        if (multiplier < 2) {
+            score = 1;
+            conf = 55;
+            insight = "Refinement Needed: Your product is only slightly better than existing alternatives (<2x). It will be hard to overcome customer inertia unless you increase the value multiplier.";
+            weakness = "Product is not significantly better than existing alternatives.";
+        } else if (multiplier < 5) {
+            score = 1;
+            conf = 60;
+            insight = String.format("You have a %.1fx improvement. Requires proper scaling to reach the 10x threshold.", multiplier);
+            weakness = "Improvement multiplier is decent but needs to approach 10x for organic growth.";
+        } else if (multiplier < 8) {
             score = 2;
-            r.insight = "Solid value proposition — a 3-10x improvement shows meaningful differentiation. Investors will probe for proof points.";
-        } else if (multiplier >= 1.5) {
-            score = 1;
-            r.insight = "Marginal value improvement (1.5-3x). Customers may not switch for incremental gains. Consider deepening the value gap.";
+            conf = 80;
+            insight = String.format("Strong value. At %.1fx better, you easily overcome customer switching costs.", multiplier);
+            strength = "Meaningful product improvement (5x+) over alternatives.";
         } else {
-            score = 0;
-            r.insight = "Insufficient value multiplier. Customers are unlikely to adopt unless the improvement is dramatically better than their current approach.";
-        }
-
-        // Evidence validation cap
-        if ("guess".equalsIgnoreCase(sourceOfNumbers) || "assumption".equalsIgnoreCase(sourceOfNumbers)) {
-            if (score > 1) score = 1;
-            r.warnings.add("Marketing Illusion — your value claims are based on assumptions rather than validated data. Investors will discount unverified projections.");
-        }
-
-        // "Doing nothing" alternative penalty
-        if ("nothing".equalsIgnoreCase(alternative) || "do_nothing".equalsIgnoreCase(alternative)) {
-            if (score > 1) score -= 1;
-            r.warnings.add("Customers currently do nothing — meaning the pain point may not be urgent enough to drive adoption.");
-        }
-
-        r.score = score;
-        r.confidence = computeConfidence(score, 3);
-        r.status = deriveModuleStatus(score);
-        return r;
-    }
-
-    // ───────────────────────────────────────────────────────────
-    //  MODULE 2 — Market Size
-    // ───────────────────────────────────────────────────────────
-
-    private ModuleResult scoreMarket(Map<String, Object> a) {
-        ModuleResult r = new ModuleResult("Market Size");
-
-        String howSolveToday = str(a, "market_how_solve_today");
-        String behavioralChange = str(a, "market_behavioral_change");
-        String spendingMoney = str(a, "market_spending_money");
-        double annualSpend = num(a, "market_annual_spend");
-        String targetSize = str(a, "market_target_size");
-        String geography = str(a, "market_launch_geography");
-
-        // Revenue goal = 10 Crore = 100,000,000 INR
-        double revenueGoal = 100_000_000.0;
-        double marketShareAssumption = 0.02; // 2%
-        double requiredTAM = revenueGoal / marketShareAssumption; // 500 Crore
-
-        // Required customer base
-        double requiredCustomers = (annualSpend > 0) ? revenueGoal / annualSpend : Double.MAX_VALUE;
-
-        int score = 0;
-
-        // Target size scoring
-        if ("large".equalsIgnoreCase(targetSize) || "very_large".equalsIgnoreCase(targetSize)) {
             score = 3;
-            r.insight = "Large addressable market. At 2% market share, the revenue target of ₹10Cr is achievable with your pricing.";
-        } else if ("medium".equalsIgnoreCase(targetSize)) {
+            conf = 95;
+            insight = String.format("Massive value creation. A %.1fx multiplier acts like ChatGPT at launch.", multiplier);
+            strength = "10x+ Value Proposition creates extreme customer pull.";
+        }
+
+        // Validation Penalty
+        if ("Internal Hypothesis".equalsIgnoreCase(inputE)) {
+            conf -= 10;
+            insight += " WARNING: These numbers are unvalidated assumptions. You must go out and test this in the market.";
+            weakness = "CVP numbers are based on internal hypothesis, not real data.";
+        }
+
+        return new ModuleResult(score, Math.max(0, conf), insight, strength, weakness);
+    }
+
+    // ─── Module 2: Market Size ──────────────────────────────────────────────
+    private ModuleResult evaluateMarket(JsonNode answers) {
+        String inputA = getString(answers, "market_input_a"); // Habit
+        String inputB = getString(answers, "market_input_b"); // Desperation
+        double inputC1 = getDouble(answers, "market_input_c1"); // Unit Spend
+        String inputC2 = getString(answers, "market_input_c2"); // Population
+        String inputD = getString(answers, "market_input_d"); // Geography
+
+        if ("Requires new habit".equalsIgnoreCase(inputA)) {
+            return new ModuleResult(0, 40,
+                "Fatal Flaw: Creating a new habit requires crores in funding. Your market lacks existing spending behavior.",
+                "", "Requires forcing entirely new consumer habits (expensive).");
+        }
+
+        if ("No too small".equalsIgnoreCase(inputC2)) {
+            return new ModuleResult(0, 45,
+                "Fatal Flaw: Your target population is mathematically too small to yield a 10Cr business at a 2% market share.",
+                "", "Target population is too small for a viable TAM.");
+        }
+
+        int score;
+        int conf;
+        String insight;
+        String weakness = "";
+        String strength = "";
+
+        if ("Unsure".equalsIgnoreCase(inputB) || "Guessing".equalsIgnoreCase(inputC2)) {
+            score = 1;
+            conf = 55;
+            insight = "You have identified a problem but are unsure of the monetizability. You must research actual current spending.";
+            weakness = "Market demand and willingness to pay are currently unverified.";
+        } else if ("Concentrated Metro".equalsIgnoreCase(inputD)) {
             score = 2;
-            r.insight = "Medium-sized market. Revenue target is reachable but market share assumptions need validation.";
-        } else if ("small".equalsIgnoreCase(targetSize) || "niche".equalsIgnoreCase(targetSize)) {
-            score = 1;
-            r.insight = "Small or niche market. You may need higher ARPU or market share beyond 2% to hit ₹10Cr revenue.";
+            conf = 85;
+            insight = "Math proves the required population exists in a concentrated area, making distribution highly viable.";
+            strength = "Large, concentrated, and monetizable market.";
         } else {
+            // Dispersed penalty but mathematically passes
             score = 1;
-            r.insight = "Market size unclear — further research needed to validate addressable market.";
+            conf = 65;
+            insight = "The population exists, but because they are geographically dispersed, capturing 2% will be extremely difficult. Focus on concentrated pockets.";
+            weakness = "Market is too geographically dispersed for efficient early-stage distribution.";
         }
 
-        // "Doing nothing" penalty
-        if ("nothing".equalsIgnoreCase(howSolveToday) || "do_nothing".equalsIgnoreCase(howSolveToday)) {
-            if (score > 0) score -= 1;
-            r.warnings.add("Customers currently do nothing — you'll need to create demand, not capture existing demand.");
+        if (score == 2 && inputC1 > 50000) {
+            score = 3;
+            conf = 96;
+            insight = "Massive & Established. High unit economics in a concentrated market creates excellent viability.";
         }
 
-        // Behavioral change penalty
-        if ("high".equalsIgnoreCase(behavioralChange) || "major".equalsIgnoreCase(behavioralChange)) {
-            if (score > 0) score -= 1;
-            r.warnings.add("High behavioral change required — adoption friction will slow growth and increase acquisition costs.");
-        }
-
-        // Not spending money penalty
-        if ("no".equalsIgnoreCase(spendingMoney)) {
-            if (score > 0) score -= 1;
-            r.warnings.add("Customers aren't currently spending money to solve this — monetization validation is critical.");
-        }
-
-        // Geography risk
-        if ("tier2_tier3".equalsIgnoreCase(geography) || "rural".equalsIgnoreCase(geography)) {
-            r.warnings.add("Geography Execution Risk — launching in Tier 2/3 cities or rural areas increases distribution complexity.");
-        }
-
-        r.score = Math.max(0, score);
-        r.confidence = computeConfidence(r.score, 3);
-        r.status = deriveModuleStatus(r.score);
-        return r;
+        return new ModuleResult(score, conf, insight, strength, weakness);
     }
 
-    // ───────────────────────────────────────────────────────────
-    //  MODULE 3 — Customer Acquisition
-    // ───────────────────────────────────────────────────────────
+    // ─── Module 3: Customer Acquisition ─────────────────────────────────────
+    private ModuleResult evaluateAcquisition(JsonNode answers) {
+        String inputA = getString(answers, "acq_input_a"); // Zepto Grassroots
+        String inputB = getString(answers, "acq_input_b"); // Cost of Trust
+        String inputC = getString(answers, "acq_input_c"); // Founder Authority
 
-    private ModuleResult scoreAcquisition(Map<String, Object> a) {
-        ModuleResult r = new ModuleResult("Customer Acquisition");
-
-        String trustChannel = str(a, "acquisition_trust_channel");
-        String identify10 = str(a, "acquisition_identify_10");
-        String trustDriver = str(a, "acquisition_trust_driver");
-        String founderDesc = str(a, "acquisition_founder_description");
-        String customerValidation = str(a, "acquisition_customer_validation");
-
-        // Social media presence
-        @SuppressWarnings("unchecked")
-        List<String> socialMedia = a.get("acquisition_social_media") instanceof List
-                ? (List<String>) a.get("acquisition_social_media")
-                : List.of();
-
-        int score = 0;
-
-        // Trust channel scoring
-        if ("direct_outreach".equalsIgnoreCase(trustChannel) || "community".equalsIgnoreCase(trustChannel)
-                || "referral".equalsIgnoreCase(trustChannel)) {
-            score += 1;
+        if ("No need strangers".equalsIgnoreCase(inputA)) {
+            return new ModuleResult(0, 42,
+                "Fatal Flaw: If you cannot convince 10 people in your network to trust you without ads, you cannot sell this product.",
+                "", "No grassroots distribution; entirely dependent on cold strangers.");
         }
 
-        // Can identify 10 target people
-        if ("yes".equalsIgnoreCase(identify10)) {
-            score += 1;
-        }
+        int score;
+        int conf;
+        String insight;
+        String weakness = "";
+        String strength = "";
 
-        // Trust driver
-        if ("expertise".equalsIgnoreCase(trustDriver) || "track_record".equalsIgnoreCase(trustDriver)
-                || "social_proof".equalsIgnoreCase(trustDriver)) {
-            score += 1;
-        }
-
-        score = Math.min(score, 3);
-
-        // Founder credibility boost/cap
-        if ("domain_expert".equalsIgnoreCase(founderDesc) || "serial_entrepreneur".equalsIgnoreCase(founderDesc)) {
-            if (score < 3) score = Math.min(score + 1, 3);
-        }
-
-        // Customer validation
-        if ("paying_customers".equalsIgnoreCase(customerValidation)) {
-            r.insight = "You have paying customers — this is the strongest acquisition signal for investors.";
-        } else if ("users_no_revenue".equalsIgnoreCase(customerValidation)) {
-            r.insight = "Users without revenue — good traction signal but monetization pathway needs clarity.";
-        } else if ("maybe".equalsIgnoreCase(customerValidation) || "interested".equalsIgnoreCase(customerValidation)) {
-            if (score > 1) score -= 1;
-            r.warnings.add("Marketing Illusion — 'maybe' or 'interested' responses don't constitute validated demand. Investors see through this.");
-            r.insight = "Customer interest without commitment. Focus on converting interest to tangible user actions.";
+        if ("Established leaders".equalsIgnoreCase(inputC)) {
+            score = 3;
+            conf = 95;
+            insight = "Built-in Authority: Your name acts as the marketing itself. Customers will flock with near zero friction.";
+            strength = "Zero-cost acquisition via established founder authority.";
+        } else if ("Organic recommend".equalsIgnoreCase(inputB)) {
+            score = 2;
+            conf = 82;
+            insight = "Organic Growth: Your product must be good enough for word-of-mouth. This is the best viable path without a budget.";
+            strength = "Acquisition is powered by trust and organic recommendations.";
         } else {
-            r.insight = "No customer validation yet. First-mile acquisition is the top priority before scaling plans.";
+            score = 1;
+            conf = 60;
+            insight = "Buying Trust: Because you lack built-in credibility, you will burn heavy cash on ads/discounts just to manufacture trust.";
+            weakness = "High initial customer acquisition cost (buying trust).";
         }
 
-        // Social media presence bonus insight
-        if (socialMedia.size() >= 3) {
-            r.insight = (r.insight != null ? r.insight + " " : "") + "Strong social presence across " + socialMedia.size() + " platforms — this aids organic acquisition.";
-        }
-
-        r.score = Math.max(0, score);
-        r.confidence = computeConfidence(r.score, 3);
-        r.status = deriveModuleStatus(r.score);
-        return r;
+        return new ModuleResult(score, conf, insight, strength, weakness);
     }
 
-    // ───────────────────────────────────────────────────────────
-    //  MODULE 4 — Defensibility
-    // ───────────────────────────────────────────────────────────
+    // ─── Module 4: Defensibility ────────────────────────────────────────────
+    private ModuleResult evaluateDefensibility(JsonNode answers) {
+        String inputA = getString(answers, "def_input_a"); // Patents/Secret
+        String inputB = getString(answers, "def_input_b"); // Barrier type
+        String inputC = getString(answers, "def_input_c"); // Roadmap
 
-    private ModuleResult scoreDefensibility(Map<String, Object> a) {
-        ModuleResult r = new ModuleResult("Defensibility");
+        int score;
+        int conf;
+        String insight;
+        String weakness = "";
+        String strength = "";
 
-        String competitorProtection = str(a, "defensibility_competitor_protection");
-        String entryBarriers = str(a, "defensibility_entry_barriers");
-        String continuousInnovation = str(a, "defensibility_continuous_innovation");
-
-        int score = 0;
-
-        // Competitor entry protection
-        if ("network_effects".equalsIgnoreCase(competitorProtection)
-                || "data_moat".equalsIgnoreCase(competitorProtection)) {
-            score += 2;
-        } else if ("patent".equalsIgnoreCase(competitorProtection)
-                || "trade_secret".equalsIgnoreCase(competitorProtection)) {
-            score += 1;
-            if ("patent".equalsIgnoreCase(competitorProtection)) {
-                r.warnings.add("Patent Illusion — patents alone rarely prevent well-funded competitors. True defensibility comes from execution speed and network effects.");
+        if ("Patents".equalsIgnoreCase(inputA) || "Secret".equalsIgnoreCase(inputA)) {
+            if ("Deep R&D".equalsIgnoreCase(inputB) || "On-ground operations".equalsIgnoreCase(inputB)) {
+                score = 2;
+                conf = 80;
+                insight = "Deep-Tech Moat: Your reliance on patents/IP is supported by deep technological complexity or physical ops. Ensure you focus on speed-to-market alongside legal protections.";
+                strength = "Defensible IP supported by hard technical/operational barriers.";
+            } else {
+                score = 1;
+                conf = 55;
+                insight = "Warning: Software patents and secrecy are rarely effective moats for easily copyable software. Speed of execution and distribution are much stronger defenses.";
+                weakness = "High reliance on weak legal/IP protection for easily copyable software.";
             }
-        } else if ("brand".equalsIgnoreCase(competitorProtection)
-                || "speed".equalsIgnoreCase(competitorProtection)) {
-            score += 1;
-        }
-
-        // Entry barriers
-        if ("high".equalsIgnoreCase(entryBarriers)) {
-            score += 1;
-        } else if ("medium".equalsIgnoreCase(entryBarriers)) {
-            // no change
+        } else if ("Defend single idea".equalsIgnoreCase(inputC)) {
+            score = 1;
+            conf = 55;
+            insight = "Warning: Relying on a single product idea makes you highly vulnerable to clones. Outline a continuous roadmap/upgrade path to stay ahead.";
+            weakness = "No continuous innovation roadmap; highly vulnerable to clones.";
         } else {
-            if (score > 0) score -= 1;
-        }
-
-        // Continuous innovation
-        if ("strong_roadmap".equalsIgnoreCase(continuousInnovation)
-                || "yes".equalsIgnoreCase(continuousInnovation)) {
-            if (score < 3) score += 1;
-            r.insight = "Strong innovation roadmap signals long-term defensibility. Keep iterating faster than competitors.";
-        } else if ("some_plans".equalsIgnoreCase(continuousInnovation)) {
-            r.insight = "Partial innovation plans. Investors want to see a 12-month roadmap that compounds your competitive advantage.";
-        } else {
-            r.insight = "No clear innovation pipeline. Without continuous improvement, early advantages erode quickly.";
-        }
-
-        r.score = Math.min(3, Math.max(0, score));
-        r.confidence = computeConfidence(r.score, 3);
-        r.status = deriveModuleStatus(r.score);
-        return r;
-    }
-
-    // ───────────────────────────────────────────────────────────
-    //  MODULE 5 — Buildability
-    // ───────────────────────────────────────────────────────────
-
-    private ModuleResult scoreBuildability(Map<String, Object> a) {
-        ModuleResult r = new ModuleResult("Buildability");
-
-        String mvpConstruction = str(a, "buildability_mvp_construction");
-        String currentStage = str(a, "buildability_current_stage");
-        String fundingDependency = str(a, "buildability_funding_dependency");
-
-        // Team coverage from buildability_role_coverage
-        @SuppressWarnings("unchecked")
-        Map<String, String> roleCoverage = a.get("buildability_role_coverage") instanceof Map
-                ? (Map<String, String>) a.get("buildability_role_coverage")
-                : Map.of();
-
-        // Team profiles
-        @SuppressWarnings("unchecked")
-        List<Map<String, String>> teamProfiles = a.get("buildability_team_profiles") instanceof List
-                ? (List<Map<String, String>>) a.get("buildability_team_profiles")
-                : List.of();
-
-        int score = 0;
-
-        // MVP construction
-        if ("built_internally".equalsIgnoreCase(mvpConstruction)
-                || "in_house".equalsIgnoreCase(mvpConstruction)) {
-            score += 1;
-        } else if ("outsourced".equalsIgnoreCase(mvpConstruction)
-                || "freelancer".equalsIgnoreCase(mvpConstruction)) {
-            // no bonus
-        } else if ("not_started".equalsIgnoreCase(mvpConstruction)) {
-            // no bonus
-        }
-
-        // Startup stage progress
-        if ("launched".equalsIgnoreCase(currentStage) || "LAUNCHED".equalsIgnoreCase(currentStage)) {
-            score += 2;
-        } else if ("beta_with_users".equalsIgnoreCase(currentStage) || "BETA_WITH_USERS".equalsIgnoreCase(currentStage)) {
-            score += 2;
-        } else if ("mvp_prototype".equalsIgnoreCase(currentStage) || "MVP_PROTOTYPE".equalsIgnoreCase(currentStage)) {
-            score += 1;
-        } else if ("pre_mvp".equalsIgnoreCase(currentStage) || "PRE_MVP".equalsIgnoreCase(currentStage)) {
-            // no bonus
-        }
-
-        // Funding dependency
-        if ("no_funding_needed".equalsIgnoreCase(fundingDependency)
-                || "bootstrapped".equalsIgnoreCase(fundingDependency)) {
-            if (score < 3) score += 1;
-            r.insight = "Bootstrapped or self-funded — this shows strong execution capability and reduces investor risk.";
-        } else if ("need_funding_to_start".equalsIgnoreCase(fundingDependency)) {
-            r.warnings.add("Funding Illusion — needing funding before starting indicates execution risk. Investors prefer teams that can build first, raise later.");
-            r.insight = "High funding dependency. Demonstrating progress without external capital significantly increases investability.";
-        } else {
-            r.insight = "Moderate funding dependency. Show investors you can achieve key milestones with current resources.";
-        }
-
-        // Team coverage analysis
-        Set<String> coveredRoles = new HashSet<>();
-        for (Map.Entry<String, String> entry : roleCoverage.entrySet()) {
-            if (entry.getValue() != null && !entry.getValue().isBlank()
-                    && !"none".equalsIgnoreCase(entry.getValue())) {
-                coveredRoles.add(entry.getKey());
+            if ("Uncopyable 20 yrs".equalsIgnoreCase(inputB)) {
+                score = 3;
+                conf = 90;
+                insight = "You claim a 20-year uncopyable moat. Be careful—this mindset is dangerous. Continuous execution is your real defense.";
+                strength = "Massive stated barrier to entry.";
+            } else if ("Deep R&D".equalsIgnoreCase(inputB)) {
+                score = 2;
+                conf = 85;
+                insight = "The 3-4 Year Moat: Deep scientific/hardware complexity gives you a solid head start while you build the next upgrade.";
+                strength = "Strong operational/R&D barriers create a multi-year lead time.";
+            } else {
+                score = 1;
+                conf = 65;
+                insight = "The 6-Month Window: Your product is easily copyable. You must use this short head start to rapidly move the goalpost.";
+                weakness = "Easily copyable product with a short (~6 month) lead time.";
             }
         }
 
-        // Key roles: tech, business, domain
-        boolean hasTech = coveredRoles.stream().anyMatch(r2 ->
-                r2.toLowerCase().contains("tech") || r2.toLowerCase().contains("engineer")
-                || r2.toLowerCase().contains("developer") || r2.toLowerCase().contains("cto"));
-        boolean hasBusiness = coveredRoles.stream().anyMatch(r2 ->
-                r2.toLowerCase().contains("business") || r2.toLowerCase().contains("marketing")
-                || r2.toLowerCase().contains("sales") || r2.toLowerCase().contains("ceo"));
+        return new ModuleResult(score, conf, insight, strength, weakness);
+    }
 
-        if (!hasTech && score > 1) {
-            score -= 1;
-            r.warnings.add("No technical co-founder or team member identified — this is a common red flag for investors.");
+    // ─── Module 5: Buildability ─────────────────────────────────────────────
+    private ModuleResult evaluateBuildability(JsonNode answers) {
+        String inputA = getString(answers, "build_input_a"); // Team Stability
+        String inputB = getString(answers, "build_input_b"); // MVP Criticality
+
+        int score;
+        int conf;
+        String insight;
+        String weakness = "";
+        String strength = "";
+
+        if ("Missing Links".equalsIgnoreCase(inputA)) {
+            score = 1;
+            conf = 55;
+            insight = "Execution Gap: Missing key roles (e.g., Tech/Sales) creates a severe execution risk. Focus on finding a co-founder or technical partner before seeking external funding.";
+            weakness = "Team is missing critical execution roles.";
+        } else if ("Idea Stage".equalsIgnoreCase(inputB)) {
+            if ("Deep R&D".equalsIgnoreCase(getString(answers, "def_input_b")) || 
+                "On-ground operations".equalsIgnoreCase(getString(answers, "def_input_b"))) {
+                score = 2;
+                conf = 70;
+                insight = "Capital-Intensive Path: Deep tech/physical operations projects typically require upfront capital to build an MVP. Ensure you have clear proof-of-concept mockups or research to show early investors.";
+                strength = "Valid capital-intensive roadmap for deep-tech/physical MVP.";
+            } else {
+                score = 1;
+                conf = 55;
+                insight = "Bootstrap Challenge: For standard software/SaaS, relying on external funding just to build a prototype is a high-risk path. Try to build a no-code MVP or partner with a technical co-founder to show early traction.";
+                weakness = "Dependent on external funding to build a standard software MVP.";
+            }
+        } else {
+            if ("Heavy Overlap".equalsIgnoreCase(inputA) && "Stuck Stage".equalsIgnoreCase(inputB)) {
+                score = 1;
+                conf = 60;
+                insight = "Support-Dependent Phase: Your execution capacity is dangerously stretched thin. You are highly dependent on external funding to survive.";
+                weakness = "Team is stretched too thin; high burnout risk.";
+            } else if ("Maximum Stability".equalsIgnoreCase(inputA) || "Self-Sufficient".equalsIgnoreCase(inputB)) {
+                score = 3;
+                conf = 95;
+                insight = "Maximum Self-Sufficiency: Your founding team covers all bases. You can deliver value internally without investors.";
+                strength = "Exceptional execution capacity; highly self-sufficient team.";
+            } else {
+                score = 2;
+                conf = 82;
+                insight = "Investable MVP Stage: Capable co-founders have balanced the load. You only need money to scale, not to build.";
+                strength = "Balanced team with demonstrated execution capacity.";
+            }
         }
 
-        r.score = Math.min(3, Math.max(0, score));
-        r.confidence = computeConfidence(r.score, 3);
-        r.status = deriveModuleStatus(r.score);
-        return r;
+        return new ModuleResult(score, conf, insight, strength, weakness);
     }
 
-    // ───────────────────────────────────────────────────────────
-    //  HELPERS
-    // ───────────────────────────────────────────────────────────
+    // ─── Utility Methods ────────────────────────────────────────────────────
+    private String getString(JsonNode node, String key) {
+        JsonNode val = node.get(key);
+        return val != null && !val.isNull() ? val.asText() : "";
+    }
 
-    private Map<String, Object> parseAnswers(String json) {
-        if (json == null || json.isBlank()) return Map.of();
-        try {
-            return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
-        } catch (JsonProcessingException e) {
-            log.error("Error parsing validation answers JSON", e);
-            return Map.of();
+    private double getDouble(JsonNode node, String key) {
+        JsonNode val = node.get(key);
+        if (val != null && !val.isNull()) {
+            try {
+                return Double.parseDouble(val.asText());
+            } catch (NumberFormatException e) {
+                return 0.0;
+            }
         }
+        return 0.0;
     }
 
-    private String str(Map<String, Object> map, String key) {
-        Object val = map.get(key);
-        return val != null ? val.toString() : "";
-    }
-
-    private double num(Map<String, Object> map, String key) {
-        Object val = map.get(key);
-        if (val instanceof Number) return ((Number) val).doubleValue();
-        if (val instanceof String) {
-            try { return Double.parseDouble((String) val); } catch (NumberFormatException e) { return 0; }
-        }
-        return 0;
-    }
-
-    private int computeConfidence(int score, int max) {
-        // Map score to confidence: 0->25, 1->50, 2->75, 3->95
-        if (score >= max) return 95;
-        if (score == max - 1) return 75;
-        if (score == max - 2) return 50;
-        return 25;
-    }
-
-    private String deriveModuleStatus(int score) {
-        return switch (score) {
-            case 3 -> "Strong";
-            case 2 -> "Moderate";
-            case 1 -> "Weak";
-            default -> "Critical";
-        };
-    }
-
-    private String deriveOverallStatus(int score, boolean hasFatalZero) {
-        if (hasFatalZero) return "Needs Critical Fixes";
-        if (score >= 90) return "Investor Ready";
-        if (score >= 75) return "Strong Foundation";
-        if (score >= 60) return "Developing";
-        return "Early Stage";
-    }
-
-    private void collectStrengthsWeaknesses(ModuleResult mod, String name,
-            List<String> strengths, List<String> weaknesses) {
-        if (mod.score >= 2) {
-            strengths.add(name + ": " + (mod.insight != null ? mod.insight : mod.status));
-        } else if (mod.score <= 1) {
-            weaknesses.add(name + ": " + (mod.insight != null ? mod.insight : mod.status));
-        }
-    }
-
-    private String deriveNextStep(ModuleResult cvp, ModuleResult market,
-            ModuleResult acquisition, ModuleResult defensibility,
-            ModuleResult buildability, boolean hasFatalZero) {
-        if (hasFatalZero) {
-            // Find the zero module
-            if (cvp.score == 0) return "Focus on validating your value proposition — talk to 10 potential customers this week.";
-            if (market.score == 0) return "Research your market size urgently — you need evidence that your TAM supports ₹10Cr revenue.";
-            if (acquisition.score == 0) return "Define your customer acquisition channel — identify and reach 10 target customers.";
-            if (defensibility.score == 0) return "Develop a defensibility strategy — what prevents competitors from copying you in 6 months?";
-            if (buildability.score == 0) return "Build your core team — you need technical capability to execute on your vision.";
-        }
-
-        // Find weakest module
-        ModuleResult weakest = cvp;
-        if (market.score < weakest.score) weakest = market;
-        if (acquisition.score < weakest.score) weakest = acquisition;
-        if (defensibility.score < weakest.score) weakest = defensibility;
-        if (buildability.score < weakest.score) weakest = buildability;
-
-        return "Strengthen your " + weakest.name.toLowerCase() + " — this is currently your biggest gap.";
-    }
-
-    private Map<String, Object> moduleToMap(ModuleResult mod) {
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("name", mod.name);
-        m.put("confidence", mod.confidence);
-        m.put("status", mod.status);
-        m.put("insight", mod.insight);
-        m.put("warnings", mod.warnings);
-        return m;
-    }
-
-    // ───────────────────────────────────────────────────────────
-    //  INTERNAL MODEL
-    // ───────────────────────────────────────────────────────────
-
-    private static class ModuleResult {
-        String name;
-        int score = 0;        // 0-3 (NEVER exposed to frontend)
-        int confidence = 25;  // % exposed
-        String status = "Critical";
-        String insight = "";
-        List<String> warnings = new ArrayList<>();
-
-        ModuleResult(String name) { this.name = name; }
-    }
+    // Record for passing module results internally
+    private record ModuleResult(
+            int score,
+            int confidencePercent,
+            String insight,
+            String strengthInsight,
+            String weaknessInsight
+    ) {}
 }

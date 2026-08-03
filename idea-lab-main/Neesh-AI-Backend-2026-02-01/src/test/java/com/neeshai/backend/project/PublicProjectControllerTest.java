@@ -79,6 +79,7 @@ class PublicProjectControllerTest {
             "http://example.com/image.jpg",
             "Test Introduction",
             "Test Content",
+            List.of(),
             List.of()
         );
 

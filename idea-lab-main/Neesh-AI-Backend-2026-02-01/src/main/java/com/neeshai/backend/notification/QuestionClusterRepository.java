@@ -26,4 +26,7 @@ public interface QuestionClusterRepository extends JpaRepository<QuestionCluster
 
     @Query("SELECT COUNT(c) FROM QuestionCluster c WHERE c.project.id = :projectId AND c.status IN ('UNANSWERED', 'PARTIALLY_ANSWERED')")
     long countUnansweredByProjectId(@Param("projectId") UUID projectId);
+
+    @Query("SELECT c FROM QuestionCluster c WHERE c.project.id = :projectId ORDER BY c.priorityScore DESC")
+    List<QuestionCluster> findClustersByProjectIdCursor(@Param("projectId") UUID projectId, org.springframework.data.domain.Pageable pageable);
 }

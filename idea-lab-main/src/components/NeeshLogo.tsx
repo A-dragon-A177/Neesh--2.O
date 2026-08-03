@@ -1,29 +1,26 @@
-import neeshLogo from "@/assets/neesh-logo.png";
+import newLogo from "@/assets/new-logo.png";
 
 interface NeeshLogoProps {
   size?: "sm" | "md" | "lg";
   showText?: boolean;
+  className?: string;
 }
 
-export const NeeshLogo = ({ size = "md", showText = true }: NeeshLogoProps) => {
+export const NeeshLogo = ({ size = "md", showText = true, className = "" }: NeeshLogoProps) => {
   const sizeClasses = {
-    sm: "h-8",
-    md: "h-10",
-    lg: "h-14",
+    sm: "h-8 sm:h-9 md:h-10",
+    md: "h-10 sm:h-12 md:h-14",
+    lg: "h-16 sm:h-20 md:h-24",
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className={`flex items-center justify-center ${className}`}>
       <img 
-        src={neeshLogo} 
+        src={newLogo} 
         alt="Neesh AI Logo" 
-        className={`${sizeClasses[size]} w-auto object-contain`}
+        className={`${sizeClasses[size]} w-auto object-contain mix-blend-multiply dark:mix-blend-normal`}
       />
-      {showText && (
-        <span className="font-semibold text-xl text-foreground tracking-tight">
-          Neesh <span className="text-primary">AI</span>
-        </span>
-      )}
     </div>
   );
 };
+export default NeeshLogo;

@@ -26,10 +26,16 @@ public class AudienceController {
      * List all audience members for a project.
      */
     @GetMapping("/projects/{projectId}/audience")
-    public ResponseEntity<AudienceDTOs.AudienceMemberListResponse> getAudienceMembers(
+    public ResponseEntity<?> getAudienceMembers(
             @PathVariable UUID projectId,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(required = false, defaultValue = "20") int limit,
             @AuthenticationPrincipal Jwt jwt) {
-        return ResponseEntity.ok(audienceService.getAudienceMembers(projectId));
+        UUID ownerId = getUserIdFromJwt(jwt);
+        if (cursor != null || limit != 20) {
+            return ResponseEntity.ok(audienceService.getAudienceMembersCursor(projectId, ownerId, cursor, limit));
+        }
+        return ResponseEntity.ok(audienceService.getAudienceMembers(projectId, ownerId));
     }
 
     /**
@@ -40,7 +46,8 @@ public class AudienceController {
     public ResponseEntity<AudienceDTOs.AudienceMemberDetail> getMemberDetail(
             @PathVariable UUID memberId,
             @AuthenticationPrincipal Jwt jwt) {
-        return ResponseEntity.ok(audienceService.getMemberDetail(memberId));
+        UUID ownerId = getUserIdFromJwt(jwt);
+        return ResponseEntity.ok(audienceService.getMemberDetail(memberId, ownerId));
     }
 
     /**
@@ -52,7 +59,7 @@ public class AudienceController {
             @PathVariable UUID questionId,
             @RequestBody AudienceDTOs.AnswerQuestionRequest request,
             @AuthenticationPrincipal Jwt jwt) {
-        UUID adminId = getUserIdFromJwt(jwt);
-        return ResponseEntity.ok(audienceService.answerQuestion(questionId, request.answer(), adminId));
+        UUID ownerId = getUserIdFromJwt(jwt);
+        return ResponseEntity.ok(audienceService.answerQuestion(questionId, request.answer(), ownerId));
     }
 }

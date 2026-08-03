@@ -90,11 +90,20 @@ export class RagController {
         }
 
         try {
+            const queryHash = require('crypto').createHash('md5').update(query.trim().toLowerCase()).digest('hex');
+            const cached = require('../services/RagCacheService').ragCacheService.get(projectId, queryHash);
+            if (cached) {
+                console.log(`[RagController] CACHE HIT — Returning versioned cached response for project ${projectId}`);
+                return res.json({ ...cached, cached: true });
+            }
+
             const startTime = Date.now();
             const response = await this.chatService.askQuestion(
                 projectId, query, linkedProjectIds, provider, apiKey, userName, userEmail
             );
             const elapsed = Date.now() - startTime;
+
+            require('../services/RagCacheService').ragCacheService.set(projectId, queryHash, response);
 
             console.log(
                 `[RagController] ChatService responded in ${elapsed}ms — confidence: ${response.confidence}`

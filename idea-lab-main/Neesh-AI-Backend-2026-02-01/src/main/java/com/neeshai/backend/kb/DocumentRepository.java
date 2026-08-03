@@ -9,6 +9,7 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
     // Find active documents for a project
     List<Document> findByProjectIdAndIsActiveTrue(UUID projectId);
+    org.springframework.data.domain.Page<Document> findByProjectIdAndIsActiveTrue(UUID projectId, org.springframework.data.domain.Pageable pageable);
 
     // Find specific active document (for replacement)
     Optional<Document> findByProjectIdAndOriginalFilenameAndIsActiveTrue(UUID projectId, String originalFilename);

@@ -47,8 +47,8 @@ const FeedbackBuilder = () => {
   const handleSave = async () => {
     const success = await saveForm();
     if (success) {
-      // Navigate to project page after saving
-      navigate(`/project/${id}`);
+      // Return to Spotlight Editor tab after saving
+      navigate(`/project/${id}?tab=blog`);
     }
   };
 
@@ -57,7 +57,7 @@ const FeedbackBuilder = () => {
       {/* Sidebar - Field Types */}
       <aside className="w-72 bg-card border-r border-border/50 flex flex-col shadow-sm">
         <div className="p-5 border-b border-border/50">
-          <Link to={`/project/${id}`}>
+          <Link to={`/project/${id}?tab=blog`}>
             <NeeshLogo size="sm" />
           </Link>
         </div>
@@ -72,10 +72,10 @@ const FeedbackBuilder = () => {
         </div>
         
         <div className="p-4 border-t border-border/50">
-          <Link to={`/project/${id}`}>
-            <Button variant="outline" className="w-full gap-2">
-              <ChevronLeft className="w-4 h-4" />
-              Back to Project
+          <Link to={`/project/${id}?tab=blog`}>
+            <Button variant="outline" className="w-full gap-2 font-display">
+              <ChevronLeft className="w-4 h-4 text-cyan-500" />
+              Back to Spotlight Editor
             </Button>
           </Link>
         </div>
@@ -83,9 +83,19 @@ const FeedbackBuilder = () => {
 
       {/* Main Content - Form Builder */}
       <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="h-16 bg-card border-b border-border/50 flex items-center justify-between px-6 shadow-sm">
+        {/* Header (Sticky, Non-scroll dependent) */}
+        <header className="sticky top-0 z-50 h-16 bg-card border-b border-border/50 flex items-center justify-between px-6 shadow-sm">
           <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold border-slate-300 rounded-xl"
+              onClick={() => navigate(`/project/${id}?tab=blog`)}
+            >
+              <ChevronLeft className="w-4 h-4 text-cyan-600" />
+              Back to Spotlight Editor
+            </Button>
+            <div className="h-5 w-px bg-border mx-1" />
             <Sparkles className="w-5 h-5 text-primary" />
             <h1 className="font-display font-semibold text-lg">Feedback Form Builder</h1>
           </div>
@@ -94,7 +104,7 @@ const FeedbackBuilder = () => {
             <Button 
               variant="outline" 
               size="sm" 
-              className="gap-2"
+              className="gap-2 rounded-xl"
               onClick={() => setPreviewOpen(true)}
             >
               <Eye className="w-4 h-4" />

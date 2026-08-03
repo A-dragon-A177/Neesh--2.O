@@ -54,7 +54,6 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Object> handleValidationExceptions(MethodArgumentNotValidException ex) {
         String correlationId = UUID.randomUUID().toString();
 
-        // Log validation errors server-side
         log.warn("Validation error [{}]: {}", correlationId, ex.getMessage());
 
         Map<String, Object> body = new LinkedHashMap<>();
@@ -62,14 +61,14 @@ public class GlobalExceptionHandler {
         body.put("correlationId", correlationId);
         body.put("error", "Validation Failed");
 
-        // Collect all field errors
-        List<String> errors = ex.getBindingResult()
+        List<Map<String, String>> fieldErrors = ex.getBindingResult()
                 .getFieldErrors()
                 .stream()
-                .map(FieldError::getDefaultMessage)
+                .map(err -> Map.of("field", err.getField(), "message", err.getDefaultMessage() != null ? err.getDefaultMessage() : "invalid value"))
                 .collect(Collectors.toList());
 
-        body.put("details", errors);
+        body.put("errors", fieldErrors);
+        body.put("details", fieldErrors.stream().map(e -> e.get("field") + ": " + e.get("message")).collect(Collectors.toList()));
 
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
     }

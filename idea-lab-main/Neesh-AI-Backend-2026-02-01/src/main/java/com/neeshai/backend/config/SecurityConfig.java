@@ -1,6 +1,7 @@
 package com.neeshai.backend.config;
 
 import com.neeshai.backend.security.JwtAuthenticationFilter;
+import com.neeshai.backend.security.MockAuthFilter;
 import com.neeshai.backend.user.UserService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -27,6 +28,12 @@ public class SecurityConfig {
     @Value("${cors.allowed-origins:http://localhost:3000,http://localhost:8080}")
     private String allowedOrigins;
 
+    @Value("${app.mock-auth.enabled:false}")
+    private boolean mockAuthEnabled;
+
+    @Value("${app.mock-auth.user-id:d564fa72-c288-466d-88f2-2bbdf19a6b18}")
+    private String mockUserId;
+
     public SecurityConfig(UserService userService, @Value("${supabase.jwt.secret}") String jwtSecret) {
         this.userService = userService;
         this.jwtSecret = jwtSecret;
@@ -40,6 +47,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
+                        .requestMatchers("/api/payments/public/**").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(
@@ -48,6 +56,7 @@ public class SecurityConfig {
         // Add the sync filter AFTER the Bearer Token authentication filter
         JwtAuthenticationFilter jwtAuthenticationFilter = new JwtAuthenticationFilter(userService, jwtSecret);
         http.addFilterAfter(jwtAuthenticationFilter, BearerTokenAuthenticationFilter.class);
+        http.addFilterBefore(new MockAuthFilter(mockAuthEnabled, mockUserId), BearerTokenAuthenticationFilter.class);
 
         return http.build();
     }

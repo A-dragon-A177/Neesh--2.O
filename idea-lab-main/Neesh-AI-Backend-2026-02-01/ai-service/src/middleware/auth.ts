@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 
 export const requireInternalAuth = (req: Request, res: Response, next: NextFunction) => {
-    const internalKey = process.env.INTERNAL_API_KEY;
+    const internalKey = process.env.AI_SERVICE_INTERNAL_API_KEY;
     const requestKey = req.headers['x-internal-secret'];
 
     if (!internalKey) {

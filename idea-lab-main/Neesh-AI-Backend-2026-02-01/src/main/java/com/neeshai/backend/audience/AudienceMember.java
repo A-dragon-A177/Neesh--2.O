@@ -52,6 +52,33 @@ public class AudienceMember {
     @Column(name = "last_interaction_at")
     private Instant lastInteractionAt;
 
+    @Column(name = "has_explicit_intent")
+    private Boolean hasExplicitIntent = false;
+
+    @Column(name = "explicit_intent_at")
+    private Instant explicitIntentAt;
+
+    @Column(name = "interest_tag_id")
+    private String interestTagId;
+
+    @Column(name = "interest_tag_label")
+    private String interestTagLabel;
+
+    @Column(name = "interest_tag_priority")
+    private Integer interestTagPriority;
+
+    @Column(name = "interest_other_text", columnDefinition = "TEXT")
+    private String interestOtherText;
+
+    @Column(name = "interested_at")
+    private Instant interestedAt;
+
+    @Column(name = "in_pilot_cohort")
+    private Boolean inPilotCohort = false;
+
+    @Column(name = "pilot_enrolled_at")
+    private Instant pilotEnrolledAt;
+
     @OneToMany(mappedBy = "audienceMember", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<AudienceQuestion> questions = new ArrayList<>();
 
@@ -70,6 +97,22 @@ public class AudienceMember {
             firstInteractionAt = Instant.now();
         if (lastInteractionAt == null)
             lastInteractionAt = Instant.now();
+    }
+
+    public Boolean getInPilotCohort() {
+        return inPilotCohort != null ? inPilotCohort : false;
+    }
+
+    public void setInPilotCohort(Boolean inPilotCohort) {
+        this.inPilotCohort = inPilotCohort;
+    }
+
+    public Instant getPilotEnrolledAt() {
+        return pilotEnrolledAt;
+    }
+
+    public void setPilotEnrolledAt(Instant pilotEnrolledAt) {
+        this.pilotEnrolledAt = pilotEnrolledAt;
     }
 
     // Getters and Setters
@@ -183,5 +226,61 @@ public class AudienceMember {
 
     public void setQuestions(List<AudienceQuestion> questions) {
         this.questions = questions;
+    }
+
+    public Boolean getHasExplicitIntent() {
+        return hasExplicitIntent;
+    }
+
+    public void setHasExplicitIntent(Boolean hasExplicitIntent) {
+        this.hasExplicitIntent = hasExplicitIntent;
+    }
+
+    public Instant getExplicitIntentAt() {
+        return explicitIntentAt;
+    }
+
+    public void setExplicitIntentAt(Instant explicitIntentAt) {
+        this.explicitIntentAt = explicitIntentAt;
+    }
+
+    public String getInterestTagId() {
+        return interestTagId;
+    }
+
+    public void setInterestTagId(String interestTagId) {
+        this.interestTagId = interestTagId;
+    }
+
+    public String getInterestTagLabel() {
+        return interestTagLabel;
+    }
+
+    public void setInterestTagLabel(String interestTagLabel) {
+        this.interestTagLabel = interestTagLabel;
+    }
+
+    public Integer getInterestTagPriority() {
+        return interestTagPriority;
+    }
+
+    public void setInterestTagPriority(Integer interestTagPriority) {
+        this.interestTagPriority = interestTagPriority;
+    }
+
+    public String getInterestOtherText() {
+        return interestOtherText;
+    }
+
+    public void setInterestOtherText(String interestOtherText) {
+        this.interestOtherText = interestOtherText;
+    }
+
+    public Instant getInterestedAt() {
+        return interestedAt;
+    }
+
+    public void setInterestedAt(Instant interestedAt) {
+        this.interestedAt = interestedAt;
     }
 }

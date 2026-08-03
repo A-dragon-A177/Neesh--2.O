@@ -14,12 +14,17 @@ interface BackendProject {
   status: string;
   industry: string | null;
   startupStage: string | null;
+  validationAnswers: string | null;
   validationReport: string | null;
   onboardingCompleted: boolean | null;
   chatbotName: string | null;
   welcomeMessage: string | null;
   primaryColor: string | null;
   botAvatarUrl: string | null;
+  elevatorPitchUrl: string | null;
+  elevatorPitchThumbnail: string | null;
+  elevatorPitchDuration: number | null;
+  earlyAccessPrice: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -36,12 +41,17 @@ export interface Project {
   status: string;
   industry: string | null;
   startup_stage: string | null;
+  validation_answers: string | null;
   validation_report: string | null;
   onboarding_completed: boolean;
   chatbot_name: string | null;
   welcome_message: string | null;
   primary_color: string | null;
   bot_avatar_url: string | null;
+  elevator_pitch_url: string | null;
+  elevator_pitch_thumbnail: string | null;
+  elevator_pitch_duration: number | null;
+  early_access_price: number | null;
   deleted: boolean;
   created_at: string;
   updated_at: string;
@@ -76,6 +86,10 @@ export interface UpdateProjectInput {
   welcome_message?: string;
   primary_color?: string;
   bot_avatar_url?: string | null;
+  elevator_pitch_url?: string | null;
+  elevator_pitch_thumbnail?: string | null;
+  elevator_pitch_duration?: number | null;
+  early_access_price?: number | null;
 }
 
 // Transform backend response to frontend format
@@ -90,12 +104,17 @@ const transformProject = (backendProject: BackendProject): Project => ({
   status: backendProject.status,
   industry: backendProject.industry,
   startup_stage: backendProject.startupStage,
+  validation_answers: backendProject.validationAnswers,
   validation_report: backendProject.validationReport,
   onboarding_completed: backendProject.onboardingCompleted || false,
   chatbot_name: backendProject.chatbotName,
   welcome_message: backendProject.welcomeMessage,
   primary_color: backendProject.primaryColor,
   bot_avatar_url: backendProject.botAvatarUrl,
+  elevator_pitch_url: backendProject.elevatorPitchUrl,
+  elevator_pitch_thumbnail: backendProject.elevatorPitchThumbnail,
+  elevator_pitch_duration: backendProject.elevatorPitchDuration,
+  early_access_price: backendProject.earlyAccessPrice,
   deleted: false,
   created_at: backendProject.createdAt,
   updated_at: backendProject.updatedAt,
@@ -117,21 +136,33 @@ const transformCreateInput = (input: CreateProjectInput) => ({
   botAvatarUrl: input.bot_avatar_url || null,
 });
 
-const transformUpdateInput = (input: UpdateProjectInput) => ({
-  title: input.title,
-  oneLineSummary: input.one_line_summary,
-  introduction: input.introduction,
-  description: input.description,
-  status: input.status,
-  industry: input.industry,
-  startupStage: input.startup_stage,
-  validationAnswers: input.validation_answers,
-  onboardingCompleted: input.onboarding_completed,
-  chatbotName: input.chatbot_name,
-  welcomeMessage: input.welcome_message,
-  primaryColor: input.primary_color,
-  botAvatarUrl: input.bot_avatar_url,
-});
+const transformUpdateInput = (input: UpdateProjectInput) => {
+  // Build the payload object, only including fields that are explicitly provided.
+  // This prevents sending undefined values that could accidentally overwrite valid data
+  // in the backend (Java records deserialize missing JSON fields as null).
+  const payload: Record<string, unknown> = {};
+
+  if (input.title !== undefined) payload.title = input.title;
+  if (input.one_line_summary !== undefined) payload.oneLineSummary = input.one_line_summary;
+  if (input.introduction !== undefined) payload.introduction = input.introduction;
+  if (input.description !== undefined) payload.description = input.description;
+  if (input.status !== undefined) payload.status = input.status;
+  if (input.industry !== undefined) payload.industry = input.industry;
+  if (input.startup_stage !== undefined) payload.startupStage = input.startup_stage;
+  if (input.validation_answers !== undefined) payload.validationAnswers = input.validation_answers;
+  if (input.onboarding_completed !== undefined) payload.onboardingCompleted = input.onboarding_completed;
+  if (input.chatbot_name !== undefined) payload.chatbotName = input.chatbot_name;
+  if (input.welcome_message !== undefined) payload.welcomeMessage = input.welcome_message;
+  if (input.primary_color !== undefined) payload.primaryColor = input.primary_color;
+  if (input.bot_avatar_url !== undefined) payload.botAvatarUrl = input.bot_avatar_url;
+  if (input.elevator_pitch_url !== undefined) payload.elevatorPitchUrl = input.elevator_pitch_url;
+  if (input.elevator_pitch_thumbnail !== undefined) payload.elevatorPitchThumbnail = input.elevator_pitch_thumbnail;
+  // Use !== undefined (not !!) so that duration=0 is correctly preserved
+  if (input.elevator_pitch_duration !== undefined) payload.elevatorPitchDuration = input.elevator_pitch_duration;
+  if (input.early_access_price !== undefined) payload.earlyAccessPrice = input.early_access_price;
+
+  return payload;
+};
 
 export const useProjects = () => {
   const { user } = useAuth();
@@ -165,7 +196,8 @@ export const useProjects = () => {
       setError(null);
 
       console.log("[useProjects] Fetching projects from backend...");
-      const backendProjects = await apiClient.get<BackendProject[]>('/api/projects');
+      const rawRes = await apiClient.get<BackendProject[] | { content: BackendProject[] }>('/api/projects');
+      const backendProjects = Array.isArray(rawRes) ? rawRes : (rawRes?.content || []);
       console.log("[useProjects] Received projects:", backendProjects);
 
       const transformedProjects = backendProjects.map(transformProject);

@@ -11,9 +11,9 @@ const STEPS = [
         <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
       </svg>
     ),
-    title: "Create & Edit",
-    desc: "Craft your validation blog with our rich editor. Structure your idea into problem, solution, and feedback sections.",
-    tag: "WRITE",
+    title: "Create & Edit Spotlight",
+    desc: "Craft your validation Spotlight page with our rich editor. Structure your idea into problem, solution, and feedback sections.",
+    tag: "CREATE",
   },
   {
     icon: (
@@ -32,7 +32,7 @@ const STEPS = [
       </svg>
     ),
     title: "Custom Feedback",
-    desc: "Add targeted feedback sections at any point. Capture real reactions from readers where it matters most.",
+    desc: "Add targeted feedback sections at any point. Capture real reactions from visitors where it matters most.",
     tag: "FEEDBACK",
   },
   {
@@ -41,9 +41,9 @@ const STEPS = [
         <path d="M12 2l-5.5 9h11L12 2zm0 12.5c-1.93 0-3.5 1.57-3.5 3.5s1.57 3.5 3.5 3.5 3.5-1.57 3.5-3.5-1.57-3.5-3.5-3.5z" />
       </svg>
     ),
-    title: "Knowledge Base",
-    desc: "Connect your docs, notes, and research to auto-train the embedded chatbot for intelligent responses.",
-    tag: "KNOWLEDGE",
+    title: "Trainable AI Bot",
+    desc: "Connect your docs, pitch decks, and research to auto-train an embedded AI assistant for intelligent visitor responses.",
+    tag: "AI CHATBOT",
   },
   {
     icon: (
@@ -52,7 +52,7 @@ const STEPS = [
       </svg>
     ),
     title: "Publish & Share",
-    desc: "Go live in one click. Share a branded link and start collecting validation data from real users instantly.",
+    desc: "Go live in one click. Share a branded Spotlight link and start collecting validation data from real users instantly.",
     tag: "PUBLISH",
   },
 ];
@@ -386,7 +386,7 @@ export default function BlogShowcaseSection() {
   }, []);
 
   return (
-    <section ref={sectionRef} className="relative bg-white/50 py-24 overflow-hidden">
+    <section ref={sectionRef} className="relative bg-gradient-to-b from-slate-200/70 via-slate-100/70 to-slate-200/70 py-14 md:py-16 overflow-hidden">
       {/* Background pattern */}
       <div
         className="absolute inset-0 opacity-[0.02]"
@@ -398,13 +398,13 @@ export default function BlogShowcaseSection() {
 
       <div className="max-w-[1440px] mx-auto px-6">
         {/* Header */}
-        <div ref={ref as React.RefObject<HTMLDivElement>} className="text-center mb-16">
+        <div ref={ref as React.RefObject<HTMLDivElement>} className="text-center mb-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={inView ? { opacity: 1, y: 0 } : {}}
             className="text-[#09daed] text-sm font-bold tracking-widest uppercase mb-4"
           >
-            Blog Creation
+            Spotlight Showcase
           </motion.div>
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
@@ -412,8 +412,8 @@ export default function BlogShowcaseSection() {
             transition={{ delay: 0.1 }}
             className="text-4xl md:text-5xl font-extrabold text-gray-950 mb-4"
           >
-            Publish. Engage.{" "}
-            <span className="text-[#09daed]">Validate.</span>
+            Auto-Generated{" "}
+            <span className="text-[#09daed]">Spotlight Pages.</span>
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
@@ -421,9 +421,8 @@ export default function BlogShowcaseSection() {
             transition={{ delay: 0.2 }}
             className="text-gray-600 max-w-xl mx-auto font-medium"
           >
-            Create rich, interactive blogs from your ideas — embed media,
-            customize feedback sections, attach a knowledge base, and publish
-            with a single shareable link.
+            Build a publishable landing page in minutes. Embed rich media,
+            customize feedback forms, and attach an AI assistant trained on your pitch documents.
           </motion.p>
         </div>
 

@@ -46,12 +46,14 @@ interface AudienceProfileModalProps {
 }
 
 const AudienceProfileModal = ({ member, onClose, onAnswerQuestion, answeringId }: AudienceProfileModalProps) => {
-    const [activeSection, setActiveSection] = useState<"answered" | "unanswered">("unanswered");
+    const answeredQuestions = member.questions ? member.questions.filter((q) => q.status === "answered") : [];
+    const unansweredQuestions = member.questions ? member.questions.filter((q) => q.status === "unanswered") : [];
+
+    const [activeSection, setActiveSection] = useState<"answered" | "unanswered">(() => {
+        return unansweredQuestions.length > 0 ? "unanswered" : "answered";
+    });
     const [expandedQuestionId, setExpandedQuestionId] = useState<string | null>(null);
     const [replyTexts, setReplyTexts] = useState<Record<string, string>>({});
-
-    const answeredQuestions = member.questions.filter((q) => q.status === "answered");
-    const unansweredQuestions = member.questions.filter((q) => q.status === "unanswered");
 
     const toggleQuestion = (id: string) => {
         setExpandedQuestionId(expandedQuestionId === id ? null : id);
@@ -94,8 +96,8 @@ const AudienceProfileModal = ({ member, onClose, onAnswerQuestion, answeringId }
     const occStyle = getOccupationStyle(member.occupation);
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-card rounded-2xl border border-border/30 shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden animate-fade">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div className="bg-card rounded-t-3xl sm:rounded-2xl border-t sm:border border-border/30 shadow-2xl w-full max-w-5xl h-[85vh] sm:max-h-[92vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom sm:zoom-in duration-300">
                 {/* Header */}
                 <div className="p-6 border-b border-border/50 flex items-center justify-between bg-gradient-to-r from-primary/5 to-transparent">
                     <div className="flex items-center gap-4">

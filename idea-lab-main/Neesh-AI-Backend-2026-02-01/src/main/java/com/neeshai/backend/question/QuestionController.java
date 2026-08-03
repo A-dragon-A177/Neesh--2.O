@@ -23,8 +23,11 @@ public class QuestionController {
 
     // Get unanswered questions (Authenticated)
     @GetMapping("/projects/{projectId}/questions/unanswered")
-    public ResponseEntity<QuestionDTOs.QuestionListResponse> getUnansweredQuestions(@PathVariable UUID projectId) {
-        return ResponseEntity.ok(questionService.getUnansweredQuestions(projectId));
+    public ResponseEntity<QuestionDTOs.QuestionListResponse> getUnansweredQuestions(
+            @PathVariable UUID projectId,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID userId = getUserIdFromJwt(jwt);
+        return ResponseEntity.ok(questionService.getUnansweredQuestions(projectId, userId));
     }
 
     // Mark as resolved (Authenticated)

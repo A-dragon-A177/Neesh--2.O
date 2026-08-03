@@ -93,8 +93,14 @@ public class NotificationService {
 
     // ===== Cluster Listing =====
 
-    public NotificationDTOs.ClusterListResponse getClusters(UUID projectId, String status,
+    public NotificationDTOs.ClusterListResponse getClusters(UUID projectId, UUID userId, String status,
             String sort, String search) {
+        Project project = projectRepository.findById(projectId)
+                .filter(p -> !p.isDeleted())
+                .filter(p -> p.getOwnerId().equals(userId))
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Project not found or unauthorized"));
+
         List<QuestionCluster> clusters;
         if (status != null && !status.isEmpty() && !"all".equalsIgnoreCase(status)) {
             clusters = clusterRepository.findByProjectIdAndStatusOrderByPriorityScoreDesc(projectId,
@@ -128,11 +134,44 @@ public class NotificationService {
         return new NotificationDTOs.ClusterListResponse(summaries, summaries.size(), unansweredCount);
     }
 
+    /**
+     * Cursor-only cluster listing (NO COUNT(*) query issued).
+     */
+    public com.neeshai.backend.util.CursorResponse<NotificationDTOs.ClusterSummaryResponse> getClustersCursor(
+            UUID projectId, UUID userId, String cursor, int limit) {
+        projectRepository.findById(projectId)
+                .filter(p -> !p.isDeleted())
+                .filter(p -> p.getOwnerId().equals(userId))
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Project not found or unauthorized"));
+
+        int fetchSize = Math.min(Math.max(1, limit), 100);
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, fetchSize + 1);
+
+        List<QuestionCluster> clusters = clusterRepository.findClustersByProjectIdCursor(projectId, pageable);
+        boolean hasMore = clusters.size() > fetchSize;
+        if (hasMore) {
+            clusters = clusters.subList(0, fetchSize);
+        }
+        String nextCursor = hasMore ? clusters.get(clusters.size() - 1).getId().toString() : null;
+        List<NotificationDTOs.ClusterSummaryResponse> summaries = clusters.stream()
+                .map(NotificationDTOs.ClusterSummaryResponse::fromEntity)
+                .collect(Collectors.toList());
+        return new com.neeshai.backend.util.CursorResponse<>(summaries, nextCursor, hasMore);
+    }
+
     // ===== Cluster Detail =====
 
-    public NotificationDTOs.ClusterDetailResponse getClusterDetail(UUID clusterId) {
+    public NotificationDTOs.ClusterDetailResponse getClusterDetail(UUID clusterId, UUID userId) {
         QuestionCluster cluster = clusterRepository.findById(clusterId)
-                .orElseThrow(() -> new RuntimeException("Cluster not found: " + clusterId));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Cluster not found"));
+
+        projectRepository.findById(cluster.getProject().getId())
+                .filter(p -> !p.isDeleted())
+                .filter(p -> p.getOwnerId().equals(userId))
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Cluster not found or unauthorized"));
 
         List<ClusterInstance> instances = instanceRepository.findByClusterIdOrderByAskedAtDesc(clusterId);
         List<ClusterReply> replies = replyRepository.findByClusterIdOrderBySentAtDesc(clusterId);
@@ -154,9 +193,16 @@ public class NotificationService {
 
     @Transactional
     public NotificationDTOs.SendReplyResponse sendReply(UUID clusterId, NotificationDTOs.SendReplyRequest request,
-            UUID adminId) {
+            UUID userId) {
         QuestionCluster cluster = clusterRepository.findById(clusterId)
-                .orElseThrow(() -> new RuntimeException("Cluster not found: " + clusterId));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Cluster not found"));
+
+        projectRepository.findById(cluster.getProject().getId())
+                .filter(p -> !p.isDeleted())
+                .filter(p -> p.getOwnerId().equals(userId))
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Cluster not found or unauthorized"));
 
         List<ClusterInstance> toAnswer;
         if (request.sendToAll()) {
@@ -174,7 +220,7 @@ public class NotificationService {
             instance.setStatus("ANSWERED");
             instance.setAnsweredAt(now);
             instance.setAnswerContent(request.answerText());
-            instance.setAnsweredBy(adminId);
+            instance.setAnsweredBy(userId);
             instanceRepository.save(instance);
 
             // Send email
@@ -191,7 +237,7 @@ public class NotificationService {
                 .collect(Collectors.joining(",", "[", "]"));
 
         ClusterReply reply = new ClusterReply(cluster, request.answerText(),
-                request.emailSubject(), recipientIdsJson, toAnswer.size(), adminId);
+                request.emailSubject(), recipientIdsJson, toAnswer.size(), userId);
         replyRepository.save(reply);
 
         // Recompute cluster status
@@ -214,7 +260,12 @@ public class NotificationService {
 
     // ===== Badge Count =====
 
-    public long getUnansweredCount(UUID projectId) {
+    public long getUnansweredCount(UUID projectId, UUID userId) {
+        projectRepository.findById(projectId)
+                .filter(p -> !p.isDeleted())
+                .filter(p -> p.getOwnerId().equals(userId))
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Project not found or unauthorized"));
         return clusterRepository.countUnansweredByProjectId(projectId);
     }
 

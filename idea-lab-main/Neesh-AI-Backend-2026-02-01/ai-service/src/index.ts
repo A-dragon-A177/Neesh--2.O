@@ -9,12 +9,62 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(cors());
+const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:8080,http://localhost:7000')
+    .split(',')
+    .map(o => o.trim());
+
+app.use(cors({
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps, curl, or server-to-server)
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error(`CORS policy violation: origin ${origin} not allowed`));
+        }
+    },
+    credentials: true
+}));
 app.use(bodyParser.json());
+
+import { rateLimiter } from './middleware/rateLimit';
+import { tracingMiddleware } from './middleware/tracing';
+app.use(tracingMiddleware);
+app.use(rateLimiter);
 
 // Apply Security Middleware to all /internal routes
 import { requireInternalAuth } from './middleware/auth';
 app.use('/internal', requireInternalAuth);
+
+import { jobQueue } from './jobs/jobQueue';
+
+app.post('/internal/jobs/enqueue', (req, res) => {
+    const { jobType, payload } = req.body;
+    if (!jobType) {
+        return res.status(400).json({ error: 'jobType is required' });
+    }
+    const job = jobQueue.enqueue(jobType, payload || {});
+    return res.status(202).json({
+        status: 'QUEUED',
+        jobId: job.id,
+        type: job.type,
+        createdAt: job.createdAt
+    });
+});
+
+app.get('/internal/jobs/:jobId', (req, res) => {
+    const job = jobQueue.getJob(req.params.jobId);
+    if (!job) {
+        return res.status(404).json({ error: 'Job not found' });
+    }
+    return res.json({
+        jobId: job.id,
+        type: job.type,
+        status: job.status,
+        attempts: job.attempts,
+        error: job.error,
+        updatedAt: job.updatedAt
+    });
+});
 
 // Apply Supabase auth middleware to protected /api routes (exclude /api/public/*)
 import { supabaseAuth } from './middleware/supabaseAuth';
@@ -171,8 +221,8 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Debug endpoint to test Gemini models and list available models
-app.get('/debug/gemini-models', async (req, res) => {
+// Internal debug endpoint to test Gemini models
+app.get('/internal/debug/gemini-models', async (req, res) => {
     try {
         const apiKey = process.env.GEMINI_API_KEY;
 
@@ -180,28 +230,22 @@ app.get('/debug/gemini-models', async (req, res) => {
             return res.status(500).json({ error: 'No GEMINI_API_KEY found' });
         }
 
-        // Try to list available models using direct API call
         const response = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`);
         const data = await response.json();
 
         if (!response.ok) {
             return res.json({
                 apiKeyStatus: 'invalid',
-                error: data.error || 'API key validation failed',
-                keyLength: apiKey.length,
-                keyPrefix: apiKey.substring(0, 10) + '...'
+                error: data.error || 'API key validation failed'
             });
         }
 
-        // Extract model names from the response
         const availableModels = data.models?.map((model: any) => model.name) || [];
 
         res.json({
             apiKeyStatus: 'valid',
             availableModels,
             totalModels: availableModels.length,
-            keyLength: apiKey.length,
-            keyPrefix: apiKey.substring(0, 10) + '...',
             timestamp: new Date().toISOString()
         });
 
@@ -238,6 +282,12 @@ app.get('/internal/projects/:projectId/health', (req, res) => insightController.
 app.get('/internal/projects/:projectId/readiness', (req, res) => insightController.getReadiness(req, res));
 app.get('/internal/projects/:projectId/risks', (req, res) => insightController.getRisks(req, res));
 
+
+// Metrics Endpoint (Internal Gated)
+import { metricsRegistry } from './services/MetricsRegistry';
+app.get('/internal/metrics', (req, res) => {
+    return res.json(metricsRegistry.getMetricsSnapshot());
+});
 
 app.listen(port, () => {
     console.log(`AI Service running on port ${port}`);

@@ -38,17 +38,20 @@ public class ChatController {
     @Value("${ai.service.url:http://localhost:3000}")
     private String aiServiceUrl;
 
-    @Value("${ai.service.internal-api-key:neesh-internal-api-key-2024}")
+    @Value("${ai.service.internal-api-key}")
     private String aiServiceApiKey;
 
     private final RestTemplate restTemplate;
     private final ProjectLinkService projectLinkService;
     private final UserApiKeyService userApiKeyService;
+    private final com.neeshai.backend.project.ProjectRepository projectRepository;
 
-    public ChatController(ProjectLinkService projectLinkService, UserApiKeyService userApiKeyService) {
+    public ChatController(ProjectLinkService projectLinkService, UserApiKeyService userApiKeyService,
+                          com.neeshai.backend.project.ProjectRepository projectRepository) {
         this.restTemplate = new RestTemplate();
         this.projectLinkService = projectLinkService;
         this.userApiKeyService = userApiKeyService;
+        this.projectRepository = projectRepository;
     }
 
     private UUID getCurrentUserId() {
@@ -78,6 +81,14 @@ public class ChatController {
             @PathVariable UUID projectId,
             @Valid @RequestBody ChatDTOs.ChatRequest request) {
 
+        UUID userId = getCurrentUserId();
+        if (userId == null || projectRepository.findById(projectId)
+                .filter(p -> !p.isDeleted())
+                .filter(p -> p.getOwnerId().equals(userId))
+                .isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
         String query = request.query();
         logger.info("[ChatController] POST /api/projects/{}/chat - Received chat query. Query length: {} chars",
                 projectId, query.length());
@@ -105,7 +116,6 @@ public class ChatController {
             }
 
             // Fetch user's LLM provider and API key
-            UUID userId = getCurrentUserId();
             if (userId != null) {
                 Map<String, String> apiKeyConfig = userApiKeyService.getActiveConfig(userId);
                 if (apiKeyConfig != null) {

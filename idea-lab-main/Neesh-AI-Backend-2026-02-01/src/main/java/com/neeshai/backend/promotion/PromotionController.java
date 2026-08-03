@@ -68,4 +68,12 @@ public class PromotionController {
         PromotionDTOs.BlogBrandingDTO branding = promotionService.getBlogBranding(projectId);
         return ResponseEntity.ok(branding);
     }
+
+    /** Public Reels/Pitches feed — no auth required. */
+    @GetMapping("/api/public/pitches")
+    public ResponseEntity<List<PromotionDTOs.PitchFeedItemDTO>> getPitchFeed(
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "0") int offset) {
+        return ResponseEntity.ok(promotionService.getPitchFeed(limit, offset));
+    }
 }

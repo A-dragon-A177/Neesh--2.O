@@ -93,9 +93,11 @@ export async function compressImage(
                                     file.name.replace(/\.[^.]+$/, '.jpg'),
                                     { type: 'image/jpeg', lastModified: Date.now() }
                                 );
-                                console.log(
-                                    `[imageUtils] Compressed ${formatSize(file.size)} → ${formatSize(compressedFile.size)} (JPEG fallback, ${width}x${height})`
-                                );
+                                if (import.meta.env.DEV) {
+                                    console.log(
+                                        `[imageUtils] Compressed ${formatSize(file.size)} → ${formatSize(compressedFile.size)} (JPEG fallback, ${width}x${height})`
+                                    );
+                                }
                                 resolve(compressedFile);
                             },
                             'image/jpeg',
@@ -109,9 +111,11 @@ export async function compressImage(
                         file.name.replace(/\.[^.]+$/, '.webp'),
                         { type: outputType, lastModified: Date.now() }
                     );
-                    console.log(
-                        `[imageUtils] Compressed ${formatSize(file.size)} → ${formatSize(compressedFile.size)} (WebP, ${width}x${height})`
-                    );
+                    if (import.meta.env.DEV) {
+                        console.log(
+                            `[imageUtils] Compressed ${formatSize(file.size)} → ${formatSize(compressedFile.size)} (WebP, ${width}x${height})`
+                        );
+                    }
                     resolve(compressedFile);
                 },
                 outputType,

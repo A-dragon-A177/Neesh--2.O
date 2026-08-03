@@ -13,6 +13,9 @@ import java.util.stream.Collectors;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 
+import com.neeshai.backend.audience.AudienceDTOs;
+import com.neeshai.backend.audience.AudienceService;
+
 @RestController
 @RequestMapping("/api/projects")
 public class ProjectController {
@@ -21,10 +24,13 @@ public class ProjectController {
 
     private final ProjectService projectService;
     private final com.neeshai.backend.blog.BlogService blogService;
+    private final AudienceService audienceService;
 
-    public ProjectController(ProjectService projectService, com.neeshai.backend.blog.BlogService blogService) {
+    public ProjectController(ProjectService projectService, com.neeshai.backend.blog.BlogService blogService,
+            AudienceService audienceService) {
         this.projectService = projectService;
         this.blogService = blogService;
+        this.audienceService = audienceService;
     }
 
     private UUID getUserIdFromJwt(Jwt jwt) {
@@ -63,8 +69,18 @@ public class ProjectController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ProjectDTOs.PrivateProjectDTO>> getMyProjects(@AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<?> getMyProjects(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false, defaultValue = "20") int size,
+            @AuthenticationPrincipal Jwt jwt) {
         UUID ownerId = getUserIdFromJwt(jwt);
+        if (page != null) {
+            org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(
+                    Math.max(0, page), Math.min(Math.max(1, size), 100),
+                    org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt")
+            );
+            return ResponseEntity.ok(projectService.getMyProjects(ownerId, pageable));
+        }
         List<ProjectDTOs.PrivateProjectDTO> projects = projectService.getMyProjects(ownerId)
                 .stream()
                 .map(ProjectDTOs.PrivateProjectDTO::fromEntity)
@@ -124,6 +140,39 @@ public class ProjectController {
         UUID ownerId = getUserIdFromJwt(jwt);
         return blogService.updateBlogContent(id, ownerId, request)
                 .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    // Spotlight Analytics Endpoint (Stage 2 Dashboard)
+    @GetMapping("/{id}/spotlight-analytics")
+    public ResponseEntity<AudienceDTOs.SpotlightAnalyticsResponse> getSpotlightAnalytics(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt) {
+        // Verify ownership
+        UUID ownerId = getUserIdFromJwt(jwt);
+        return projectService.getProject(id, ownerId)
+                .map(project -> ResponseEntity.ok(audienceService.getSpotlightAnalytics(id)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{projectId}/validated-buyers")
+    public ResponseEntity<AudienceDTOs.ValidatedBuyersResponse> getValidatedBuyers(
+            @PathVariable UUID projectId,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID ownerId = getUserIdFromJwt(jwt);
+        return projectService.getProject(projectId, ownerId)
+                .map(project -> ResponseEntity.ok(audienceService.getValidatedBuyers(projectId)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/{projectId}/validated-buyers/pilot-cohort")
+    public ResponseEntity<AudienceDTOs.ValidatedBuyersResponse> updatePilotCohort(
+            @PathVariable UUID projectId,
+            @RequestBody AudienceDTOs.BatchPilotEnrollRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID ownerId = getUserIdFromJwt(jwt);
+        return projectService.getProject(projectId, ownerId)
+                .map(project -> ResponseEntity.ok(audienceService.updatePilotCohortStatus(projectId, request.memberIds(), request.enroll())))
                 .orElse(ResponseEntity.notFound().build());
     }
 }

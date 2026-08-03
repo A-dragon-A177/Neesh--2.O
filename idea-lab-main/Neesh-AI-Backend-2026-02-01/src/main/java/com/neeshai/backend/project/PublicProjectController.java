@@ -30,6 +30,9 @@ public class PublicProjectController {
     @Value("${ai.service.url:http://localhost:3000}")
     private String aiServiceUrl;
 
+    @Value("${ai.service.internal-api-key}")
+    private String aiServiceApiKey;
+
     private final ProjectService projectService;
     private final BlogService blogService;
     private final AudienceService audienceService;
@@ -48,6 +51,14 @@ public class PublicProjectController {
     @GetMapping("/{slug}")
     public ResponseEntity<ProjectDTOs.PublicProjectDTO> getPublicProject(@PathVariable String slug) {
         return projectService.getPublicProject(slug)
+                .map(ProjectDTOs.PublicProjectDTO::fromEntity)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/id/{projectId}")
+    public ResponseEntity<ProjectDTOs.PublicProjectDTO> getPublicProjectById(@PathVariable UUID projectId) {
+        return projectService.getPublicProjectById(projectId)
                 .map(ProjectDTOs.PublicProjectDTO::fromEntity)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -100,6 +111,11 @@ public class PublicProjectController {
         return ResponseEntity.ok(audienceService.submitPublicFeedback(projectId, request));
     }
 
+    @GetMapping("/{projectId}/comments")
+    public ResponseEntity<List<Map<String, Object>>> getPublicComments(@PathVariable UUID projectId) {
+        return ResponseEntity.ok(audienceService.getPublicComments(projectId));
+    }
+
     @PostMapping("/{projectId}/chat")
     public ResponseEntity<Map<String, Object>> publicChat(
             @PathVariable UUID projectId,
@@ -121,7 +137,7 @@ public class PublicProjectController {
             String url = aiServiceUrl + "/internal/chat";
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("X-Internal-Secret", "neesh-ai-secret-key-123");
+            headers.set("X-Internal-Secret", aiServiceApiKey);
 
             Map<String, Object> body = new HashMap<>();
             body.put("projectId", projectId.toString());
@@ -159,16 +175,58 @@ public class PublicProjectController {
             return ResponseEntity.ok(response.getBody());
 
         } catch (org.springframework.web.client.ResourceAccessException e) {
-            logger.error("[PublicChat] Cannot connect to AI service: {}", e.getMessage());
+            logger.error("[PublicChat] Cannot connect to AI service at {}: {}", aiServiceUrl, e.getMessage());
             return ResponseEntity.internalServerError().body(Map.of(
-                    "error", "AI Service is not available",
-                    "details", "Cannot connect to " + aiServiceUrl));
+                    "error", "AI Service is temporarily unavailable. Please try again later."));
         } catch (Exception e) {
-            logger.error("[PublicChat] Error: {}", e.getMessage(), e);
+            logger.error("[PublicChat] Unexpected error during public chat processing: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().body(Map.of(
-                    "error", "Failed to process chat request",
-                    "details", e.getMessage()));
+                    "error", "An unexpected error occurred while processing your request. Please try again later."));
         }
+    }
+
+
+
+    @PostMapping("/{projectId}/interest")
+    public ResponseEntity<AudienceDTOs.InterestSubmitResponse> recordInterest(
+            @PathVariable UUID projectId,
+            @RequestBody AudienceDTOs.InterestSubmitRequest request) {
+        return ResponseEntity.ok(audienceService.recordInterest(projectId, request));
+    }
+
+    @GetMapping("/{projectId}/interest-count")
+    public ResponseEntity<Map<String, Object>> getInterestCount(@PathVariable UUID projectId) {
+        int count = audienceService.getInterestCount(projectId);
+        return ResponseEntity.ok(Map.of("count", count));
+    }
+
+    @GetMapping("/{projectId}/early-access-price")
+    public ResponseEntity<Map<String, Object>> getEarlyAccessPrice(@PathVariable UUID projectId) {
+        return projectService.getPublicProjectById(projectId)
+                .map(project -> {
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("earlyAccessPrice", project.getEarlyAccessPrice());
+                    result.put("projectTitle", project.getTitle());
+                    return ResponseEntity.ok(result);
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{projectId}/check-interest")
+    public ResponseEntity<AudienceDTOs.InterestCheckResponse> checkInterest(
+            @PathVariable UUID projectId,
+            @RequestParam String email) {
+        return ResponseEntity.ok(audienceService.checkUserInterest(projectId, email));
+    }
+
+    @PostMapping("/{projectId}/record-pitch-view")
+    public ResponseEntity<Void> recordPitchView(@PathVariable UUID projectId) {
+        try {
+            projectService.incrementPitchViewCount(projectId);
+        } catch (Exception e) {
+            logger.warn("Failed to record pitch view for project {}: {}", projectId, e.getMessage());
+        }
+        return ResponseEntity.ok().build();
     }
 
 }

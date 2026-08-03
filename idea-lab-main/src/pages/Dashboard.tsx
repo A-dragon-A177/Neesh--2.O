@@ -59,6 +59,9 @@ import {
   Lock,
   Trash2,
   PartyPopper,
+  AlertTriangle,
+  SlidersHorizontal,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useProjects, type Project } from "@/hooks/useProjects";
@@ -125,6 +128,7 @@ const Dashboard = () => {
   const [promoteOpen, setPromoteOpen] = useState(false);
   const [promoteProjectId, setPromoteProjectId] = useState<string | null>(null);
   const [isPromoting, setIsPromoting] = useState(false);
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const navigate = useNavigate();
 
   // Cover images fetched from backend (for projects without localStorage images)
@@ -135,7 +139,7 @@ const Dashboard = () => {
     if (!projects?.length) return;
 
     const fetchMissingCoverImages = async () => {
-      console.log("[Dashboard] Checking for missing cover images...");
+
       const missingProjects = projects.filter(p => !getProjectCoverImage(p.id));
       
       if (missingProjects.length === 0) return;
@@ -166,21 +170,12 @@ const Dashboard = () => {
           setCoverImages(prev => ({ ...prev, ...updates }));
         }
       } catch (error) {
-        console.error("[Dashboard] Error fetching cover images:", error);
+
       }
     };
 
     fetchMissingCoverImages();
   }, [projects]);
-
-  // Debug logging
-  console.log("[Dashboard] Render state:", {
-    authLoading,
-    projectsLoading,
-    user: user?.email,
-    userId: user?.id,
-    projectsCount: projects?.length,
-  });
 
   const handleCopyLink = async (e: React.MouseEvent, projectId: string, projectTitle: string) => {
     e.preventDefault();
@@ -193,9 +188,7 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    console.log("[Dashboard] useEffect - Auth check:", { authLoading, hasUser: !!user });
     if (!authLoading && !user) {
-      console.log("[Dashboard] No user, redirecting to login");
       navigate("/login");
     }
   }, [user, authLoading, navigate]);
@@ -276,44 +269,25 @@ const Dashboard = () => {
 
   if (!user) return null;
 
-  const renderStars = (rating: number) => {
-    return (
-      <div className="flex items-center gap-0.5">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Star
-            key={star}
-            className={`w-4 h-4 ${star <= Math.floor(rating)
-              ? "fill-warning text-warning"
-              : star <= rating
-                ? "fill-warning/50 text-warning"
-                : "text-muted-foreground/30"
-              }`}
-          />
-        ))}
-        <span className="ml-1.5 text-sm font-semibold">{rating.toFixed(1)}</span>
-      </div>
-    );
-  };
-
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="bg-card border-b border-border/50 sticky top-0 z-40 shadow-sm">
-        <div className="container mx-auto px-6 py-4">
+        <div className="container mx-auto px-4 md:px-6 py-3 md:py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4">
               <NeeshLogo size="md" />
-              <BetaBadge variant="glow" type="beta" />
-              <span className="text-sm text-muted-foreground hidden sm:block">
+              <BetaBadge variant="glow" type="beta" className="hidden sm:flex" />
+              <span className="text-sm text-muted-foreground hidden md:block">
                 AI-powered content & niche projects
               </span>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
               {/* Help Workflow Guide */}
               <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
                 <DialogTrigger asChild>
-                  <button className="icon-button w-10 h-10">
+                  <button className="icon-button w-9 h-9 md:w-10 md:h-10">
                     <HelpCircle className="w-5 h-5 text-muted-foreground" />
                   </button>
                 </DialogTrigger>
@@ -328,10 +302,10 @@ const Dashboard = () => {
                     {[
                       { icon: Sparkles, title: "1. Overview", desc: "Get a bird's-eye view of your project: idea health score, validation stage, gap detection, persona engagement, and AI-generated summary — all computed from real audience data." },
                       { icon: FileEdit, title: "2. Blog Editor", desc: "Write and format your blog using the rich-text editor. Add text, images, video, and feedback forms. Preview your blog and share the public link with your audience." },
-                      { icon: Database, title: "3. Knowledge Base", desc: "Upload documents (PDF, DOCX, TXT) that train the AI chatbot. The chatbot uses this knowledge to answer visitor questions accurately." },
+                      { icon: Database, title: "3. Train your ChatBot", desc: "Upload documents (PDF, DOCX, TXT) that train the AI chatbot. The chatbot uses this knowledge to answer visitor questions accurately." },
                       { icon: MessageSquare, title: "4. Response", desc: "View all feedback form submissions and chatbot interactions. See answered and unanswered questions, filter by occupation, and understand what your audience is asking." },
-                      { icon: BellIcon, title: "5. Notification", desc: "See clustered question patterns from chatbot interactions. Identify recurring themes and gaps in your content so you can improve your knowledge base." },
-                      { icon: Bot, title: "6. Chatbot", desc: "Test your AI chatbot as visitors will see it. The chatbot answers questions using your uploaded knowledge base documents." },
+                      { icon: BellIcon, title: "5. Notification", desc: "See clustered question patterns from chatbot interactions. Identify recurring themes and gaps in your content so you can train your chatbot further." },
+                      { icon: Bot, title: "6. Chatbot", desc: "Test your AI chatbot as visitors will see it. The chatbot answers questions using your uploaded documents." },
                       { icon: BarChart3, title: "7. Audience Insights", desc: "AI-powered persona detection categorizes your audience (developers, marketers, investors, etc.). View confusion points, common questions, and content suggestions per persona." },
                     ].map((step) => (
                       <div key={step.title} className="flex gap-3 p-3 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors">
@@ -352,18 +326,22 @@ const Dashboard = () => {
                   </div>
                 </DialogContent>
               </Dialog>
-
-              <Button onClick={() => {
-                    if (!canCreateProject) {
-                      setUpgradeOpen(true);
-                    } else {
-                      setIsCreateOpen(true);
-                    }
-                  }}>
-                    <Plus className="w-4 h-4" />
-                    New Project
-                    <BetaBadge variant="static" type="beta" className="ml-1.5" />
-                  </Button>
+ 
+              <Button 
+                onClick={() => {
+                  if (!canCreateProject) {
+                    setUpgradeOpen(true);
+                  } else {
+                    setIsCreateOpen(true);
+                  }
+                }}
+                className="h-9 md:h-11 px-3 md:px-4 rounded-xl text-xs md:text-sm"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                <span className="hidden xs:inline">New Project</span>
+                <span className="xs:hidden">New</span>
+                <BetaBadge variant="static" type="beta" className="ml-1.5 hidden md:flex" />
+              </Button>
 
               {/* Spotlight Creation Wizard */}
               {isCreateOpen && (
@@ -500,6 +478,30 @@ const Dashboard = () => {
                 </SelectContent>
               </Select>
             </div>
+
+            {promoteProjectId && !projects.find(p => p.id === promoteProjectId)?.elevator_pitch_url && (
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                <div className="text-xs space-y-1">
+                  <p className="font-semibold text-amber-400">Missing Elevator Pitch</p>
+                  <p className="text-muted-foreground">
+                    This project does not have an elevator pitch video. If you promote it, the pitches Reels feed will use your blog cover image instead of a video.
+                  </p>
+                  <div className="pt-1.5">
+                    <button
+                      onClick={() => {
+                        setPromoteOpen(false);
+                        navigate(`/project/${promoteProjectId}?tab=elevator-pitch`);
+                      }}
+                      className="text-xs text-violet-400 hover:text-violet-300 font-semibold p-0 bg-transparent border-0 underline cursor-pointer"
+                    >
+                      Go to Upload Pitch Video first →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <Button onClick={handlePromoteBlog} className="w-full" disabled={isPromoting || !promoteProjectId}>
               {isPromoting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Promote Blog
@@ -509,7 +511,7 @@ const Dashboard = () => {
       </Dialog>
 
       {/* Main Content */}
-      <main className="container mx-auto px-6 py-8">
+      <main className="container mx-auto px-4 md:px-6 py-6 md:py-8">
 
         {/* Title and filters */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
@@ -520,25 +522,38 @@ const Dashboard = () => {
             <p className="text-muted-foreground mt-1">Manage and track your validation projects</p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[160px] h-11 rounded-xl">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="recent">Sort by: Recent</SelectItem>
-                <SelectItem value="rating">Sort by: Rating</SelectItem>
-                <SelectItem value="name">Sort by: Name</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto">
+            {/* Sort by: Desktop selection */}
+            <div className="hidden md:block">
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-[160px] h-11 rounded-xl">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recent">Sort by: Recent</SelectItem>
+                  <SelectItem value="rating">Sort by: Rating</SelectItem>
+                  <SelectItem value="name">Sort by: Name</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            <div className="relative">
+            {/* Sort by: Mobile trigger button */}
+            <button
+              onClick={() => setIsFilterSheetOpen(true)}
+              className="md:hidden w-11 h-11 rounded-xl border border-border/30 bg-card flex items-center justify-center text-muted-foreground active:scale-95 transition-all shrink-0"
+              aria-label="Filter and Sort"
+            >
+              <SlidersHorizontal className="w-5 h-5" />
+            </button>
+
+            {/* Search Input (flexible width) */}
+            <div className="relative flex-1 sm:flex-initial">
               <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search projects"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-11 w-[200px]"
+                className="pl-11 w-full sm:w-[200px] h-11 rounded-xl"
               />
             </div>
           </div>
@@ -557,7 +572,7 @@ const Dashboard = () => {
                 >
                   <div className="bg-card rounded-2xl border border-border/30 overflow-hidden hover:shadow-card-hover hover:-translate-y-1 transition-all duration-300">
                     {/* Cover Image Area */}
-                    <div className="relative h-48 overflow-hidden">
+                    <div className="relative h-32 sm:h-48 overflow-hidden">
                       {coverImage ? (
                         <>
                           <img
@@ -654,13 +669,13 @@ const Dashboard = () => {
             CROSS-PROMOTION ENGINE SECTION
             ═══════════════════════════════════════════════ */}
         <section className="mt-12 mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600/20 to-indigo-600/20 flex items-center justify-center">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600/20 to-indigo-600/20 flex items-center justify-center shrink-0">
                 <Megaphone className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="font-display text-xl font-bold text-foreground">
                     Cross-Promotion Engine
                   </h2>
@@ -681,7 +696,7 @@ const Dashboard = () => {
               </div>
             </div>
             {isPro && (
-              <Button onClick={() => setPromoteOpen(true)} className="gap-1.5 shadow-sm">
+              <Button onClick={() => setPromoteOpen(true)} className="gap-1.5 shadow-sm w-full sm:w-auto h-10">
                 <Plus className="w-4 h-4" />
                 Add Project
               </Button>
@@ -729,18 +744,13 @@ const Dashboard = () => {
                               onClick={async (e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                console.log("[Dashboard] Remove button clicked for promotion ID:", promo.id);
                                 if (!window.confirm(`Are you sure you want to remove this promotion?\nTitle: ${promo.blogTitle}`)) {
-                                  console.log("[Dashboard] Removal cancelled by user.");
                                   return;
                                 }
-                                console.log("[Dashboard] Proceeding with removal...");
                                 const ok = await removePromotion(promo.id);
                                 if (ok) {
-                                  console.log("[Dashboard] Promotion removal successful.");
                                   toast.success("Promotion removed.");
                                 } else {
-                                  console.error("[Dashboard] Promotion removal failed.");
                                   toast.error("Failed to remove promotion.");
                                 }
                               }}
@@ -801,6 +811,72 @@ const Dashboard = () => {
           )}
         </section>
       </main>
+
+      {/* Mobile Floating Action Button (FAB) */}
+      <button
+        onClick={() => {
+          if (!canCreateProject) {
+            setUpgradeOpen(true);
+          } else {
+            setIsCreateOpen(true);
+          }
+        }}
+        className="mobile-fab fixed bottom-6 right-6 flex items-center justify-center md:hidden shadow-lg border-0"
+        aria-label="New Project"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
+
+      {/* Mobile Sort/Filter Bottom Sheet */}
+      {isFilterSheetOpen && (
+        <div className="md:hidden">
+          <div 
+            className="mobile-sheet-backdrop open" 
+            onClick={() => setIsFilterSheetOpen(false)}
+          />
+          <div className="mobile-sheet open p-6">
+            <div className="mobile-sheet-handle" />
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-semibold text-lg">Filter & Sort</h3>
+              <button 
+                onClick={() => setIsFilterSheetOpen(false)}
+                className="w-8 h-8 rounded-full bg-muted flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              <div>
+                <h4 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Sort Projects By</h4>
+                <div className="flex flex-col gap-2">
+                  {[
+                    { value: "recent", label: "Recent Updates" },
+                    { value: "rating", label: "Rating / Status" },
+                    { value: "name", label: "Project Name (A-Z)" }
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        setSortBy(opt.value);
+                        setIsFilterSheetOpen(false);
+                      }}
+                      className={`flex items-center justify-between p-4 rounded-xl border text-left font-medium transition-all ${
+                        sortBy === opt.value 
+                          ? "border-primary bg-primary/5 text-primary" 
+                          : "border-border/50 bg-card text-foreground"
+                      }`}
+                    >
+                      <span>{opt.label}</span>
+                      {sortBy === opt.value && <Check className="w-4 h-4 text-primary" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

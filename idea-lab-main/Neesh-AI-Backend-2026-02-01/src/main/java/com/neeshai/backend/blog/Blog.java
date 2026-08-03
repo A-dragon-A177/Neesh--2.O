@@ -41,6 +41,9 @@ public class Blog {
     @Column(columnDefinition = "TEXT")
     private String customFields; // JSON string for custom fields
 
+    @Column(columnDefinition = "TEXT")
+    private String interestTags; // JSON array: [{"id":"..","label":"Pilot Users","priority":1,"color":"#FFD700"}, ...]
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

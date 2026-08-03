@@ -188,110 +188,188 @@ const ResponseTab = ({ projectId }: ResponseTabProps) => {
                             <Loader2 className="w-8 h-8 animate-spin text-primary" />
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead>
-                                    <tr className="border-b border-border/50 bg-muted/30">
-                                        <th className="text-left p-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Name</th>
-                                        <th className="text-left p-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Email</th>
-                                        <th className="text-left p-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Occupation</th>
-                                        <th className="text-left p-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Feedback</th>
-                                        <th className="text-left p-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredMembers.length > 0 ? (
-                                        filteredMembers.map((member) => {
-                                            const occColor = getOccColor(member.occupation);
-                                            return (
-                                                <tr
-                                                    key={member.id}
-                                                    className="border-b border-border/30 hover:bg-muted/30 transition-colors group"
-                                                >
-                                                    <td className="p-4">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center ring-2 ring-border/50">
-                                                                <User className="w-5 h-5 text-primary" />
-                                                            </div>
-                                                            <span className="font-medium text-foreground">{member.name}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-4 text-muted-foreground text-sm">{member.email}</td>
-                                                    <td className="p-4">
-                                                        <span
-                                                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${occColor.bg} ${occColor.text}`}
-                                                        >
-                                                            <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${occColor.dot}`} />
-                                                            {member.occupation || "Other"}
-                                                        </span>
-                                                    </td>
-                                                    <td className="p-4 text-muted-foreground text-sm max-w-[220px] truncate">
-                                                        {(() => {
-                                                            const raw = member.feedbackSummary;
-                                                            if (!raw) return "No feedback yet";
-                                                            const lines = raw.split('\n').filter((l: string) => l.trim());
-                                                            for (const line of lines) {
-                                                                const colonIdx = line.indexOf(':');
-                                                                if (colonIdx === -1) continue;
-                                                                const key = line.substring(0, colonIdx).trim();
-                                                                if (/additional\s*comments?/i.test(key)) {
-                                                                    const val = line.substring(colonIdx + 1).trim();
-                                                                    if (val) return val;
-                                                                }
-                                                            }
-                                                            // Fallback: show first line that has no question pattern
-                                                            for (const line of lines) {
-                                                                if (line.indexOf(':') === -1 || line.indexOf('?') === -1) {
-                                                                    return line.trim();
-                                                                }
-                                                            }
-                                                            return raw;
-                                                        })()}
-                                                    </td>
-                                                    <td className="p-4">
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="rounded-lg gap-1.5 opacity-70 group-hover:opacity-100 transition-opacity"
-                                                            onClick={() => handleViewMember(member.id)}
-                                                            disabled={detailLoading}
-                                                        >
-                                                            {detailLoading ? (
-                                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                            ) : (
-                                                                <Eye className="w-4 h-4" />
-                                                            )}
-                                                            View
-                                                        </Button>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
-                                    ) : (
-                                        <tr>
-                                            <td colSpan={5} className="p-12 text-center">
-                                                <div className="flex flex-col items-center gap-3">
-                                                    <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center">
-                                                        <Users className="w-8 h-8 text-muted-foreground/50" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-medium text-foreground mb-1">
-                                                            {members.length === 0
-                                                                ? "No audience members yet"
-                                                                : "No results match your filters"}
-                                                        </p>
-                                                        <p className="text-sm text-muted-foreground">
-                                                            {members.length === 0
-                                                                ? "Audience members will appear here once users interact with your project"
-                                                                : "Try adjusting your search or filter criteria"}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </td>
+                        <div>
+                            {/* Desktop Table View */}
+                            <div className="hidden md:block overflow-x-auto">
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className="border-b border-border/50 bg-muted/30">
+                                            <th className="text-left p-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Name</th>
+                                            <th className="text-left p-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Email</th>
+                                            <th className="text-left p-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Occupation</th>
+                                            <th className="text-left p-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Feedback</th>
+                                            <th className="text-left p-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Action</th>
                                         </tr>
-                                    )}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {filteredMembers.length > 0 ? (
+                                            filteredMembers.map((member) => {
+                                                const occColor = getOccColor(member.occupation);
+                                                return (
+                                                    <tr
+                                                        key={member.id}
+                                                        className="border-b border-border/30 hover:bg-muted/30 transition-colors group"
+                                                    >
+                                                        <td className="p-4">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center ring-2 ring-border/50">
+                                                                    <User className="w-5 h-5 text-primary" />
+                                                                </div>
+                                                                <span className="font-medium text-foreground">{member.name}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4 text-muted-foreground text-sm">{member.email}</td>
+                                                        <td className="p-4">
+                                                            <span
+                                                                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${occColor.bg} ${occColor.text}`}
+                                                            >
+                                                                <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${occColor.dot}`} />
+                                                                {member.occupation || "Other"}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-4 text-muted-foreground text-sm max-w-[220px] truncate">
+                                                            {(() => {
+                                                                const raw = member.feedbackSummary;
+                                                                if (!raw) return "No feedback yet";
+                                                                const lines = raw.split('\n').filter((l: string) => l.trim());
+                                                                for (const line of lines) {
+                                                                    const colonIdx = line.indexOf(':');
+                                                                    if (colonIdx === -1) continue;
+                                                                    const key = line.substring(0, colonIdx).trim();
+                                                                    if (/additional\s*comments?/i.test(key)) {
+                                                                        const val = line.substring(colonIdx + 1).trim();
+                                                                        if (val) return val;
+                                                                    }
+                                                                }
+                                                                for (const line of lines) {
+                                                                    if (line.indexOf(':') === -1 || line.indexOf('?') === -1) {
+                                                                        return line.trim();
+                                                                    }
+                                                                }
+                                                                return raw;
+                                                            })()}
+                                                        </td>
+                                                        <td className="p-4">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="rounded-lg gap-1.5 opacity-70 group-hover:opacity-100 transition-opacity"
+                                                                onClick={() => handleViewMember(member.id)}
+                                                                disabled={detailLoading}
+                                                            >
+                                                                {detailLoading ? (
+                                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                                ) : (
+                                                                    <Eye className="w-4 h-4" />
+                                                                )}
+                                                                View
+                                                            </Button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
+                                        ) : (
+                                            <tr>
+                                                <td colSpan={5} className="p-12 text-center">
+                                                    <div className="flex flex-col items-center gap-3">
+                                                        <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center">
+                                                            <Users className="w-8 h-8 text-muted-foreground/50" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-medium text-foreground mb-1">
+                                                                No results match your filters
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Mobile Card List View */}
+                            <div className="block md:hidden divide-y divide-border/40">
+                                {filteredMembers.length > 0 ? (
+                                    filteredMembers.map((member) => {
+                                        const occColor = getOccColor(member.occupation);
+                                        const feedbackText = (() => {
+                                            const raw = member.feedbackSummary;
+                                            if (!raw) return "No feedback yet";
+                                            const lines = raw.split('\n').filter((l: string) => l.trim());
+                                            for (const line of lines) {
+                                                const colonIdx = line.indexOf(':');
+                                                if (colonIdx === -1) continue;
+                                                const key = line.substring(0, colonIdx).trim();
+                                                if (/additional\s*comments?/i.test(key)) {
+                                                    const val = line.substring(colonIdx + 1).trim();
+                                                    if (val) return val;
+                                                }
+                                            }
+                                            for (const line of lines) {
+                                                if (line.indexOf(':') === -1 || line.indexOf('?') === -1) {
+                                                    return line.trim();
+                                                }
+                                            }
+                                            return raw;
+                                        })();
+                                        
+                                        return (
+                                            <div key={member.id} className="p-4 space-y-3">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center ring-2 ring-border/50 shrink-0">
+                                                            <User className="w-5 h-5 text-primary" />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <h4 className="font-semibold text-sm text-foreground truncate">{member.name}</h4>
+                                                            <p className="text-xs text-muted-foreground truncate">{member.email}</p>
+                                                        </div>
+                                                    </div>
+                                                    <span
+                                                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold shrink-0 ${occColor.bg} ${occColor.text}`}
+                                                    >
+                                                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${occColor.dot}`} />
+                                                        {member.occupation || "Other"}
+                                                    </span>
+                                                </div>
+
+                                                <div className="bg-muted/30 p-3 rounded-xl border border-border/20">
+                                                    <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
+                                                        {feedbackText}
+                                                    </p>
+                                                </div>
+
+                                                <div className="flex justify-end pt-1">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="w-full rounded-xl gap-1.5 h-9"
+                                                        onClick={() => handleViewMember(member.id)}
+                                                        disabled={detailLoading}
+                                                    >
+                                                        {detailLoading ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                        ) : (
+                                                            <Eye className="w-4 h-4" />
+                                                        )}
+                                                        View Profile Details
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="p-8 text-center">
+                                        <div className="flex flex-col items-center gap-3">
+                                            <div className="w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center">
+                                                <Users className="w-7 h-7 text-muted-foreground/50" />
+                                            </div>
+                                            <p className="text-sm font-medium text-foreground">No matches found</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
 

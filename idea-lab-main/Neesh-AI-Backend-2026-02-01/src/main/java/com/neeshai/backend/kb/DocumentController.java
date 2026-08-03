@@ -56,11 +56,20 @@ public class DocumentController {
 
     // List
     @GetMapping("/project/{projectId}")
-    public ResponseEntity<List<KnowledgeDocumentDTO>> listDocuments(
+    public ResponseEntity<?> listDocuments(
             @PathVariable UUID projectId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false, defaultValue = "20") int size,
             @AuthenticationPrincipal Jwt jwt) {
-        // Just keeping signature consistent, logic unchanged for now
-        return ResponseEntity.ok(documentService.getActiveDocuments(projectId));
+        UUID userId = getUserIdFromJwt(jwt);
+        if (page != null) {
+            org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(
+                    Math.max(0, page), Math.min(Math.max(1, size), 100),
+                    org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "uploadedAt")
+            );
+            return ResponseEntity.ok(documentService.getActiveDocuments(projectId, userId, pageable));
+        }
+        return ResponseEntity.ok(documentService.getActiveDocuments(projectId, userId));
     }
 
     @DeleteMapping("/{documentId}")

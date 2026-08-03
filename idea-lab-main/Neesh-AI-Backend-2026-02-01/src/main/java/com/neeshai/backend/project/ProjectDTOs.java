@@ -25,7 +25,11 @@ public class ProjectDTOs {
             String industry,
             String startupStage,
             String validationAnswers,
-            Boolean onboardingCompleted) {
+            Boolean onboardingCompleted,
+            String elevatorPitchUrl,
+            String elevatorPitchThumbnail,
+            Integer elevatorPitchDuration,
+            Double earlyAccessPrice) {
     }
 
     // PRIVATE DTO (Owner access)
@@ -39,8 +43,13 @@ public class ProjectDTOs {
             String status,
             String industry,
             String startupStage,
+            String validationAnswers,
             String validationReport,
             Boolean onboardingCompleted,
+            String elevatorPitchUrl,
+            String elevatorPitchThumbnail,
+            Integer elevatorPitchDuration,
+            Double earlyAccessPrice,
             ZonedDateTime createdAt,
             ZonedDateTime updatedAt) {
         public static PrivateProjectDTO fromEntity(Project project) {
@@ -54,8 +63,13 @@ public class ProjectDTOs {
                     project.getStatus(),
                     project.getIndustry(),
                     project.getStartupStage(),
+                    project.getValidationAnswers(),
                     project.getValidationReport(),
                     project.getOnboardingCompleted() != null ? project.getOnboardingCompleted() : false,
+                    project.getElevatorPitchUrl(),
+                    project.getElevatorPitchThumbnail(),
+                    project.getElevatorPitchDuration(),
+                    project.getEarlyAccessPrice(),
                     project.getCreatedAt(),
                     project.getUpdatedAt());
         }
@@ -70,6 +84,10 @@ public class ProjectDTOs {
             String description,
             String industry,
             String startupStage,
+            String elevatorPitchUrl,
+            String elevatorPitchThumbnail,
+            Integer elevatorPitchDuration,
+            Double earlyAccessPrice,
             ZonedDateTime updatedAt) {
         public static PublicProjectDTO fromEntity(Project project) {
             return new PublicProjectDTO(
@@ -80,6 +98,10 @@ public class ProjectDTOs {
                     project.getDescription(),
                     project.getIndustry(),
                     project.getStartupStage(),
+                    project.getElevatorPitchUrl(),
+                    project.getElevatorPitchThumbnail(),
+                    project.getElevatorPitchDuration(),
+                    project.getEarlyAccessPrice(),
                     project.getUpdatedAt());
         }
     }

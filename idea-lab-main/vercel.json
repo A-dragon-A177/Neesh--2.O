@@ -1,6 +1,34 @@
 {
   "rewrites": [
     {
+      "source": "/p/:slug*",
+      "destination": "/api/ssr?slug=:slug*"
+    },
+    {
+      "source": "/ideas",
+      "destination": "/api/ideas-ssr"
+    },
+    {
+      "source": "/ideas/:category",
+      "destination": "/api/ideas-ssr?category=:category"
+    },
+    {
+      "source": "/(features|pricing|space|pitches|spotlight-info|simulation|login|signup)",
+      "destination": "/api/static-ssr?route=$1"
+    },
+    {
+      "source": "/sitemap-core.xml",
+      "destination": "/api/sitemap-core"
+    },
+    {
+      "source": "/sitemap-ideas.xml",
+      "destination": "/api/sitemap-ideas"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/sitemap-core"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

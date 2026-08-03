@@ -141,7 +141,8 @@ class BlogServiceTest {
             "http://example.com/new-image.jpg",
             "Updated Introduction",
             "Updated Content",
-            List.of(Map.of("key", "value"))
+            List.of(Map.of("key", "value")),
+            List.of()
         );
 
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(testProject));
@@ -162,7 +163,7 @@ class BlogServiceTest {
     void updateBlogContent_WhenProjectNotFound_ShouldReturnEmpty() {
         // Given
         BlogDTOs.UpdateBlogRequest request = new BlogDTOs.UpdateBlogRequest(
-            "Updated Heading", null, null, null, null
+            "Updated Heading", null, null, null, null, null
         );
         when(projectRepository.findById(projectId)).thenReturn(Optional.empty());
 
@@ -178,7 +179,7 @@ class BlogServiceTest {
     void updateBlogContent_WhenBlogNotExists_ShouldCreateNewBlog() throws Exception {
         // Given
         BlogDTOs.UpdateBlogRequest request = new BlogDTOs.UpdateBlogRequest(
-            "New Blog", null, "New Intro", "New Content", null
+            "New Blog", null, "New Intro", "New Content", null, null
         );
 
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(testProject));

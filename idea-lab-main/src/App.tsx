@@ -36,9 +36,12 @@ const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 
 // Landing page sub-pages
 const FeaturesPage = lazy(() => import("./pages/FeaturesPage"));
-const BlogInfoPage = lazy(() => import("./pages/BlogInfoPage"));
+const SpotlightInfoPage = lazy(() => import("./pages/SpotlightInfoPage"));
 const SimulationPage = lazy(() => import("./pages/SimulationPage"));
 const PricingPage = lazy(() => import("./pages/PricingPage"));
+const PitchFeed = lazy(() => import("./pages/PitchFeed"));
+const Space = lazy(() => import("./pages/Space"));
+const InnovationEcosystem = lazy(() => import("./pages/InnovationEcosystem"));
 
 const queryClient = new QueryClient();
 
@@ -63,8 +66,10 @@ const App = () => (
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/innovation-ecosystem" element={<InnovationEcosystem />} />
+              <Route path="/battle-of-innovation" element={<InnovationEcosystem />} />
               <Route path="/features" element={<FeaturesPage />} />
-              <Route path="/blog-info" element={<BlogInfoPage />} />
+              <Route path="/spotlight-info" element={<SpotlightInfoPage />} />
               <Route path="/simulation" element={<SimulationPage />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/login" element={<Login />} />
@@ -75,6 +80,8 @@ const App = () => (
               <Route path="/project/:id/feedback" element={<FeedbackBuilder />} />
               <Route path="/project/:id/chatbot" element={<Chatbot />} />
               <Route path="/p/:slugWithId" element={<PublicBlog />} />
+              <Route path="/pitches" element={<PitchFeed />} />
+              <Route path="/space" element={<Space />} />
               <Route path="/profile" element={<ProfileSettings />} />
               <Route path="/admin" element={<AdminDashboard />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

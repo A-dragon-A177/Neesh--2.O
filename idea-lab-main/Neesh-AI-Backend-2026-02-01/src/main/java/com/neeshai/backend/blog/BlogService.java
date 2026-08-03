@@ -46,13 +46,14 @@ public class BlogService {
         Optional<Blog> blogOpt = blogRepository.findByProjectId(projectId);
         if (blogOpt.isEmpty()) {
             return Optional.of(new BlogDTOs.BlogContentDTO(
-                    projectOpt.get().getTitle(), "", "", "", List.of()));
+                    projectOpt.get().getTitle(), "", "", "", List.of(), List.of()));
         }
 
         Blog blog = blogOpt.get();
         List<Map<String, Object>> customFields = parseCustomFields(blog.getCustomFields());
+        List<Map<String, Object>> interestTags = parseCustomFields(blog.getInterestTags());
 
-        log.debug("Retrieved blog content with {} custom fields for project {}", customFields.size(), projectId);
+        log.debug("Retrieved blog content with {} custom fields and {} interest tags for project {}", customFields.size(), interestTags.size(), projectId);
 
         String heading = (blog.getHeading() != null && !blog.getHeading().isBlank())
                 ? blog.getHeading()
@@ -63,7 +64,8 @@ public class BlogService {
                 blog.getCoverImageUrl(),
                 blog.getIntroduction(),
                 blog.getContent(),
-                customFields));
+                customFields,
+                interestTags));
     }
 
     @Transactional
@@ -79,8 +81,8 @@ public class BlogService {
 
         Optional<Project> projectOpt = projectRepository.findById(projectId);
 
-        if (projectOpt.isEmpty()) {
-            log.warn("Project not found for id: {}", projectId);
+        if (projectOpt.isEmpty() || !projectOpt.get().getOwnerId().equals(ownerId)) {
+            log.warn("Project not found or unauthorized for project id: {} by user: {}", projectId, ownerId);
             return Optional.empty();
         }
 
@@ -100,6 +102,7 @@ public class BlogService {
         blog.setIntroduction(request.introduction());
         blog.setContent(request.content());
         blog.setCustomFields(serializeCustomFields(request.customFields()));
+        blog.setInterestTags(serializeCustomFields(request.interestTags()));
 
         Blog savedBlog = blogRepository.save(blog);
         log.debug("Successfully {} blog with id: {}", isNewBlog ? "created" : "updated", savedBlog.getId());
@@ -109,7 +112,8 @@ public class BlogService {
                 savedBlog.getCoverImageUrl(),
                 savedBlog.getIntroduction(),
                 savedBlog.getContent(),
-                request.customFields()));
+                request.customFields(),
+                request.interestTags()));
     }
 
     private List<Map<String, Object>> parseCustomFields(String json) {

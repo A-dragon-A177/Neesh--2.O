@@ -97,4 +97,34 @@ public class CashfreeService {
         }
         return false;
     }
+
+    /**
+     * Verifies Cashfree Webhook HMAC-SHA256 signature.
+     * Cashfree signature format: Base64(HmacSHA256(timestamp + rawPayload, secretKey))
+     */
+    public boolean verifyWebhookSignature(String rawPayload, String timestamp, String signature) {
+        if (secretKey == null || secretKey.isEmpty() || signature == null || timestamp == null) {
+            return false;
+        }
+        try {
+            long ts = Long.parseLong(timestamp);
+            long now = System.currentTimeMillis() / 1000;
+            if (Math.abs(now - ts) > 300) { // 5 minutes (300s) freshness tolerance window
+                log.warn("Webhook timestamp out of 5-minute tolerance window. ts={}, now={}", ts, now);
+                return false;
+            }
+
+            String dataToSign = timestamp + rawPayload;
+            javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+            javax.crypto.spec.SecretKeySpec secretKeySpec = new javax.crypto.spec.SecretKeySpec(
+                    secretKey.getBytes(java.nio.charset.StandardCharsets.UTF_8), "HmacSHA256");
+            mac.init(secretKeySpec);
+            byte[] rawHmac = mac.doFinal(dataToSign.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            String computedSignature = java.util.Base64.getEncoder().encodeToString(rawHmac);
+            return computedSignature.equals(signature);
+        } catch (Exception e) {
+            log.error("Error computing webhook signature: {}", e.getMessage());
+            return false;
+        }
+    }
 }

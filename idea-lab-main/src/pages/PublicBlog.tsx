@@ -1,6 +1,6 @@
 import { useParams, Navigate } from "react-router-dom";
 import { parseShareableUrl } from "@/lib/slugify";
-import BlogPreview from "./BlogPreview";
+import SharedPitchFeed from "./SharedPitchFeed";
 
 const PublicBlog = () => {
   const { slugWithId } = useParams();
@@ -14,7 +14,7 @@ const PublicBlog = () => {
     return <Navigate to="/" replace />;
   }
 
-  return <BlogPreview publicId={parsed.id} />;
+  return <SharedPitchFeed projectId={parsed.id} />;
 };
 
 export default PublicBlog;

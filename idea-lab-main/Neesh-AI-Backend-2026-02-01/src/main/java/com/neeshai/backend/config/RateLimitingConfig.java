@@ -29,7 +29,9 @@ public class RateLimitingConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(new RateLimitInterceptor())
-                .addPathPatterns("/api/public/**");
+                .addPathPatterns("/api/public/**", "/api/projects/**", "/api/payments/**",
+                                 "/api/user/**", "/api/audience/**", "/api/documents/**",
+                                 "/api/notifications/**", "/api/questions/**");
     }
 
     public static class RateLimitInterceptor implements HandlerInterceptor {
@@ -39,7 +41,9 @@ public class RateLimitingConfig implements WebMvcConfigurer {
         private static final int CHAT_REQUESTS_PER_MINUTE = 10;
         private static final int GENERAL_REQUESTS_PER_MINUTE = 30;
 
-        // Store buckets per IP address
+        private static final int MAX_BUCKETS = 5000;
+
+        // Store buckets per IP address with size bound
         private final ConcurrentHashMap<String, Bucket> buckets = new ConcurrentHashMap<>();
 
         @Override
@@ -49,6 +53,11 @@ public class RateLimitingConfig implements WebMvcConfigurer {
 
             // Determine rate limit based on endpoint type
             int requestsPerMinute = isChatEndpoint(path) ? CHAT_REQUESTS_PER_MINUTE : GENERAL_REQUESTS_PER_MINUTE;
+
+            // Evict stale buckets if memory threshold reached
+            if (buckets.size() > MAX_BUCKETS) {
+                evictStaleBuckets(requestsPerMinute);
+            }
 
             // Get or create bucket for this IP
             Bucket bucket = buckets.computeIfAbsent(clientIp, ip -> createNewBucket(requestsPerMinute));
@@ -95,6 +104,14 @@ public class RateLimitingConfig implements WebMvcConfigurer {
             }
 
             return request.getRemoteAddr();
+        }
+
+        private void evictStaleBuckets(int maxCapacity) {
+            try {
+                buckets.entrySet().removeIf(entry -> entry.getValue().getAvailableTokens() >= maxCapacity);
+            } catch (Exception e) {
+                log.debug("Error evicting rate limit buckets: {}", e.getMessage());
+            }
         }
     }
 }

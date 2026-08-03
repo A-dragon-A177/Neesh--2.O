@@ -15,6 +15,13 @@ export interface CustomField {
   [key: string]: any;
 }
 
+export interface InterestTag {
+  id: string;
+  label: string;
+  priority: number;
+  color?: string;
+}
+
 export interface Blog {
   id: string;
   project_id: string;
@@ -23,6 +30,7 @@ export interface Blog {
   introduction: string | null;
   content: string | null;
   custom_fields: CustomField[];
+  interest_tags?: InterestTag[];
   chatbot_name?: string | null;
   welcome_message?: string | null;
   primary_color?: string | null;
@@ -37,6 +45,7 @@ export interface UpdateBlogInput {
   introduction?: string;
   content?: string;
   custom_fields?: CustomField[];
+  interest_tags?: InterestTag[];
 }
 
 // Backend DTO matches
@@ -46,6 +55,7 @@ interface BackendBlogContent {
   introduction: string;
   content: string;
   customFields: CustomField[];
+  interestTags?: InterestTag[];
   chatbotName?: string;
   welcomeMessage?: string;
   primaryColor?: string;
@@ -66,6 +76,7 @@ export const useBlogs = () => {
       introduction: backendData.introduction,
       content: backendData.content,
       custom_fields: backendData.customFields || [],
+      interest_tags: backendData.interestTags || [],
       chatbot_name: backendData.chatbotName || null,
       welcome_message: backendData.welcomeMessage || null,
       primary_color: backendData.primaryColor || null,
@@ -82,6 +93,7 @@ export const useBlogs = () => {
       introduction: input.introduction || "",
       content: input.content || "",
       customFields: input.custom_fields || [],
+      interestTags: input.interest_tags || [],
     };
   };
 
@@ -132,7 +144,6 @@ export const useBlogs = () => {
 
       console.log("[useBlogs] Blog saved successfully!");
       console.log("[useBlogs] Response from backend:", backendData);
-      toast.success("Blog saved successfully!");
       return transformBlog(projectId, backendData);
 
     } catch (err) {

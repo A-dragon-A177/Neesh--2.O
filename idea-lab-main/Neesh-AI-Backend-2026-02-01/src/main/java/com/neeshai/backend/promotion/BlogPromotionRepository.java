@@ -47,4 +47,8 @@ public interface BlogPromotionRepository extends JpaRepository<BlogPromotion, UU
         LIMIT :maxResults
         """, nativeQuery = true)
     List<BlogPromotion> findSimilarPromotions(@Param("promotionId") UUID promotionId, @Param("maxResults") int maxResults);
+
+    /** All active promotions for the public pitch feed. */
+    @Query("SELECT bp FROM BlogPromotion bp WHERE bp.status = 'ACTIVE' ORDER BY bp.createdAt DESC")
+    List<BlogPromotion> findActivePromotions();
 }

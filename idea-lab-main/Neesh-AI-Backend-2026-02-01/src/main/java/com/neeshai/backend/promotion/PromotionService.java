@@ -52,16 +52,23 @@ public class PromotionService {
         Blog blog = blogRepository.findByProjectId(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("No blog found for this project. Create a blog first."));
 
-        // Validate tags
-        if (tags == null || tags.isEmpty()) {
-            throw new IllegalArgumentException("At least one tag is required for promotion.");
+        List<String> normalizedTags = new ArrayList<>();
+        if (tags != null) {
+            normalizedTags = tags.stream()
+                    .map(t -> t.toLowerCase().trim())
+                    .filter(t -> !t.isEmpty())
+                    .distinct()
+                    .collect(Collectors.toList());
         }
 
-        List<String> normalizedTags = tags.stream()
-                .map(t -> t.toLowerCase().trim())
-                .filter(t -> !t.isEmpty())
-                .distinct()
-                .collect(Collectors.toList());
+        if (normalizedTags.isEmpty()) {
+            String industry = blog.getProject().getIndustry();
+            if (industry != null && !industry.isBlank()) {
+                normalizedTags.add(industry.toLowerCase().trim());
+            } else {
+                normalizedTags.add("startup");
+            }
+        }
 
         if (normalizedTags.size() > MAX_TAGS) {
             throw new IllegalArgumentException("Maximum " + MAX_TAGS + " tags allowed per promotion.");
@@ -130,31 +137,44 @@ public class PromotionService {
 
     /**
      * Get similar blogs for "More Like This" section — PUBLIC endpoint.
+     * Falls back to recent active promotions when no tag-based matches are found.
      */
     public List<PromotionDTOs.SimilarBlogDTO> getSimilarBlogs(UUID projectId, int limit) {
         // Find the blog for this project
         Optional<Blog> blogOpt = blogRepository.findByProjectId(projectId);
-        if (blogOpt.isEmpty()) {
-            return Collections.emptyList();
+
+        // Find the promotion for this blog (if it exists and is active)
+        Optional<BlogPromotion> promoOpt = Optional.empty();
+        if (blogOpt.isPresent()) {
+            promoOpt = promotionRepository.findByBlogIdAndStatus(blogOpt.get().getId(), "ACTIVE");
         }
 
-        Blog blog = blogOpt.get();
+        List<BlogPromotion> similar;
+        List<String> currentTags = Collections.emptyList();
 
-        // Find the promotion for this blog
-        Optional<BlogPromotion> promoOpt = promotionRepository.findByBlogIdAndStatus(blog.getId(), "ACTIVE");
-        if (promoOpt.isEmpty()) {
-            // This blog isn't promoted, but we can still try to show promoted blogs
-            // Return some active promotions as suggestions
-            return Collections.emptyList();
+        if (promoOpt.isPresent()) {
+            // Try tag-based similarity first
+            similar = promotionRepository.findSimilarPromotions(promoOpt.get().getId(), limit);
+            currentTags = tagRepository.findByPromotionId(promoOpt.get().getId())
+                    .stream().map(PromotionTag::getTag).collect(Collectors.toList());
+        } else {
+            similar = Collections.emptyList();
         }
 
-        // Find similar promotions by tag overlap
-        List<BlogPromotion> similar = promotionRepository.findSimilarPromotions(promoOpt.get().getId(), limit);
+        // Fallback: if no tag matches found, return recent active promotions (excluding current project)
+        if (similar.isEmpty()) {
+            List<BlogPromotion> allActive = promotionRepository.findActivePromotions();
+            similar = allActive.stream()
+                    .filter(p -> {
+                        Blog b = blogRepository.findById(p.getBlogId()).orElse(null);
+                        if (b == null || b.getProject() == null) return false;
+                        return !b.getProject().getId().equals(projectId);
+                    })
+                    .limit(limit)
+                    .collect(Collectors.toList());
+        }
 
-        // Get tags for the current blog's promotion
-        List<String> currentTags = tagRepository.findByPromotionId(promoOpt.get().getId())
-                .stream().map(PromotionTag::getTag).collect(Collectors.toList());
-
+        final List<String> finalCurrentTags = currentTags;
         return similar.stream().map(simPromo -> {
             Blog simBlog = blogRepository.findById(simPromo.getBlogId()).orElse(null);
             if (simBlog == null) return null;
@@ -169,7 +189,7 @@ public class PromotionService {
 
             // Find matching tags
             List<String> matchingTags = simTags.stream()
-                    .filter(currentTags::contains)
+                    .filter(finalCurrentTags::contains)
                     .collect(Collectors.toList());
 
             return new PromotionDTOs.SimilarBlogDTO(
@@ -182,6 +202,42 @@ public class PromotionService {
                     matchingTags
             );
         }).filter(Objects::nonNull).collect(Collectors.toList());
+    }
+
+    /**
+     * Get pitch feed — all active promotions that have an elevator pitch video.
+     * PUBLIC endpoint, powers the Reels / short-form pitch feed.
+     */
+    public List<PromotionDTOs.PitchFeedItemDTO> getPitchFeed(int limit, int offset) {
+        List<BlogPromotion> activePromotions = promotionRepository.findActivePromotions();
+
+        return activePromotions.stream()
+                .map(promo -> {
+                    Blog blog = blogRepository.findById(promo.getBlogId()).orElse(null);
+                    if (blog == null) return null;
+
+                    com.neeshai.backend.project.Project project = blog.getProject();
+                    if (project == null) return null;
+
+                    User owner = userRepository.findById(promo.getUserId()).orElse(null);
+                    String authorName = owner != null ? owner.getName() : "Unknown";
+
+                    return new PromotionDTOs.PitchFeedItemDTO(
+                            project.getId(),
+                            blog.getHeading() != null ? blog.getHeading() : project.getTitle(),
+                            project.getOneLineSummary(),
+                            project.getSlug(),
+                            project.getElevatorPitchUrl(),
+                            project.getElevatorPitchThumbnail(),
+                            project.getElevatorPitchDuration(),
+                            blog.getCoverImageUrl(),
+                            authorName
+                    );
+                })
+                .filter(Objects::nonNull)
+                .skip(offset)
+                .limit(limit)
+                .collect(Collectors.toList());
     }
 
     /**

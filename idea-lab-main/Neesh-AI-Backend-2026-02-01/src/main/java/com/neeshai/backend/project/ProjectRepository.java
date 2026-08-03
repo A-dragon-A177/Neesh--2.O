@@ -12,6 +12,7 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
 
     // @SQLRestriction ensures these only return non-deleted
     List<Project> findByOwnerId(UUID ownerId);
+    org.springframework.data.domain.Page<Project> findByOwnerId(UUID ownerId, org.springframework.data.domain.Pageable pageable);
 
     Optional<Project> findBySlug(String slug);
 

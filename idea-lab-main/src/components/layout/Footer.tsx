@@ -46,9 +46,9 @@ export const Footer = () => {
                 </a>
               </li>
               <li>
-                <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  Blog
-                </a>
+                <Link to="/spotlight-info" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  Spotlight
+                </Link>
               </li>
               <li>
                 <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
