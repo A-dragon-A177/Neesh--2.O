@@ -66,7 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setLoading(false);
             return;
           }
-        } catch (e) {}
+        } catch (e) { }
       }
 
       const { data: { session: initialSession } } = await supabase.auth.getSession();
@@ -89,7 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setSession(newSession);
       setUser(newSession?.user ?? null);
-      
+
       if (newSession?.user) {
         currentUserIdRef.current = newSession.user.id;
       } else {
@@ -182,16 +182,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      session, 
-      loading, 
-      signOut, 
-      signUp, 
-      signIn, 
-      signInWithGoogle, 
-      signInWithGithub, 
-      syncWithBackend 
+    <AuthContext.Provider value={{
+      user,
+      session,
+      loading,
+      signOut,
+      signUp,
+      signIn,
+      signInWithGoogle,
+      signInWithGithub,
+      syncWithBackend
     }}>
       {children}
     </AuthContext.Provider>
