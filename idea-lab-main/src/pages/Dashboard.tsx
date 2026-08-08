@@ -279,7 +279,7 @@ const Dashboard = () => {
               <NeeshLogo size="md" />
               <BetaBadge variant="glow" type="beta" className="hidden sm:flex" />
               <span className="text-sm text-muted-foreground hidden md:block">
-                AI-powered content & niche projects
+                Welcome to Niche Ecosystem
               </span>
             </div>
 
@@ -300,13 +300,13 @@ const Dashboard = () => {
                   </DialogHeader>
                   <div className="space-y-4 mt-4">
                     {[
-                      { icon: Sparkles, title: "1. Overview", desc: "Get a bird's-eye view of your project: idea health score, validation stage, gap detection, persona engagement, and AI-generated summary — all computed from real audience data." },
-                      { icon: FileEdit, title: "2. Blog Editor", desc: "Write and format your blog using the rich-text editor. Add text, images, video, and feedback forms. Preview your blog and share the public link with your audience." },
-                      { icon: Database, title: "3. Train your ChatBot", desc: "Upload documents (PDF, DOCX, TXT) that train the AI chatbot. The chatbot uses this knowledge to answer visitor questions accurately." },
-                      { icon: MessageSquare, title: "4. Response", desc: "View all feedback form submissions and chatbot interactions. See answered and unanswered questions, filter by occupation, and understand what your audience is asking." },
-                      { icon: BellIcon, title: "5. Notification", desc: "See clustered question patterns from chatbot interactions. Identify recurring themes and gaps in your content so you can train your chatbot further." },
-                      { icon: Bot, title: "6. Chatbot", desc: "Test your AI chatbot as visitors will see it. The chatbot answers questions using your uploaded documents." },
-                      { icon: BarChart3, title: "7. Audience Insights", desc: "AI-powered persona detection categorizes your audience (developers, marketers, investors, etc.). View confusion points, common questions, and content suggestions per persona." },
+                      { icon: Sparkles, title: "1. Overview", desc: "Your startup's command center — validation score, market signals, gap detection, persona breakdown, and AI-generated summary all computed from real audience interactions." },
+                      { icon: FileEdit, title: "2. Spotlight Editor", desc: "Build your high-converting product spotlight page. Add text, images, video, interest buttons, and feedback forms. Share the public link to capture real audience intent." },
+                      { icon: Megaphone, title: "3. Elevator Pitch", desc: "Create a crisp 30-second pitch reel. Record, upload, or generate your elevator pitch to hook visitors within seconds and drive engagement." },
+                      { icon: Database, title: "4. Train your ChatBot", desc: "Upload product docs (PDF, DOCX, TXT) to power your AI chatbot. It learns from your knowledge base to answer visitor questions 24/7 with accurate, context-aware responses." },
+                      { icon: MessageSquare, title: "5. Audience Inbox", desc: "Your unified engagement hub — view feedback submissions, chatbot questions, validated buyer signals (Gold/Silver/Bronze), and respond directly to individual audience members. Track unanswered questions and notification clusters." },
+                      { icon: Bot, title: "6. Chatbot", desc: "Preview and test your AI chatbot exactly as visitors experience it. Powered by your uploaded documents and trained knowledge base." },
+                      { icon: BarChart3, title: "7. Audience Insights", desc: "AI-powered persona detection categorizes your audience (developers, marketers, investors, etc.). Discover confusion points, trending questions, and AI-suggested content improvements." },
                     ].map((step) => (
                       <div key={step.title} className="flex gap-3 p-3 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors">
                         <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
@@ -320,7 +320,7 @@ const Dashboard = () => {
                     ))}
                     <div className="pt-2 border-t border-border/50">
                       <p className="text-xs text-muted-foreground text-center">
-                        Share your blog → Visitors ask questions & give feedback → AI detects personas → You iterate on your idea
+                        Build your spotlight → Visitors engage & ask questions → AI validates demand → You iterate with real signals
                       </p>
                     </div>
                   </div>
@@ -403,11 +403,11 @@ const Dashboard = () => {
               <div className="flex items-center gap-2 mb-2">
                 <BetaBadge variant="glow" type="beta" />
                 <p className="text-sm text-foreground font-medium">
-                  Free during Beta!
+                  Free during 2.0 Beta!
                 </p>
               </div>
               <p className="text-xs text-muted-foreground">
-                Since Neesh AI is in Beta, all Pro features are completely free. Upgrade now to unlock:
+                Since Neesh AI is in 2.0 Beta, all Pro features are completely free. Upgrade now to unlock:
               </p>
               <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                 <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Unlimited projects</li>
@@ -441,7 +441,7 @@ const Dashboard = () => {
             </h2>
             <BetaBadge variant="glow" type="beta" className="mb-3" />
             <p className="text-sm text-muted-foreground leading-relaxed max-w-sm">
-              Since Neesh AI is currently in <strong className="text-foreground">Beta</strong>, the Pro plan is free for you! Enjoy unlimited projects, custom branding, cross-promotion, and all premium features.
+              Since Neesh AI is currently in <strong className="text-foreground">2.0 Beta</strong>, the Pro plan is free for you! Enjoy unlimited projects, custom branding, cross-promotion, and all premium features.
             </p>
             <Button
               onClick={() => setBetaUpgradeSuccess(false)}
@@ -706,11 +706,12 @@ const Dashboard = () => {
           {isPro ? (
             // ── Pro users: show managed promotions ──
             <div>
-              {promotions.filter(p => p.status === 'ACTIVE').length > 0 ? (
+              {promotions.filter(p => p.status?.toUpperCase() === 'ACTIVE').length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {promotions.filter(p => p.status === 'ACTIVE').map((promo) => {
+                  {promotions.filter(p => p.status?.toUpperCase() === 'ACTIVE').map((promo) => {
                     const project = projects.find(p => p.id === promo.projectId);
-                    const coverImg = project ? (getProjectCoverImage(project.id) || coverImages[project.id]) : promo.coverImageUrl;
+                    const coverImg = (project ? (getProjectCoverImage(project.id) || coverImages[project.id]) : null) || promo.coverImageUrl || project?.elevator_pitch_thumbnail;
+                    const displayTitle = (promo.blogTitle && promo.blogTitle !== "Untitled") ? promo.blogTitle : (project?.title || "Startup Project");
                     return (
                       <div
                         key={promo.id}
@@ -719,7 +720,7 @@ const Dashboard = () => {
                         {/* Cover */}
                         <div className="relative h-32 overflow-hidden bg-gradient-to-br from-blue-600/10 via-indigo-600/10 to-muted">
                           {coverImg ? (
-                            <img src={coverImg} alt={promo.blogTitle} className="w-full h-full object-cover" loading="lazy" />
+                            <img src={coverImg} alt={displayTitle} className="w-full h-full object-cover" loading="lazy" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
                               <Megaphone className="w-8 h-8 text-muted-foreground/30" />
@@ -730,14 +731,12 @@ const Dashboard = () => {
 
                         {/* Content */}
                         <div className="p-4">
-                          <h4 className="font-semibold text-sm mb-2 line-clamp-1">{promo.blogTitle}</h4>
-
-                          {/* Tags display removed */}
+                          <h4 className="font-semibold text-sm mb-2 line-clamp-1">{displayTitle}</h4>
 
                           {/* Status + Remove */}
                           <div className="flex items-center justify-between">
                             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 uppercase">
-                              {promo.status === 'ACTIVE' ? '● Live' : promo.status}
+                              {promo.status?.toUpperCase() === 'ACTIVE' ? '● Live' : promo.status}
                             </span>
                             <button
                               type="button"
@@ -813,19 +812,21 @@ const Dashboard = () => {
       </main>
 
       {/* Mobile Floating Action Button (FAB) */}
-      <button
-        onClick={() => {
-          if (!canCreateProject) {
-            setUpgradeOpen(true);
-          } else {
-            setIsCreateOpen(true);
-          }
-        }}
-        className="mobile-fab fixed bottom-6 right-6 flex items-center justify-center md:hidden shadow-lg border-0"
-        aria-label="New Project"
-      >
-        <Plus className="w-6 h-6" />
-      </button>
+      {!isCreateOpen && (
+        <button
+          onClick={() => {
+            if (!canCreateProject) {
+              setUpgradeOpen(true);
+            } else {
+              setIsCreateOpen(true);
+            }
+          }}
+          className="mobile-fab fixed bottom-6 right-6 flex items-center justify-center md:hidden shadow-lg border-0"
+          aria-label="New Project"
+        >
+          <Plus className="w-6 h-6" />
+        </button>
+      )}
 
       {/* Mobile Sort/Filter Bottom Sheet */}
       {isFilterSheetOpen && (

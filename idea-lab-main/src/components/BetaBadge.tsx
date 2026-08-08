@@ -57,7 +57,7 @@ export const BetaBadge = ({
           className={`w-1.5 h-1.5 rounded-full ${dot} ${dotShadow}`}
         />
       )}
-      {isBeta ? "BETA" : "UPCOMING"}
+      {isBeta ? "2.0 BETA" : "UPCOMING"}
     </span>
   );
 };
@@ -104,7 +104,7 @@ export const BetaBadgeLight = ({
           className={`w-1.5 h-1.5 rounded-full ${dot} ${dotShadow}`}
         />
       )}
-      {isBeta ? "BETA" : "UPCOMING"}
+      {isBeta ? "2.0 BETA" : "UPCOMING"}
     </span>
   );
 };

@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +41,20 @@ const Signup = () => {
   const [resendCooldown, setResendCooldown] = useState(0);
   const { signUp, signInWithGoogle, signInWithGithub, user, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const getTargetRedirect = useCallback(() => {
+    const fromQuery = searchParams.get("returnTo");
+    if (fromQuery) return fromQuery;
+    try {
+      const stored = sessionStorage.getItem("post_login_redirect");
+      if (stored) {
+        sessionStorage.removeItem("post_login_redirect");
+        return stored;
+      }
+    } catch {}
+    return "/dashboard";
+  }, [searchParams]);
 
   const passwordChecks = useMemo(() => passwordRules.map(r => ({ ...r, passed: r.test(password) })), [password]);
   const allPasswordChecksPassed = passwordChecks.every(c => c.passed);
@@ -50,9 +64,14 @@ const Signup = () => {
 
   useEffect(() => {
     if (!loading && user) {
-      navigate("/dashboard");
+      const target = getTargetRedirect();
+      if (target.startsWith("http://") || target.startsWith("https://")) {
+        window.location.href = target;
+      } else {
+        navigate(target);
+      }
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, getTargetRedirect]);
 
   // Resend cooldown timer
   useEffect(() => {

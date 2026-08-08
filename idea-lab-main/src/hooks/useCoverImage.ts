@@ -39,8 +39,9 @@ export const useCoverImage = (projectId: string | undefined) => {
   const uploadCoverImage = async (file: File) => {
     if (!projectId) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("Image too large. Please upload an image under 10MB.");
+    // Allow high-res camera/phone photos and videos up to 200MB — compressImage optimizes them to ~200-500KB
+    if (file.size > 200 * 1024 * 1024) {
+      toast.error("Image too large. Please upload an image under 200MB.");
       return;
     }
 
@@ -52,7 +53,7 @@ export const useCoverImage = (projectId: string | undefined) => {
     setUploading(true);
 
     try {
-      // Compress image first
+      // Compress image client-side first to optimize size and resolution
       const compressedFile = await compressImage(file);
 
       // Upload to Supabase Storage

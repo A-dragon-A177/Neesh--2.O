@@ -46,8 +46,8 @@ interface AudienceProfileModalProps {
 }
 
 const AudienceProfileModal = ({ member, onClose, onAnswerQuestion, answeringId }: AudienceProfileModalProps) => {
-    const answeredQuestions = member.questions ? member.questions.filter((q) => q.status === "answered") : [];
-    const unansweredQuestions = member.questions ? member.questions.filter((q) => q.status === "unanswered") : [];
+    const answeredQuestions = member.questions ? member.questions.filter((q) => q.chatbotAnswer != null || q.customAdminAnswer != null) : [];
+    const unansweredQuestions = member.questions ? member.questions.filter((q) => q.customAdminAnswer == null) : [];
 
     const [activeSection, setActiveSection] = useState<"answered" | "unanswered">(() => {
         return unansweredQuestions.length > 0 ? "unanswered" : "answered";
@@ -105,12 +105,12 @@ const AudienceProfileModal = ({ member, onClose, onAnswerQuestion, answeringId }
                             <User className="w-8 h-8 text-primary" />
                         </div>
                         <div>
-                            <h2 className="font-display font-bold text-2xl">{member.name}</h2>
+                            <h2 className="font-display font-bold text-2xl text-slate-900 dark:text-white">{member.name}</h2>
                             <div className="flex items-center gap-2 mt-1">
                                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${occStyle.bg} ${occStyle.text} ${occStyle.border}`}>
                                     {member.occupation || "Unknown"}
                                 </span>
-                                <span className="text-sm text-muted-foreground">{member.email}</span>
+                                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{member.email}</span>
                             </div>
                         </div>
                     </div>
@@ -124,7 +124,7 @@ const AudienceProfileModal = ({ member, onClose, onAnswerQuestion, answeringId }
                     <div className="p-6 space-y-6">
                         {/* Section A: Profile Information */}
                         <div className="bg-muted/30 rounded-2xl p-6 border border-border/30">
-                            <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                            <h3 className="font-semibold text-lg mb-4 flex items-center gap-2 text-slate-900 dark:text-white">
                                 <User className="w-5 h-5 text-primary" />
                                 Profile Information
                             </h3>
@@ -140,46 +140,50 @@ const AudienceProfileModal = ({ member, onClose, onAnswerQuestion, answeringId }
 
                         {/* Section B: Feedback */}
                         <div className="bg-muted/30 rounded-2xl p-6 border border-border/30">
-                            <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                            <h3 className="font-semibold text-lg mb-4 flex items-center gap-2 text-slate-900 dark:text-white">
                                 <MessageSquare className="w-5 h-5 text-accent" />
                                 Feedback
                             </h3>
                             {member.feedbackText ? (() => {
-                                // Parse feedbackText: lines like "Question?: Answer"
+                                // Parse feedbackText: lines like "Question?: Answer" or plain comment lines
                                 const lines = member.feedbackText.split('\n').filter(l => l.trim());
-                                let additionalComment = '';
+                                const commentsList: string[] = [];
                                 const feedbackItems: { label: string; value: string }[] = [];
 
                                 for (const line of lines) {
                                     const colonIdx = line.indexOf(':');
                                     if (colonIdx === -1) {
-                                        // No colon — treat as plain comment
-                                        additionalComment += (additionalComment ? '\n' : '') + line.trim();
+                                        // Plain comment line without a colon
+                                        commentsList.push(line.trim());
                                         continue;
                                     }
                                     const key = line.substring(0, colonIdx).trim();
                                     const val = line.substring(colonIdx + 1).trim();
-                                    // Check if this is the additional comments field
-                                    if (/additional\s*comments?/i.test(key)) {
-                                        additionalComment += (additionalComment ? '\n' : '') + val;
+
+                                    // Check if key represents comments, feedback, notes, thoughts, or messages
+                                    const isCommentKey = /comment|feedback|notes?|thought|message|opinion/i.test(key);
+                                    if (isCommentKey) {
+                                        if (val) commentsList.push(val);
                                     } else if (val) {
                                         feedbackItems.push({ label: key.replace(/\?$/, '').trim(), value: val });
                                     }
                                 }
 
+                                const mainComment = commentsList.join('\n\n');
+
                                 return (
                                     <div className="space-y-4">
-                                        {/* Main feedback / Additional Comments */}
-                                        {additionalComment && (
+                                        {/* Main feedback / Comments block */}
+                                        {mainComment && (
                                             <div className="bg-card p-4 rounded-xl border border-border/30">
-                                                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1.5 font-medium">Feedback</p>
-                                                <p className="text-foreground leading-relaxed">{additionalComment}</p>
+                                                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1.5 font-medium">Feedback / Additional Comments</p>
+                                                <p className="text-foreground leading-relaxed whitespace-pre-wrap">{mainComment}</p>
                                             </div>
                                         )}
 
                                         {/* Structured feedback items grid */}
                                         {feedbackItems.length > 0 && (
-                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                                                 {feedbackItems.map((item, i) => (
                                                     <div key={i} className="bg-card p-3 rounded-xl border border-border/30">
                                                         <p className="text-[11px] text-muted-foreground uppercase tracking-wide mb-1 font-medium">{item.label}</p>
@@ -189,11 +193,11 @@ const AudienceProfileModal = ({ member, onClose, onAnswerQuestion, answeringId }
                                             </div>
                                         )}
 
-                                        {/* If no additional comment was found but there are structured items, show fallback */}
-                                        {!additionalComment && feedbackItems.length === 0 && (
-                                            <p className="text-foreground leading-relaxed bg-card p-4 rounded-xl border border-border/30">
-                                                {member.feedbackText}
-                                            </p>
+                                        {/* Fallback if parsing produced no outputs */}
+                                        {!mainComment && feedbackItems.length === 0 && (
+                                            <div className="bg-card p-4 rounded-xl border border-border/30">
+                                                <p className="text-foreground leading-relaxed whitespace-pre-wrap">{member.feedbackText}</p>
+                                            </div>
                                         )}
 
                                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -218,7 +222,7 @@ const AudienceProfileModal = ({ member, onClose, onAnswerQuestion, answeringId }
 
                         {/* Section C: Chatbot Interaction */}
                         <div className="bg-muted/30 rounded-2xl p-6 border border-border/30">
-                            <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                            <h3 className="font-semibold text-lg mb-4 flex items-center gap-2 text-slate-900 dark:text-white">
                                 <HelpCircle className="w-5 h-5 text-primary" />
                                 Chatbot Interactions
                             </h3>
@@ -305,9 +309,9 @@ const InfoCard = ({ icon, label, value }: { icon: React.ReactNode; label: string
     <div className="bg-card rounded-xl p-3.5 border border-border/30">
         <div className="flex items-center gap-2 mb-1.5">
             <span className="text-primary">{icon}</span>
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
+            <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">{label}</span>
         </div>
-        <p className="font-semibold text-foreground text-sm">{value}</p>
+        <p className="font-bold text-slate-900 dark:text-white text-sm">{value}</p>
     </div>
 );
 
@@ -334,7 +338,7 @@ const AnsweredQuestionItem = ({
             className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors text-left"
         >
             <div className="flex-1 pr-4">
-                <p className="font-medium text-foreground text-sm">{question.questionText}</p>
+                <p className="font-semibold text-slate-900 dark:text-white text-sm">{question.questionText}</p>
                 <p className="text-xs text-muted-foreground mt-1">
                     {question.askedAt ? new Date(question.askedAt).toLocaleDateString() : ""}
                 </p>
@@ -348,18 +352,18 @@ const AnsweredQuestionItem = ({
             <div className="px-4 pb-4 space-y-3 border-t border-border/30 pt-3 animate-slide-down">
                 <div>
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Full Question</p>
-                    <p className="text-foreground text-sm">{question.questionText}</p>
+                    <p className="text-slate-900 dark:text-white text-sm">{question.questionText}</p>
                 </div>
                 {question.chatbotAnswer && (
                     <div>
                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Chatbot Answer</p>
-                        <p className="text-foreground text-sm bg-muted/30 p-3 rounded-lg border border-border/30">{question.chatbotAnswer}</p>
+                        <p className="text-slate-900 dark:text-slate-200 text-sm bg-muted/30 p-3 rounded-lg border border-border/30">{question.chatbotAnswer}</p>
                     </div>
                 )}
                 {question.customAdminAnswer && (
                     <div>
                         <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider mb-1">Admin Reply</p>
-                        <p className="text-foreground text-sm bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20">{question.customAdminAnswer}</p>
+                        <p className="text-slate-900 dark:text-white text-sm bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20">{question.customAdminAnswer}</p>
                     </div>
                 )}
                 <div className="pt-2">
@@ -410,7 +414,7 @@ const UnansweredQuestionItem = ({
             className="w-full flex items-center justify-between p-4 hover:bg-amber-500/5 transition-colors text-left"
         >
             <div className="flex-1 pr-4">
-                <p className="font-medium text-foreground text-sm">{question.questionText}</p>
+                <p className="font-semibold text-slate-900 dark:text-white text-sm">{question.questionText}</p>
                 <p className="text-xs text-muted-foreground mt-1">
                     {question.askedAt ? new Date(question.askedAt).toLocaleDateString() : ""}
                 </p>
@@ -424,7 +428,7 @@ const UnansweredQuestionItem = ({
             <div className="px-4 pb-4 space-y-3 border-t border-amber-500/20 pt-3 animate-slide-down">
                 <div>
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Full Question</p>
-                    <p className="text-foreground text-sm">{question.questionText}</p>
+                    <p className="text-slate-900 dark:text-white text-sm">{question.questionText}</p>
                 </div>
                 <div>
                     <p className="text-xs font-medium text-muted-foreground mb-2">Your answer:</p>

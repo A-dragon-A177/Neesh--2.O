@@ -1548,48 +1548,68 @@
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
 
+/* Active indicator dot */
+.mobile-bottom-nav button .active-dot {
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: hsl(var(--primary));
+  margin-top: 1px;
+  box-shadow: 0 0 6px hsl(var(--primary) / 0.5);
+  animation: dot-pulse 2s ease-in-out infinite;
+}
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.7); }
+}
+
+/* Custom SVG icon sizing */
+.mobile-bottom-nav button svg {
+  width: 22px;
+  height: 22px;
+  transition: transform 0.2s ease;
+}
+
+.mobile-bottom-nav button.active svg {
+  transform: scale(1.12);
+}
+
 /* Content padding when bottom nav is visible */
 @media (max-width: 767px) {
   .has-bottom-nav {
-    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
   }
 }
 
 /* ─── Mobile touch target enforcement ─── */
 @media (max-width: 767px) {
-  button, a, [role="button"], input[type="checkbox"], input[type="radio"] {
+  button:not([class*="h-"]),
+  a:not([class]),
+  [role="button"]:not([class*="h-"]),
+  input[type="checkbox"],
+  input[type="radio"] {
     min-height: 44px;
-    min-width: 44px;
   }
   
-  /* Exclude inline text links and very small elements */
-  a:not([class]) {
+  /* Exclude inline text links, small buttons, and badges */
+  a:not([class]),
+  button[class*="h-8"],
+  button[class*="h-7"],
+  button[class*="h-9"],
+  .icon-button,
+  .nav-badge,
+  span.nav-label,
+  span.nav-badge {
     min-height: auto;
     min-width: auto;
-  }
-  
-  /* Exclude icon buttons that set explicit sizes */
-  .icon-button {
-    min-height: 40px;
-    min-width: 40px;
   }
   
   /* Exclude bottom nav items (they have their own sizing) */
   .mobile-bottom-nav button {
     min-height: 48px;
     min-width: 52px;
-  }
-  
-  /* Exclude nav badge from touch target expansion */
-  .nav-badge {
-    min-height: auto;
-    min-width: auto;
-  }
-  
-  /* Exclude inline spans and small badges */
-  span.nav-label, span.nav-badge {
-    min-height: auto;
-    min-width: auto;
   }
 }
 

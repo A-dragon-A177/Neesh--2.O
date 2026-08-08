@@ -501,6 +501,7 @@ const Project = () => {
                   elevatorPitchUrl: project.elevator_pitch_url || null,
                   earlyAccessPrice: project.early_access_price,
                 }}
+                validationAnswers={project.validation_answers || null}
                 validationReport={project.validation_report || null}
                 onResumeOnboarding={() => setIsWizardOpen(true)}
                 questionsData={clusters.slice(0, 5).map((q) => ({

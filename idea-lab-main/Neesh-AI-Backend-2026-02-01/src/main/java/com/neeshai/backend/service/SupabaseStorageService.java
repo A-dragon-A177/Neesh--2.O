@@ -40,6 +40,88 @@ public class SupabaseStorageService implements StorageService {
         this.restTemplate = new RestTemplate();
     }
 
+    @jakarta.annotation.PostConstruct
+    public void initBucketLimits() {
+        try {
+            updateBucketLimit("pitch-videos", 209715200L, true);
+            updateBucketLimit("blog-media", 209715200L, true);
+            updateBucketLimit(bucketName != null ? bucketName : "documents", 209715200L, false);
+        } catch (Exception e) {
+            log.warn("Supabase bucket limit initialization note: {}", e.getMessage());
+        }
+    }
+
+    public void updateBucketLimit(String bName, long limitBytes, boolean isPublic) {
+        if (supabaseUrl == null || serviceRoleKey == null || serviceRoleKey.isBlank()) return;
+        try {
+            String url = String.format("%s/storage/v1/bucket/%s", supabaseUrl, bName);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(serviceRoleKey);
+            headers.set("apikey", serviceRoleKey);
+
+            Map<String, Object> body = Map.of(
+                "public", isPublic,
+                "file_size_limit", limitBytes
+            );
+
+            restTemplate.exchange(url, HttpMethod.PUT, new HttpEntity<>(body, headers), Map.class);
+            log.info("Updated Supabase storage bucket '{}' limit to {}MB", bName, limitBytes / (1024 * 1024));
+        } catch (Exception e) {
+            log.debug("Bucket '{}' limit update skipped: {}", bName, e.getMessage());
+        }
+    }
+
+    public String uploadFileToBucket(MultipartFile file, String destinationPath, String targetBucket) {
+        try {
+            String bName = (targetBucket != null && !targetBucket.isBlank()) ? targetBucket : bucketName;
+            log.info("Uploading file {} to Supabase Storage bucket {} at path: {}", file.getOriginalFilename(), bName, destinationPath);
+
+            if (file.isEmpty()) {
+                throw new IllegalArgumentException("File is empty");
+            }
+            if (destinationPath == null || destinationPath.trim().isEmpty()) {
+                throw new IllegalArgumentException("Destination path is required");
+            }
+
+            String cleanPath = destinationPath.startsWith("/") ? destinationPath.substring(1) : destinationPath;
+            String uploadUrl = String.format("%s/storage/v1/object/%s/%s", supabaseUrl, bName, cleanPath);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+            headers.setBearerAuth(serviceRoleKey);
+            headers.set("apikey", serviceRoleKey);
+
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            ByteArrayResource fileResource = new ByteArrayResource(file.getBytes()) {
+                @Override
+                public String getFilename() {
+                    return file.getOriginalFilename();
+                }
+            };
+            body.add("file", fileResource);
+
+            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+            ResponseEntity<Map> response = restTemplate.exchange(
+                uploadUrl,
+                HttpMethod.POST,
+                requestEntity,
+                Map.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                log.info("Successfully uploaded {} to Supabase Storage bucket {}", file.getOriginalFilename(), bName);
+                return String.format("%s/storage/v1/object/public/%s/%s", supabaseUrl, bName, cleanPath);
+            } else {
+                throw new RuntimeException("Upload failed with status: " + response.getStatusCode());
+            }
+        } catch (Exception e) {
+            log.error("Failed to upload file to Supabase Storage: {}", e.getMessage(), e);
+            throw new RuntimeException("File upload failed: " + e.getMessage(), e);
+        }
+    }
+
     @Override
     public String uploadFile(MultipartFile file, String destinationPath) {
         try {
@@ -142,7 +224,7 @@ public class SupabaseStorageService implements StorageService {
             Map<String, Object> bucketData = Map.of(
                 "name", bucketName,
                 "public", false,
-                "file_size_limit", 52428800, // 50MB limit
+                "file_size_limit", 209715200, // 200MB limit
                 "allowed_mime_types", new String[]{
                     "application/pdf",
                     "text/plain",

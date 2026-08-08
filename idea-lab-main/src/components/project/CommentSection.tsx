@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MessageCircle, Send, Loader2 } from "lucide-react";
+import { MessageCircle, Send, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import apiClient from "@/lib/api";
 
@@ -24,6 +24,7 @@ const CommentSection = ({ projectId, onRequireSignIn, user }: CommentSectionProp
     const [email, setEmail] = useState("");
     const [text, setText] = useState("");
     const [submitting, setSubmitting] = useState(false);
+    const [isOpen, setIsOpen] = useState(false);
 
     // Fetch comments from backend REST API
     const fetchComments = async () => {
@@ -75,6 +76,7 @@ const CommentSection = ({ projectId, onRequireSignIn, user }: CommentSectionProp
                 name: name.trim(),
                 email: resolvedEmail,
                 feedbackText: text.trim(),
+                feedbackSource: "Comment",
             }, { skipAuth: true });
 
             setText("");
@@ -95,29 +97,52 @@ const CommentSection = ({ projectId, onRequireSignIn, user }: CommentSectionProp
         if (diffMin < 60) return `${diffMin}m ago`;
         const diffHr = Math.floor(diffMin / 60);
         if (diffHr < 24) return `${diffHr}h ago`;
-        const diffDay = Math.floor(diffHr / 24);
+        const diffDay = Math.floor(diffMin / 24);
         if (diffDay < 7) return `${diffDay}d ago`;
         return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     };
 
     return (
-        <div className="w-full px-6 py-8">
+        <div className="w-full px-4 sm:px-6 py-4 sm:py-6">
             <div className="max-w-5xl mx-auto">
-                <div className="relative bg-card border border-border/50 rounded-3xl p-6 md:p-8 shadow-sm">
-                    {/* Header */}
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <MessageCircle className="w-5 h-5 text-primary" />
+                <div className="relative bg-card border border-border/50 rounded-3xl p-4 sm:p-6 shadow-sm overflow-hidden transition-all duration-300">
+                    {/* Clickable Accordion Dropdown Header */}
+                    <button
+                        type="button"
+                        onClick={() => setIsOpen(prev => !prev)}
+                        className="w-full flex items-center justify-between text-left group cursor-pointer focus:outline-none"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:scale-105 transition-transform">
+                                <MessageCircle className="w-5 h-5 text-primary" />
+                            </div>
+                            <div>
+                                <h3 className="text-base sm:text-lg font-semibold text-foreground flex items-center gap-2">
+                                    Comments
+                                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+                                        {comments.length}
+                                    </span>
+                                </h3>
+                                <p className="text-xs sm:text-sm text-muted-foreground">
+                                    {isOpen ? "Click to collapse comments" : "Click to view and add comments"}
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <h3 className="text-lg font-semibold text-foreground">Comments</h3>
-                            <p className="text-sm text-muted-foreground">
-                                {comments.length} {comments.length === 1 ? "comment" : "comments"}
-                            </p>
-                        </div>
-                    </div>
 
-                    {/* Comment Form */}
+                        {/* Dropdown Button on Right */}
+                        <div className="w-9 h-9 rounded-full bg-muted/50 group-hover:bg-muted flex items-center justify-center text-foreground transition-colors shrink-0">
+                            {isOpen ? (
+                                <ChevronUp className="w-5 h-5 text-foreground" />
+                            ) : (
+                                <ChevronDown className="w-5 h-5 text-foreground" />
+                            )}
+                        </div>
+                    </button>
+
+                    {/* Collapsible Dropdown Content */}
+                    {isOpen && (
+                        <div className="pt-6 border-t border-border/40 mt-4 space-y-6 animate-in fade-in slide-in-from-top-2 duration-200">
+                            {/* Comment Form */}
                     <div className="space-y-3 mb-8 p-4 bg-muted/30 rounded-2xl border border-border/30">
                         <div className="flex flex-col sm:flex-row gap-2">
                             <Input
@@ -190,6 +215,8 @@ const CommentSection = ({ projectId, onRequireSignIn, user }: CommentSectionProp
                                     </div>
                                 </div>
                             ))}
+                        </div>
+                    )}
                         </div>
                     )}
                 </div>

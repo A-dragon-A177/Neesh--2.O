@@ -74,8 +74,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(initialSession?.user ?? null);
       if (initialSession?.user) {
         currentUserIdRef.current = initialSession.user.id;
+        handlePostLoginRedirect();
       }
       setLoading(false);
+    };
+
+    const handlePostLoginRedirect = () => {
+      try {
+        const redirectUrl = sessionStorage.getItem('post_login_redirect');
+        if (redirectUrl) {
+          sessionStorage.removeItem('post_login_redirect');
+          const currentClean = window.location.href.split('#')[0].split('?')[0];
+          const targetClean = redirectUrl.split('#')[0].split('?')[0];
+          if (currentClean !== targetClean) {
+            console.log('[AuthContext] Restoring post-login redirect to:', redirectUrl);
+            setTimeout(() => {
+              window.location.href = redirectUrl;
+            }, 100);
+          }
+        }
+      } catch (e) {
+        console.error('[AuthContext] Error restoring post-login redirect:', e);
+      }
     };
 
     initSession();
@@ -92,6 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (newSession?.user) {
         currentUserIdRef.current = newSession.user.id;
+        handlePostLoginRedirect();
       } else {
         currentUserIdRef.current = null;
       }
@@ -148,16 +169,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInWithGoogle = async (redirectTo?: string) => {
+    const targetUrl = redirectTo || `${window.location.origin}/dashboard`;
+    try {
+      sessionStorage.setItem('post_login_redirect', targetUrl);
+    } catch {}
     return await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: redirectTo || `${window.location.origin}/dashboard` },
+      options: { redirectTo: targetUrl },
     });
   };
 
   const signInWithGithub = async (redirectTo?: string) => {
+    const targetUrl = redirectTo || `${window.location.origin}/dashboard`;
+    try {
+      sessionStorage.setItem('post_login_redirect', targetUrl);
+    } catch {}
     return await supabase.auth.signInWithOAuth({
       provider: 'github',
-      options: { redirectTo: redirectTo || `${window.location.origin}/dashboard` },
+      options: { redirectTo: targetUrl },
     });
   };
 

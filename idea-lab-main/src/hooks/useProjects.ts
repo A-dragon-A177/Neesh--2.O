@@ -243,11 +243,6 @@ export const useProjects = () => {
   };
 
   const updateProject = async (id: string, input: UpdateProjectInput): Promise<Project | null> => {
-    if (!user) {
-      toast.error("You must be logged in to update a project");
-      return null;
-    }
-
     try {
       console.log("[useProjects] Updating project:", id, input);
       const backendInput = transformUpdateInput(input);

@@ -1,12 +1,21 @@
 import { useParams, Link } from "react-router-dom";
 import { getSpotlightTitle } from "@/lib/spotlightTitles";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Image, Share2, Clock, Send, MessageCircle, Copy, Check, Link2, Loader2, Sparkles, Volume2, VolumeX, ArrowRight, Clapperboard, Play, X, Flame } from "lucide-react";
+import { ChevronLeft, Image, Share2, Clock, Send, MessageCircle, Copy, Check, Link2, Loader2, Sparkles, Volume2, VolumeX, ArrowRight, Clapperboard, Play, X, Flame, Star, Upload, Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { NeeshLogo } from "@/components/NeeshLogo";
 import ReactMarkdown from 'react-markdown';
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import defaultChatbotAvatar from "@/assets/chatbot-avatar.png";
 import { toast } from "@/hooks/use-toast";
 import { generateShareableUrl } from "@/lib/slugify";
@@ -86,19 +95,58 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
   const { id: paramId } = useParams();
   const id = publicId || paramId;
   const { getPublicBlog } = useBlogs();
-  const { user, loading: authLoading, signInWithGoogle, signInWithGithub } = useAuth();
+  const { user, loading: authLoading, signIn, signInWithGoogle, signInWithGithub } = useAuth();
   const [showSignInGate, setShowSignInGate] = useState(false);
+
+  // Inline Email & Password Sign-In State for Spotlight Modal
+  const [inlineEmail, setInlineEmail] = useState("");
+  const [inlinePassword, setInlinePassword] = useState("");
+  const [showInlinePassword, setShowInlinePassword] = useState(false);
+  const [inlineSubmitting, setInlineSubmitting] = useState(false);
+  const [inlineError, setInlineError] = useState<string | null>(null);
 
   // Auto-close sign-in modal if user becomes authenticated
   useEffect(() => {
     if (user) {
       setShowSignInGate(false);
+      setInlineError(null);
     }
   }, [user]);
+
+  const handleInlinePasswordSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inlineEmail.trim() || !inlinePassword.trim()) {
+      setInlineError("Please enter both email and password.");
+      return;
+    }
+    try {
+      setInlineSubmitting(true);
+      setInlineError(null);
+      const { data, error } = await signIn(inlineEmail.trim(), inlinePassword.trim());
+      if (error) {
+        setInlineError(error.message || "Invalid email or password.");
+      } else {
+        toast({
+          title: "Signed In Successfully! 🎉",
+          description: `Welcome, ${data?.user?.user_metadata?.full_name || data?.user?.email || "User"}! You can now interact and submit feedback.`,
+        });
+        setShowSignInGate(false);
+        setInlineEmail("");
+        setInlinePassword("");
+      }
+    } catch (err: any) {
+      setInlineError(err?.message || "Sign-in failed. Please check your credentials.");
+    } finally {
+      setInlineSubmitting(false);
+    }
+  };
 
   const handleSignIn = async (provider: 'google' | 'github') => {
     try {
       const currentUrl = window.location.href.split('#')[0];
+      try {
+        sessionStorage.setItem('post_login_redirect', currentUrl);
+      } catch {}
       if (provider === 'google') {
         await signInWithGoogle(currentUrl);
       } else {
@@ -115,7 +163,7 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
 
   const [blogData, setBlogData] = useState<BlogData | null>(null);
   const [activeView, setActiveView] = useState<"pitch" | "blog">("blog");
-  const [pitchMuted, setPitchMuted] = useState(true);
+  const [pitchMuted, setPitchMuted] = useState(false);
   const [pitchPlaying, setPitchPlaying] = useState(true);
   const touchStartRef = useRef<number | null>(null);
 
@@ -151,13 +199,31 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
   // Auto-populate logged-in user email and name into the feedback form fields
   useEffect(() => {
     if (user) {
-      setFeedbackValues(prev => ({
-        ...prev,
-        '__email__': prev['__email__'] || user.email || '',
-        '__name__': prev['__name__'] || user.user_metadata?.full_name || user.user_metadata?.name || '',
-      }));
+      const userEmail = user.email || '';
+      const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || '';
+      setFeedbackValues(prev => {
+        const next = { ...prev };
+        if (!next['__email__']) next['__email__'] = userEmail;
+        if (!next['__name__']) next['__name__'] = userName;
+
+        if (blogData?.sections) {
+          const feedbackSection = blogData.sections.find(s => s.type === "feedback");
+          if (feedbackSection?.feedbackFields) {
+            feedbackSection.feedbackFields.forEach(f => {
+              const labelLower = (f.label || "").toLowerCase();
+              if ((f.id === "1" || labelLower.includes("name")) && !next[f.id]) {
+                next[f.id] = userName;
+              }
+              if ((f.id === "2" || f.type === "email" || labelLower.includes("email")) && !next[f.id]) {
+                next[f.id] = userEmail;
+              }
+            });
+          }
+        }
+        return next;
+      });
     }
-  }, [user]);
+  }, [user, blogData?.sections]);
 
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
@@ -165,7 +231,9 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
   const [selectedTag, setSelectedTag] = useState<{ id: string; label: string; priority: number } | null>(null);
   const [otherInterestText, setOtherInterestText] = useState("");
   const [isSubmittingInterest, setIsSubmittingInterest] = useState(false);
-  const [interestSubmitted, setInterestSubmitted] = useState(false);
+  const [hasSubmittedInterest, setHasSubmittedInterest] = useState(false);
+  const [justSubmitted, setJustSubmitted] = useState(false);
+  const [isUpdateSubmission, setIsUpdateSubmission] = useState(false);
   const [neeshCount, setNeeshCount] = useState<number>(0);
 
   const fetchNeeshCount = useCallback(async () => {
@@ -192,21 +260,20 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
       { skipAuth: true }
     ).then(res => {
       if (res?.alreadySubmitted) {
-        setInterestSubmitted(true);
+        setHasSubmittedInterest(true);
+        if (res.tagLabel && blogData?.interestTags) {
+          const match = blogData.interestTags.find(t => t.label === res.tagLabel);
+          if (match) {
+            setSelectedTag(match);
+          }
+        }
       }
     }).catch(() => {});
-  }, [id, user?.email]);
+  }, [id, user?.email, blogData?.interestTags]);
 
   const handleInterestSubmit = async () => {
     if (!user) {
       setShowSignInGate(true);
-      return;
-    }
-    if (interestSubmitted) {
-      toast({
-        title: "Already Neeshed ✅",
-        description: "You have already expressed your interest in this startup!",
-      });
       return;
     }
     if (!selectedTag && !otherInterestText.trim()) {
@@ -217,6 +284,8 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
       });
       return;
     }
+
+    const wasAlreadySubmitted = hasSubmittedInterest;
 
     try {
       setIsSubmittingInterest(true);
@@ -232,20 +301,16 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
         otherText: otherInterestText.trim() || undefined,
       }, { skipAuth: true });
 
-      if (res?.alreadySubmitted) {
-        setInterestSubmitted(true);
-        toast({
-          title: "Already Neeshed ✅",
-          description: "You have already expressed your interest!",
-        });
-        return;
-      }
-
-      setInterestSubmitted(true);
+      const isUpdate = Boolean(res?.alreadySubmitted || wasAlreadySubmitted);
+      setIsUpdateSubmission(isUpdate);
+      setHasSubmittedInterest(true);
+      setJustSubmitted(true);
       fetchNeeshCount();
       toast({
-        title: "Interest Submitted! 🎉",
-        description: "Thank you for supporting this startup! The founder will see your interest in their dashboard.",
+        title: isUpdate ? "Interest Updated! ✅" : "Interest Submitted! 🎉",
+        description: isUpdate 
+          ? "Your interest tag selection has been updated." 
+          : "Thank you for supporting this startup! The founder will see your interest in their dashboard.",
       });
     } catch (err) {
       console.error("Error submitting interest:", err);
@@ -289,60 +354,116 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
     }
     if (!id || submittingFeedback) return;
 
-    const name = feedbackValues['__name__'] || '';
-    const email = feedbackValues['__email__'] || '';
-    const occupation = feedbackValues['__occupation__'] || '';
+    // Find feedback section fields
+    const feedbackSection = blogData?.sections.find(s => s.type === "feedback");
+    const fields = feedbackSection?.feedbackFields || [];
 
-    // Build feedback text from all dynamic fields (skip our fixed fields)
-    const feedbackParts: string[] = [];
-    for (const [key, val] of Object.entries(feedbackValues)) {
-      if (key.startsWith('__')) continue; // skip fixed fields
-      if (val && typeof val === 'string') {
-        feedbackParts.push(`${key}: ${val}`);
-      } else if (val && typeof val === 'number') {
-        feedbackParts.push(`${key}: ${val}`);
-      } else if (val && typeof val === 'boolean') {
-        feedbackParts.push(`${key}: ${val ? 'Yes' : 'No'}`);
-      } else if (Array.isArray(val)) {
-        feedbackParts.push(`${key}: ${val.join(', ')}`);
+    const getVal = (f?: FeedbackFormField) => {
+      if (!f) return "";
+      return feedbackValues[f.id] !== undefined ? String(feedbackValues[f.id]).trim() : "";
+    };
+
+    const nameField = fields.find(f => f.id === "1" || (f.label || "").toLowerCase().includes("name"));
+    const emailField = fields.find(f => f.id === "2" || f.type === "email" || (f.label || "").toLowerCase().includes("email"));
+    const occupationField = fields.find(f => f.id === "3" || f.type === "occupation" || (f.label || "").toLowerCase().includes("occupation") || (f.label || "").toLowerCase().includes("role"));
+
+    const name = (getVal(nameField) || feedbackValues['__name__'] || user.user_metadata?.full_name || user.user_metadata?.name || '').trim();
+    const email = (getVal(emailField) || feedbackValues['__email__'] || user.email || '').trim();
+    const occupation = (getVal(occupationField) || feedbackValues['__occupation__'] || '').trim();
+
+    if (!name) {
+      toast({ title: "Name Required", description: "Please fill in your name before submitting feedback.", variant: "destructive" });
+      return;
+    }
+
+    if (!email) {
+      toast({ title: "Email Required", description: "Please fill in your email address before submitting feedback.", variant: "destructive" });
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast({ title: "Invalid Email", description: "Please enter a valid email address.", variant: "destructive" });
+      return;
+    }
+
+    // Check all required fields from form builder
+    for (const field of fields) {
+      if (field.required) {
+        const val = feedbackValues[field.id];
+        const isFilled = val !== undefined && val !== null && val !== "" && (!Array.isArray(val) || val.length > 0);
+        if (!isFilled) {
+          toast({
+            title: "Required Field Missing",
+            description: `Please answer "${field.label}" before submitting.`,
+            variant: "destructive",
+          });
+          return;
+        }
       }
     }
 
-    if (!name.trim() || !email.trim()) {
-      toast({ title: "Missing info", description: "Please fill in your name and email.", variant: "destructive" });
-      return;
+    // Build feedback text with readable question labels (excluding identity fields)
+    const feedbackParts: string[] = [];
+    for (const field of fields) {
+      if (
+        field.id === "1" ||
+        field.id === "2" ||
+        field.id === "3" ||
+        field.type === "email" ||
+        field.type === "occupation" ||
+        (field.label || "").toLowerCase().includes("name") ||
+        (field.label || "").toLowerCase().includes("email") ||
+        ((field.label || "").toLowerCase().includes("occupation") && field.id !== "rating")
+      ) {
+        continue;
+      }
+
+      const val = feedbackValues[field.id];
+      if (val !== undefined && val !== null && val !== "") {
+        let displayVal = "";
+        if (typeof val === "boolean") {
+          displayVal = val ? "Yes" : "No";
+        } else if (Array.isArray(val)) {
+          displayVal = val.join(", ");
+        } else if (field.type === "rating" || field.type === "star_rating" || (field.label || "").toLowerCase().includes("rate")) {
+          displayVal = `${val} Star${Number(val) > 1 ? "s" : ""}`;
+        } else {
+          displayVal = String(val);
+        }
+        feedbackParts.push(`${field.label}: ${displayVal}`);
+      }
+    }
+
+    // Catch any loose feedback values not in defined fields (e.g. standalone ratings/comments)
+    for (const [key, val] of Object.entries(feedbackValues)) {
+      if (key.startsWith('__') || fields.some(f => f.id === key) || key === "1" || key === "2" || key === "3") continue;
+      if (val !== undefined && val !== null && val !== "") {
+        feedbackParts.push(`${key}: ${val}`);
+      }
     }
 
     setSubmittingFeedback(true);
     try {
       await apiClient.post(`/api/public/projects/${id}/feedback`, {
-        name: name.trim(),
-        email: email.trim(),
-        occupation: occupation.trim() || undefined,
-        feedbackText: feedbackParts.join('\n') || 'Feedback submitted via blog',
+        name,
+        email,
+        occupation: occupation || undefined,
+        feedbackText: feedbackParts.join('\n') || 'Feedback submitted via blog spotlight',
+        feedbackSource: 'Form',
       }, { skipAuth: true });
 
       toast({ title: "Thank you! 🎉", description: "Your feedback has been submitted successfully." });
       setFeedbackSubmitted(true);
-      // Allow re-submission after 3 seconds
       setTimeout(() => {
         setFeedbackSubmitted(false);
-        setFeedbackValues(prev => {
-          // Keep name/email/occupation, reset dynamic fields
-          const kept: Record<string, any> = {};
-          if (prev['__name__']) kept['__name__'] = prev['__name__'];
-          if (prev['__email__']) kept['__email__'] = prev['__email__'];
-          if (prev['__occupation__']) kept['__occupation__'] = prev['__occupation__'];
-          return kept;
-        });
-      }, 3000);
+      }, 4000);
     } catch (err) {
       console.error('Feedback submission error:', err);
       toast({ title: "Submission failed", description: "Please try again later.", variant: "destructive" });
     } finally {
       setSubmittingFeedback(false);
     }
-  }, [id, feedbackValues, submittingFeedback, user, authLoading]);
+  }, [id, feedbackValues, submittingFeedback, user, authLoading, blogData?.sections]);
 
   const heroRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -398,10 +519,21 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
           }
 
           // Add custom fields as sections
+          const FEEDBACK_TYPES = [
+            "short_text", "long_text", "multiple_choice", "checkboxes", "dropdown",
+            "linear_scale", "scale", "date", "time", "file_upload", "rating", "star_rating",
+            "number", "email", "phone", "url", "toggle", "occupation", "feedback_field"
+          ];
+          const standaloneFeedbackFields: FeedbackFormField[] = [];
+          let feedbackFormTitle = "Feedback Form";
+          let feedbackFormDesc = "We'd love to hear your thoughts! Please fill out this form.";
+
           if (blog?.custom_fields && Array.isArray(blog.custom_fields)) {
             blog.custom_fields.forEach((field: any, idx: number) => {
               if (field.type === "feedback") {
                 // Feedback form section
+                feedbackFormTitle = field.title || feedbackFormTitle;
+                feedbackFormDesc = field.description || feedbackFormDesc;
                 sections.push({
                   id: field.id || `feedback-${idx}`,
                   title: field.title || "Feedback Form",
@@ -411,34 +543,84 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
                   feedbackDescription: field.description,
                   feedbackFields: field.fields || [],
                 });
-              } else if (field.type === "image" && field.value) {
-                // Image section
-                sections.push({
-                  id: field.id,
-                  title: `Image ${field.order + 1}`,
-                  content: field.value,
-                  type: "image",
+              } else if (
+                FEEDBACK_TYPES.includes(field.type) ||
+                (field.label && field.type !== "image" && field.type !== "video" && field.type !== "text" && field.type !== "spotlight_section")
+              ) {
+                // Standalone feedback field
+                standaloneFeedbackFields.push({
+                  id: field.id || String(idx + 1),
+                  type: field.type || "short_text",
+                  label: field.label || field.title || `Question ${idx + 1}`,
+                  placeholder: field.placeholder || "",
+                  required: Boolean(field.required),
+                  options: field.options,
+                  scaleMin: field.scaleMin,
+                  scaleMax: field.scaleMax,
+                  scaleMinLabel: field.scaleMinLabel,
+                  scaleMaxLabel: field.scaleMaxLabel,
                 });
-              } else if (field.type === "video" && field.value) {
-                // Video section
+              } else if (
+                field.type === "image" ||
+                field.imageUrl ||
+                (typeof field.value === "string" &&
+                  (field.value.includes("/image/") ||
+                    field.value.startsWith("data:image/") ||
+                    field.value.match(/\.(webp|png|jpg|jpeg|gif|svg)(\?.*)?$/i)))
+              ) {
+                // Image section
+                const imgUrl = field.imageUrl || field.value || "";
                 sections.push({
-                  id: field.id,
-                  title: `Video ${field.order + 1}`,
-                  content: field.value,
+                  id: field.id || `image-${idx}`,
+                  title: field.sectionTitle || field.title || `Image ${field.order !== undefined ? field.order + 1 : idx + 1}`,
+                  content: "",
+                  type: "image",
+                  imageUrl: imgUrl,
+                });
+              } else if (
+                field.type === "video" ||
+                field.videoUrl ||
+                (typeof field.value === "string" &&
+                  (field.value.includes("/video/") ||
+                    field.value.startsWith("blob:") ||
+                    field.value.startsWith("data:video/") ||
+                    field.value.includes("/pitch-videos/") ||
+                    field.value.match(/\.(mp4|webm|mov|ogg)(\?.*)?$/i)))
+              ) {
+                // Video section
+                const vidUrl = field.videoUrl || field.value || "";
+                sections.push({
+                  id: field.id || `video-${idx}`,
+                  title: field.sectionTitle || field.title || `Video ${field.order !== undefined ? field.order + 1 : idx + 1}`,
+                  content: "",
                   type: "video",
+                  videoUrl: vidUrl,
                 });
               } else if (field.value) {
                 // Content/text section — resolve industry-specific heading
                 const resolvedTitle = field.type === "spotlight_section" && field.sectionTitle
                   ? getSpotlightTitle(field.sectionTitle, projectIndustry)
-                  : field.sectionTitle || `Section ${field.order + 1}`;
+                  : field.sectionTitle || field.title || `Section ${field.order !== undefined ? field.order + 1 : idx + 1}`;
                 sections.push({
-                  id: field.id,
+                  id: field.id || `section-${idx}`,
                   title: resolvedTitle,
                   content: field.value,
                   type: field.type || "text",
                 });
               }
+            });
+          }
+
+          // If standalone feedback fields were gathered and no feedback section exists yet, create one!
+          if (standaloneFeedbackFields.length > 0 && !sections.some(s => s.type === "feedback")) {
+            sections.push({
+              id: "feedback-form",
+              title: feedbackFormTitle,
+              content: feedbackFormDesc,
+              type: "feedback",
+              feedbackTitle: feedbackFormTitle,
+              feedbackDescription: feedbackFormDesc,
+              feedbackFields: standaloneFeedbackFields,
             });
           }
 
@@ -804,15 +986,15 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
       // Call the backend API (same endpoint as the chatbot tester)
       const response = await apiClient.post<any>(`/api/public/projects/${id}/chat`, {
         query: message,
-        userName: feedbackValues['__name__'] || undefined,
-        userEmail: feedbackValues['__email__'] || undefined,
+        userName: feedbackValues['__name__'] || user?.user_metadata?.full_name || (user?.email ? user.email.split('@')[0] : undefined),
+        userEmail: feedbackValues['__email__'] || user?.email || undefined,
         sessionId: sessionIdRef.current,
       }, { skipAuth: true });
 
       const botMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: "bot",
-        content: response?.answer || "I couldn't generate a response.",
+        content: response?.answer || response?.response || response?.text || "Thank you for your question! Feel free to ask anything about this project.",
         timestamp: new Date(),
       };
 
@@ -967,19 +1149,27 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
             {blogData.elevatorPitchUrl ? (
               <video
                 src={blogData.elevatorPitchUrl}
-                poster={blogData.elevatorPitchThumbnail || blogData.coverImage || undefined}
+                poster={blogData.elevatorPitchThumbnail || undefined}
                 muted={pitchMuted}
                 autoPlay
                 loop
                 playsInline
-                onClick={() => setPitchPlaying(p => !p)}
+                preload="metadata"
+                onClick={() => {
+                  setPitchPlaying(p => !p);
+                  setPitchMuted(false);
+                }}
                 ref={el => {
                   if (el) {
+                    try {
+                      el.playbackRate = 1.0;
+                      el.defaultPlaybackRate = 1.0;
+                    } catch {}
                     if (pitchPlaying) el.play().catch(() => {});
                     else el.pause();
                   }
                 }}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
             ) : (
               <div className="absolute inset-0 w-full h-full">
@@ -1072,23 +1262,31 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
               touchStartRef.current = null;
             }}
           >
-
-            {/* Hero Section with Parallax - PRESERVED */}
-            <div ref={heroRef} className="relative h-[80vh] overflow-hidden">
+            {/* Hero Section - Smoothly Blended Cover Image */}
+            <div ref={heroRef} className={`relative overflow-hidden transition-all duration-300 ${blogData.coverImage && !coverImageBroken ? "min-h-[260px] max-h-[85vh] w-full flex items-center justify-center bg-gradient-to-b from-slate-100/70 via-background to-background dark:from-slate-900/60 dark:via-background dark:to-background py-4 sm:py-6" : "h-[180px] sm:h-[220px] md:h-[260px]"}`}>
               {blogData.coverImage && !coverImageBroken ? (
-                <div
-                  className="absolute inset-0"
-                  style={{ transform: `translateY(${scrollY * 0.4}px)` }}
-                >
+                <div className="relative w-full h-full flex justify-center items-center overflow-hidden">
+                  {/* Subtle blurred ambient background matching cover image colors */}
+                  <img
+                    src={blogData.coverImage}
+                    alt=""
+                    className="absolute inset-0 w-full h-full object-cover blur-3xl opacity-35 scale-125 pointer-events-none"
+                  />
+                  {/* Top blend gradient */}
+                  <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-background/80 via-background/30 to-transparent z-20 pointer-events-none" />
+
+                  {/* Main Cover Image - full view uncropped with soft glow */}
                   <img
                     src={blogData.coverImage}
                     alt="Cover"
-                    className="w-full h-[120%] object-cover"
+                    className="relative z-10 w-full h-auto max-h-[75vh] object-contain rounded-2xl shadow-xl mx-auto"
                     loading="lazy"
                     decoding="async"
                     onError={() => setCoverImageBroken(true)}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
+
+                  {/* Bottom blend gradient - seamlessly fades into the spotlight content */}
+                  <div className="absolute bottom-0 left-0 right-0 h-32 sm:h-44 bg-gradient-to-t from-background via-background/70 to-transparent z-20 pointer-events-none" />
                 </div>
               ) : (
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/10 to-background overflow-hidden">
@@ -1113,14 +1311,14 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
 
               {/* Title Content - PRESERVED */}
               <div
-                className="absolute bottom-0 left-0 right-0 p-8 md:p-16"
+                className="absolute bottom-0 left-0 right-0 p-4 sm:p-8 md:p-12"
                 style={{
-                  transform: `translateY(${scrollY * 0.2}px)`,
+                  transform: `translateY(${scrollY * 0.1}px)`,
                   opacity: Math.max(0, 1 - scrollY / 400),
                 }}
               >
                 <div className="max-w-5xl mx-auto">
-                <h1 className="font-display text-4xl md:text-6xl lg:text-7xl font-bold text-foreground leading-tight drop-shadow-lg">
+                <h1 className="font-display text-2xl sm:text-4xl md:text-6xl font-bold text-foreground leading-tight drop-shadow-lg">
                   {blogData.title || "Untitled Blog"}
                 </h1>
               </div>
@@ -1128,11 +1326,11 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
 
             {/* Scroll indicator */}
             <div
-              className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-muted-foreground"
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-muted-foreground"
               style={{ opacity: Math.max(0, 1 - scrollY / 200) }}
             >
-              <span className="text-xs uppercase tracking-widest">Scroll</span>
-              <div className="w-px h-8 bg-gradient-to-b from-muted-foreground/50 to-transparent animate-pulse" />
+              <span className="text-[10px] uppercase tracking-widest">Scroll</span>
+              <div className="w-px h-5 bg-gradient-to-b from-muted-foreground/50 to-transparent animate-pulse" />
             </div>
           </div>
 
@@ -1158,96 +1356,399 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
 
                       {section.type === "feedback" ? (
                         // Render Feedback Form
-                        <div className="pl-4">
-                          <h2 className="text-2xl md:text-3xl font-semibold text-foreground mb-2">
-                            {section.feedbackTitle || section.title}
-                          </h2>
-                          {section.feedbackDescription && (
-                            <p className="text-muted-foreground mb-6">{section.feedbackDescription}</p>
-                          )}
-                          <div className="space-y-6">
-                            {/* Fixed identity fields */}
-                            <div className="space-y-2">
-                              <label className="block text-foreground font-medium">Name <span className="text-destructive ml-1">*</span></label>
-                              <Input placeholder="Your name" className="w-full" value={feedbackValues['__name__'] || ''}
-                                onChange={(e) => updateFeedbackValue('__name__', e.target.value)} />
-                            </div>
-                            <div className="space-y-2">
-                              <label className="block text-foreground font-medium">Email <span className="text-destructive ml-1">*</span></label>
-                              <Input type="email" placeholder="your@email.com" className="w-full" value={feedbackValues['__email__'] || ''}
-                                onChange={(e) => updateFeedbackValue('__email__', e.target.value)} />
-                            </div>
-                            <div className="space-y-2">
-                              <label className="block text-foreground font-medium">Occupation</label>
-                              <Input placeholder="e.g. Developer, Designer, Student..." className="w-full" value={feedbackValues['__occupation__'] || ''}
-                                onChange={(e) => updateFeedbackValue('__occupation__', e.target.value)} />
-                            </div>
-                            {/* Dynamic feedback fields from form builder — skip name/email/occupation duplicates */}
-                            {section.feedbackFields?.filter((field) => {
-                              const lbl = (field.label || '').toLowerCase().trim();
-                              // Skip fields that duplicate our fixed identity fields
-                              if (lbl.includes('name') || lbl.includes('your name')) return false;
-                              if (lbl.includes('email') || lbl.includes('e-mail') || field.type === 'email') return false;
-                              if (lbl.includes('occupation') || lbl.includes('job') || lbl.includes('profession') || lbl.includes('role')) return false;
-                              return true;
-                            }).map((field) => (
-                              <div key={field.id} className="space-y-2">
-                                <label className="block text-foreground font-medium">
-                                  {field.label}
-                                  {field.required && <span className="text-destructive ml-1">*</span>}
-                                </label>
-                                {renderFeedbackField(field)}
-                              </div>
-                            ))}
-                            {feedbackSubmitted ? (
-                              <div className="w-full mt-4 p-4 rounded-lg bg-green-500/10 border border-green-500/30 text-center">
-                                <p className="text-green-600 dark:text-green-400 font-medium">✅ Thank you! Your feedback has been submitted.</p>
-                              </div>
-                            ) : (
-                              <Button className="w-full mt-4" onClick={handleFeedbackSubmit} disabled={submittingFeedback}>
-                                {submittingFeedback ? <><Loader2 className="w-10 h-10 mr-2 animate-spin" /> Submitting...</> : 'Submit Feedback'}
-                              </Button>
+                        <div className="pl-2 sm:pl-4 space-y-6">
+                          <div>
+                            <h2 className="text-2xl md:text-3xl font-semibold text-foreground mb-2">
+                              {section.feedbackTitle || section.title}
+                            </h2>
+                            {section.feedbackDescription && (
+                              <p className="text-muted-foreground">{section.feedbackDescription}</p>
                             )}
                           </div>
+                          <div className="space-y-6">
+                            {/* If feedbackFields does NOT already include Name/Email/Role, show identity fields */}
+                            {(!section.feedbackFields || section.feedbackFields.length === 0 || !section.feedbackFields.some(f => (f.label || "").toLowerCase().includes("name"))) && (
+                              <div className="space-y-2">
+                                <label className="block text-foreground font-medium text-sm md:text-base">
+                                  Name <span className="text-destructive ml-1">*</span>
+                                </label>
+                                <Input
+                                  placeholder="Your name"
+                                  className="w-full bg-background"
+                                  value={feedbackValues['__name__'] || ''}
+                                  onChange={(e) => updateFeedbackValue('__name__', e.target.value)}
+                                />
+                              </div>
+                            )}
+
+                            {(!section.feedbackFields || section.feedbackFields.length === 0 || !section.feedbackFields.some(f => (f.label || "").toLowerCase().includes("email"))) && (
+                              <div className="space-y-2">
+                                <label className="block text-foreground font-medium text-sm md:text-base">
+                                  Email <span className="text-destructive ml-1">*</span>
+                                </label>
+                                <Input
+                                  type="email"
+                                  placeholder="your@email.com"
+                                  className="w-full bg-background"
+                                  value={feedbackValues['__email__'] || ''}
+                                  onChange={(e) => updateFeedbackValue('__email__', e.target.value)}
+                                />
+                              </div>
+                            )}
+
+                            {(!section.feedbackFields || section.feedbackFields.length === 0 || !section.feedbackFields.some(f => (f.label || "").toLowerCase().includes("occupation") || (f.label || "").toLowerCase().includes("role"))) && (
+                              <div className="space-y-2">
+                                <label className="block text-foreground font-medium text-sm md:text-base">
+                                  Occupation / Role
+                                </label>
+                                <Input
+                                  placeholder="e.g., Software Engineer, Investor, Marketer"
+                                  className="w-full bg-background"
+                                  value={feedbackValues['__occupation__'] || ''}
+                                  onChange={(e) => updateFeedbackValue('__occupation__', e.target.value)}
+                                />
+                              </div>
+                            )}
+
+                            {/* Dynamic custom feedback fields - Full Interactive UI */}
+                            {(section.feedbackFields || []).map((field) => {
+                              const rawType = (field.type || "short_text").toLowerCase();
+                              const label = (field.label || "").toLowerCase();
+                              const val = feedbackValues[field.id] !== undefined ? feedbackValues[field.id] : "";
+
+                              return (
+                                <div key={field.id} className="space-y-2.5">
+                                  <label className="block text-foreground font-semibold text-sm md:text-base">
+                                    {field.label}
+                                    {field.required && <span className="text-destructive ml-1">*</span>}
+                                  </label>
+
+                                  {/* 1. Star Rating */}
+                                  {(rawType === "rating" || rawType === "star_rating" || label.includes("rate") || label.includes("experience")) ? (
+                                    <div className="space-y-2 py-1">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        {[1, 2, 3, 4, 5].map((star) => {
+                                          const num = Number(val) || 0;
+                                          return (
+                                            <button
+                                              key={star}
+                                              type="button"
+                                              onClick={() => updateFeedbackValue(field.id, String(star))}
+                                              className="group p-1.5 rounded-xl hover:scale-125 transition-all cursor-pointer focus:outline-none"
+                                              title={`${star} Star${star > 1 ? "s" : ""}`}
+                                            >
+                                              <Star
+                                                className={`w-8 h-8 sm:w-9 sm:h-9 transition-colors ${
+                                                  num >= star
+                                                    ? "text-amber-400 fill-amber-400 drop-shadow-[0_0_12px_rgba(245,158,11,0.6)]"
+                                                    : "text-muted-foreground/30 hover:text-amber-300"
+                                                }`}
+                                              />
+                                            </button>
+                                          );
+                                        })}
+                                        {Number(val) > 0 && (
+                                          <span className="text-sm font-bold text-amber-500 ml-2 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                                            {Number(val) === 5 ? "⭐⭐⭐⭐⭐ Excellent! (5/5)" :
+                                             Number(val) === 4 ? "⭐⭐⭐⭐ Very Good (4/5)" :
+                                             Number(val) === 3 ? "⭐⭐⭐ Good (3/5)" :
+                                             Number(val) === 2 ? "⭐⭐ Fair (2/5)" : "⭐ Poor (1/5)"}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ) : (rawType === "linear_scale" || rawType === "scale") ? (
+                                    /* 2. Linear Scale */
+                                    <div className="space-y-2 py-1">
+                                      <div className="flex justify-between text-xs text-muted-foreground font-medium px-0.5">
+                                        <span>{field.scaleMinLabel || `1 (Lowest)`}</span>
+                                        <span>{field.scaleMaxLabel || `5 (Highest)`}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2 justify-between flex-wrap">
+                                        {Array.from(
+                                          { length: (field.scaleMax || 5) - (field.scaleMin || 1) + 1 },
+                                          (_, i) => (field.scaleMin || 1) + i
+                                        ).map((itemVal) => (
+                                          <button
+                                            key={itemVal}
+                                            type="button"
+                                            onClick={() => updateFeedbackValue(field.id, String(itemVal))}
+                                            className={`min-w-[44px] h-11 px-3.5 rounded-xl font-bold transition-all border cursor-pointer ${
+                                              val === String(itemVal)
+                                                ? "bg-primary text-primary-foreground border-primary scale-105 shadow-md"
+                                                : "bg-muted/40 hover:bg-muted border-border text-foreground"
+                                            }`}
+                                          >
+                                            {itemVal}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ) : (rawType === "long_text" || rawType === "textarea" || label.includes("comment") || label.includes("thought") || label.includes("feedback")) ? (
+                                    /* 3. Textarea / Comments */
+                                    <Textarea
+                                      placeholder={field.placeholder || "Share your thoughts and feedback..."}
+                                      rows={4}
+                                      value={val}
+                                      onChange={(e) => updateFeedbackValue(field.id, e.target.value)}
+                                      className="w-full bg-background"
+                                    />
+                                  ) : (rawType === "multiple_choice" || rawType === "radio") ? (
+                                    /* 4. Multiple Choice / Radio Cards */
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                                      {(field.options || ["Option 1", "Option 2", "Option 3"]).map((opt, idx) => {
+                                        const isSelected = val === opt;
+                                        return (
+                                          <button
+                                            key={idx}
+                                            type="button"
+                                            onClick={() => updateFeedbackValue(field.id, opt)}
+                                            className={`flex items-center gap-3 p-3.5 rounded-xl border text-left text-sm font-medium transition-all cursor-pointer ${
+                                              isSelected
+                                                ? "border-primary bg-primary/10 text-foreground font-semibold shadow-sm ring-1 ring-primary/40"
+                                                : "border-border/60 bg-background hover:bg-muted/40 text-foreground"
+                                            }`}
+                                          >
+                                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${isSelected ? "border-primary bg-primary" : "border-muted-foreground/40"}`}>
+                                              {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                            </div>
+                                            <span>{opt}</span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : (rawType === "checkboxes") ? (
+                                    /* 5. Checkbox List */
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                                      {(field.options || ["Option 1", "Option 2", "Option 3"]).map((opt, idx) => {
+                                        const selectedArr = Array.isArray(val) ? val : val ? [val] : [];
+                                        const isChecked = selectedArr.includes(opt);
+                                        return (
+                                          <button
+                                            key={idx}
+                                            type="button"
+                                            onClick={() => {
+                                              const updated = isChecked
+                                                ? selectedArr.filter((item: string) => item !== opt)
+                                                : [...selectedArr, opt];
+                                              updateFeedbackValue(field.id, updated);
+                                            }}
+                                            className={`flex items-center gap-3 p-3.5 rounded-xl border text-left text-sm font-medium transition-all cursor-pointer ${
+                                              isChecked
+                                                ? "border-primary bg-primary/10 text-foreground font-semibold shadow-sm ring-1 ring-primary/40"
+                                                : "border-border/60 bg-background hover:bg-muted/40 text-foreground"
+                                            }`}
+                                          >
+                                            <div className={`w-4 h-4 rounded-md border flex items-center justify-center ${isChecked ? "border-primary bg-primary text-white" : "border-muted-foreground/40"}`}>
+                                              {isChecked && <Check className="w-3 h-3 text-white stroke-[3]" />}
+                                            </div>
+                                            <span>{opt}</span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : (rawType === "select" || rawType === "dropdown") ? (
+                                    /* 6. Select Dropdown */
+                                    <Select value={val} onValueChange={(selected) => updateFeedbackValue(field.id, selected)}>
+                                      <SelectTrigger className="w-full bg-background">
+                                        <SelectValue placeholder={field.placeholder || "Select an option"} />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {(field.options || []).map((opt, idx) => (
+                                          <SelectItem key={idx} value={opt}>
+                                            {opt}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (rawType === "toggle" || rawType === "switch") ? (
+                                    /* 7. Toggle Switch */
+                                    <div className="flex items-center gap-3 pt-1">
+                                      <Switch
+                                        checked={!!val}
+                                        onCheckedChange={(checked) => updateFeedbackValue(field.id, checked)}
+                                      />
+                                      <span className="text-sm text-muted-foreground">{val ? "Yes" : "No"}</span>
+                                    </div>
+                                  ) : (rawType === "email" || label.includes("email")) ? (
+                                    /* 8. Email */
+                                    <Input
+                                      type="email"
+                                      placeholder={field.placeholder || "your@email.com"}
+                                      value={val}
+                                      onChange={(e) => updateFeedbackValue(field.id, e.target.value)}
+                                      className="w-full bg-background"
+                                    />
+                                  ) : (rawType === "date") ? (
+                                    /* 9. Date */
+                                    <Input
+                                      type="date"
+                                      value={val}
+                                      onChange={(e) => updateFeedbackValue(field.id, e.target.value)}
+                                      className="w-full bg-background"
+                                    />
+                                  ) : (rawType === "time") ? (
+                                    /* 10. Time */
+                                    <Input
+                                      type="time"
+                                      value={val}
+                                      onChange={(e) => updateFeedbackValue(field.id, e.target.value)}
+                                      className="w-full bg-background"
+                                    />
+                                  ) : (rawType === "number") ? (
+                                    /* 11. Number */
+                                    <Input
+                                      type="number"
+                                      placeholder={field.placeholder || "0"}
+                                      value={val}
+                                      onChange={(e) => updateFeedbackValue(field.id, e.target.value)}
+                                      className="w-full bg-background"
+                                    />
+                                  ) : (
+                                    /* 12. Standard Input (Text / Occupation / Short text) */
+                                    <Input
+                                      placeholder={field.placeholder || (label.includes("occupation") || label.includes("role") ? "e.g., Software Engineer, Investor, Marketer" : label.includes("name") ? "Your name" : "Your answer")}
+                                      value={val}
+                                      onChange={(e) => updateFeedbackValue(field.id, e.target.value)}
+                                      className="w-full bg-background"
+                                    />
+                                  )}
+                                </div>
+                              );
+                            })}
+
+                            <Button
+                              onClick={handleFeedbackSubmit}
+                              disabled={submittingFeedback}
+                              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold py-3.5 rounded-xl gap-2 mt-6 text-base shadow-md cursor-pointer"
+                            >
+                              {submittingFeedback ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Submitting...
+                                </>
+                              ) : (
+                                "Submit Feedback"
+                              )}
+                            </Button>
+                          </div>
                         </div>
-                      ) : section.type === "image" ? (
-                        // Render Image Section — no label in preview
-                        <div className="pl-4 flex justify-center bg-muted/5 rounded-xl overflow-hidden">
-                          <img
-                            src={section.content}
-                            alt={section.title}
-                            className="max-w-full h-auto max-h-[600px] object-contain rounded-xl"
-                          />
-                        </div>
-                      ) : section.type === "video" ? (
-                        // Render Video Section — no label in preview
-                        <div className="pl-4 flex justify-center rounded-xl overflow-hidden bg-black">
-                          <video
-                            src={section.content}
-                            controls
-                            preload="metadata"
-                            className="max-w-full h-auto max-h-[600px] object-contain rounded-xl"
-                          />
-                        </div>
-                      ) : (
-                        // Render Text/Content Section with heading
-                        <div className="pl-4">
-                          {/* Section heading — uses industry-specific title for spotlight sections */}
-                          {section.title && section.title !== "Introduction" && section.title !== "Content" && (
-                            <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-4 leading-tight">
+                      ) : section.type === "image" || section.imageUrl ? (
+                        // Image Section
+                        <div>
+                          {section.title && !section.title.startsWith("Image ") && (
+                            <h2 className="text-2xl md:text-3xl font-semibold text-foreground mb-4">
                               {section.title}
                             </h2>
                           )}
-                          {section.content ? (
-                            <div
-                              className="text-slate-900 dark:text-slate-50 leading-relaxed text-base prose prose-slate dark:prose-invert max-w-none"
-                              dangerouslySetInnerHTML={{ __html: section.content }}
+                          <div className="mb-6 rounded-2xl overflow-hidden border border-border/50 shadow-md bg-slate-950/20 flex items-center justify-center p-2">
+                            <img
+                              src={section.imageUrl || section.content}
+                              alt={section.title || "Section image"}
+                              className="w-full h-auto max-h-[800px] object-contain rounded-xl mx-auto"
+                              loading="lazy"
                             />
-                          ) : (
-                            <p className="text-muted-foreground italic">
-                              No content added yet...
-                            </p>
+                          </div>
+                          {section.content &&
+                            section.content !== section.imageUrl &&
+                            !section.content.startsWith("http://") &&
+                            !section.content.startsWith("https://") &&
+                            !section.content.startsWith("blob:") &&
+                            !section.content.startsWith("data:") && (
+                              <p className="text-foreground/90 text-lg leading-relaxed whitespace-pre-wrap">
+                                {section.content}
+                              </p>
+                            )}
+                        </div>
+                      ) : section.type === "video" || section.videoUrl ? (
+                        // Video Section
+                        <div>
+                          {section.title && !section.title.startsWith("Video ") && (
+                            <h2 className="text-2xl md:text-3xl font-semibold text-foreground mb-4">
+                              {section.title}
+                            </h2>
                           )}
+                          <div className="mb-6 rounded-2xl overflow-hidden border border-border/50 shadow-md bg-black flex items-center justify-center p-1">
+                            <video
+                              src={section.videoUrl || section.content}
+                              controls
+                              playsInline
+                              preload="metadata"
+                              className="w-full h-auto max-h-[600px] object-contain rounded-lg mx-auto"
+                            />
+                          </div>
+                          {section.content &&
+                            section.content !== section.videoUrl &&
+                            !section.content.startsWith("http://") &&
+                            !section.content.startsWith("https://") &&
+                            !section.content.startsWith("blob:") &&
+                            !section.content.startsWith("data:") && (
+                              <p className="text-foreground/90 text-lg leading-relaxed whitespace-pre-wrap">
+                                {section.content}
+                              </p>
+                            )}
+                        </div>
+                      ) : (section.title.toLowerCase().includes("rate") && (section.title.toLowerCase().includes("experience") || section.title.toLowerCase().includes("how"))) || section.type === "rating" ? (
+                        <div className="space-y-4">
+                          <h2 className="text-2xl md:text-3xl font-semibold text-foreground mb-2">
+                            {section.title}
+                          </h2>
+                          {section.content && <p className="text-muted-foreground">{section.content}</p>}
+                          <div className="space-y-3 py-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {[1, 2, 3, 4, 5].map((star) => {
+                                const val = Number(feedbackValues[section.id || 'rating']) || 0;
+                                return (
+                                  <button
+                                    key={star}
+                                    type="button"
+                                    onClick={() => updateFeedbackValue(section.id || 'rating', String(star))}
+                                    className="group p-1.5 rounded-xl hover:scale-125 transition-all cursor-pointer focus:outline-none"
+                                    title={`${star} Star${star > 1 ? "s" : ""}`}
+                                  >
+                                    <Star
+                                      className={`w-9 h-9 transition-colors ${
+                                        val >= star
+                                          ? "text-amber-400 fill-amber-400 drop-shadow-[0_0_12px_rgba(245,158,11,0.6)]"
+                                          : "text-muted-foreground/30 hover:text-amber-300"
+                                      }`}
+                                    />
+                                  </button>
+                                );
+                              })}
+                              {Number(feedbackValues[section.id || 'rating']) > 0 && (
+                                <span className="text-sm font-bold text-amber-500 ml-2 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                                  {Number(feedbackValues[section.id || 'rating']) === 5 ? "⭐⭐⭐⭐⭐ Excellent! (5/5)" :
+                                   Number(feedbackValues[section.id || 'rating']) === 4 ? "⭐⭐⭐⭐ Very Good (4/5)" :
+                                   Number(feedbackValues[section.id || 'rating']) === 3 ? "⭐⭐⭐ Good (3/5)" :
+                                   Number(feedbackValues[section.id || 'rating']) === 2 ? "⭐⭐ Fair (2/5)" : "⭐ Poor (1/5)"}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (section.title.toLowerCase().includes("additional comments") || section.title.toLowerCase().includes("comments") || section.type === "long_text") ? (
+                        <div className="space-y-3">
+                          <h2 className="text-2xl md:text-3xl font-semibold text-foreground mb-2">
+                            {section.title}
+                          </h2>
+                          <Textarea
+                            placeholder="Share your thoughts and feedback..."
+                            rows={4}
+                            value={feedbackValues[section.id || 'comments'] || ''}
+                            onChange={(e) => updateFeedbackValue(section.id || 'comments', e.target.value)}
+                            className="w-full bg-background"
+                          />
+                        </div>
+                      ) : (
+                        // Standard Text/Content Section
+                        <div>
+                          <h2 className="text-2xl md:text-3xl font-semibold text-foreground mb-4">
+                            {section.title}
+                          </h2>
+                          <p className="text-foreground/90 text-lg leading-relaxed whitespace-pre-wrap">
+                            {section.content}
+                          </p>
                         </div>
                       )}
                     </div>
@@ -1263,41 +1764,34 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
               )}
             </div>
 
-            {/* Glowing Golden "I'm Interested" Button Section */}
-            <div className="max-w-5xl mx-auto px-6 mb-10">
-              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500/15 via-amber-400/5 to-amber-600/15 border-2 border-amber-500/40 p-8 text-center backdrop-blur-xl shadow-[0_0_40px_rgba(245,158,11,0.2)] space-y-4">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-300 font-extrabold text-xs uppercase tracking-wider border border-amber-500/30">
-                  ✨ Next Level Startup Validation
-                </div>
-                <h3 className="text-2xl md:text-3xl font-extrabold text-foreground tracking-tight">
-                  Interested in this Startup?
-                </h3>
-                <p className="text-sm text-muted-foreground max-w-lg mx-auto leading-relaxed">
-                  Support the founder by expressing your interest in pilot testing, investment, joining their team, or custom collaboration!
-                </p>
-                <div className="pt-2">
-                  <Button
-                    onClick={() => {
-                      if (!user) {
-                        setShowSignInGate(true);
-                        return;
-                      }
-                      setInterestModalOpen(true);
-                    }}
-                    className="bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-slate-950 font-black text-base md:text-lg px-10 py-7 rounded-2xl shadow-[0_0_30px_rgba(245,158,11,0.5)] border-2 border-amber-300/60 hover:scale-105 active:scale-95 transition-all duration-300 gap-3 group"
-                  >
-                    <Sparkles className="w-5 h-5 fill-slate-950 animate-pulse" />
-                    I'm Interested
-                    <span className="text-xs px-3 py-1 rounded-full bg-slate-950/20 text-slate-950 font-black border border-slate-950/20">
-                      🔥 {neeshCount} Neeshed
-                    </span>
-                  </Button>
-                </div>
-              </div>
+            {/* Golden "I'm Interested" Button Alone */}
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 mb-10 flex justify-center">
+              <Button
+                onClick={() => {
+                  if (!user) {
+                    setShowSignInGate(true);
+                    return;
+                  }
+                  setJustSubmitted(false);
+                  setInterestModalOpen(true);
+                }}
+                className="w-full sm:w-auto max-w-full h-14 sm:h-16 px-8 sm:px-12 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-500 hover:from-amber-500 hover:to-yellow-600 text-slate-950 font-black shadow-[0_0_35px_rgba(245,158,11,0.5)] border-2 border-amber-300 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 inline-flex items-center justify-center gap-3 sm:gap-4 group cursor-pointer"
+              >
+                <span className="text-base sm:text-lg font-black tracking-tight">I'm Interested</span>
+                <span className="text-xs sm:text-sm px-3.5 py-1.5 rounded-full bg-slate-950 text-amber-400 font-extrabold border border-amber-400/40 shadow-inner flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+                  <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                  <span>{neeshCount} Neeshed</span>
+                </span>
+              </Button>
             </div>
 
             {/* Interest Tags Selection Modal */}
-            <Dialog open={interestModalOpen} onOpenChange={setInterestModalOpen}>
+            <Dialog open={interestModalOpen} onOpenChange={(open) => {
+              setInterestModalOpen(open);
+              if (!open) {
+                setJustSubmitted(false);
+              }
+            }}>
               <DialogContent className="sm:max-w-lg rounded-3xl p-6 md:p-8 bg-card border-amber-500/30">
                 <DialogHeader className="space-y-2">
                   <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 text-xl font-bold mx-auto mb-1">
@@ -1311,17 +1805,24 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
                   </DialogDescription>
                 </DialogHeader>
 
-                {interestSubmitted ? (
+                {justSubmitted ? (
                   <div className="py-8 text-center space-y-4">
                     <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center mx-auto text-3xl">
-                      🎉
+                      {isUpdateSubmission ? "✅" : "🎉"}
                     </div>
-                    <h4 className="text-lg font-bold text-foreground">Interest Submitted!</h4>
+                    <h4 className="text-lg font-bold text-foreground">
+                      {isUpdateSubmission ? "Interest Choice Updated!" : "Interest Submitted!"}
+                    </h4>
                     <p className="text-sm text-muted-foreground">
-                      Your interest has been recorded and sent directly to the founder's validated buyers dashboard.
+                      {isUpdateSubmission 
+                        ? "Your interest tag selection has been updated and saved to the founder's validated buyers dashboard." 
+                        : "Your interest has been recorded and sent directly to the founder's validated buyers dashboard."}
                     </p>
                     <Button
-                      onClick={() => setInterestModalOpen(false)}
+                      onClick={() => {
+                        setJustSubmitted(false);
+                        setInterestModalOpen(false);
+                      }}
                       className="bg-primary text-primary-foreground font-semibold px-6 py-2.5 rounded-xl"
                     >
                       Done
@@ -1329,6 +1830,12 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
                   </div>
                 ) : (
                   <div className="space-y-4 py-2">
+                    {hasSubmittedInterest && (
+                      <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-300 text-xs font-semibold text-center">
+                        ✨ You have already expressed interest in this project.
+                      </div>
+                    )}
+
                     {/* Tags List */}
                     <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                       {(blogData?.interestTags || []).map((tag, idx) => {
@@ -1414,6 +1921,8 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
                       >
                         {isSubmittingInterest ? (
                           <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : hasSubmittedInterest ? (
+                          "Update Interest Choice"
                         ) : (
                           "Confirm & Submit Interest"
                         )}
@@ -1647,30 +2156,32 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
           />
 
           {/* Modal Dialog Card */}
-          <div className="relative w-full max-w-md overflow-hidden bg-white/95 dark:bg-slate-900/95 border border-slate-200/50 dark:border-slate-800/50 shadow-2xl rounded-3xl p-8 backdrop-blur-2xl text-center space-y-6">
+          <div className="relative w-full max-w-md overflow-hidden bg-white/95 dark:bg-slate-900/95 border border-slate-200/50 dark:border-slate-800/50 shadow-2xl rounded-3xl p-6 sm:p-8 backdrop-blur-2xl text-center space-y-4 max-h-[90vh] overflow-y-auto">
             {/* Glow Background */}
             <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-cyan-500/10 to-blue-500/10 blur-xl pointer-events-none" />
 
-            <div className="relative space-y-3 flex flex-col items-center">
-              <div className="w-20 h-20 flex items-center justify-center mx-auto mb-2">
+            <div className="relative space-y-2 flex flex-col items-center">
+              <div className="w-16 h-16 flex items-center justify-center mx-auto mb-1">
                 <img 
                   src={neeshLogo} 
                   alt="Neesh AI Logo" 
-                  className="h-16 w-auto object-contain drop-shadow-md" 
+                  className="h-14 w-auto object-contain drop-shadow-md" 
                 />
               </div>
               <h3 className="text-xl font-bold text-slate-900 dark:text-slate-50">Sign In to Continue</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-                Please sign in using one of the options below to give feedback or talk to the AI Assistant. Alternatively, you can browse this Spotlight page anonymously.
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                Sign in to give feedback, rate sections, or talk to the AI Assistant. Your profile details will auto-populate into your feedback.
               </p>
             </div>
 
-            <div className="space-y-3 relative z-10">
+            {/* OAuth Buttons */}
+            <div className="space-y-2 relative z-10">
               <Button
+                type="button"
                 onClick={() => handleSignIn('google')}
-                className="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 h-12 rounded-xl text-sm font-semibold shadow-sm transition-all"
+                className="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 h-10 rounded-xl text-xs font-semibold shadow-sm transition-all"
               >
-                <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
@@ -1680,19 +2191,117 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
               </Button>
 
               <Button
+                type="button"
                 onClick={() => handleSignIn('github')}
-                className="w-full flex items-center justify-center gap-3 bg-zinc-900 hover:bg-zinc-800 text-white h-12 rounded-xl text-sm font-semibold shadow-sm transition-all"
+                className="w-full flex items-center justify-center gap-3 bg-zinc-900 hover:bg-zinc-800 text-white h-10 rounded-xl text-xs font-semibold shadow-sm transition-all"
               >
-                <svg className="w-5 h-5 shrink-0 fill-current" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 shrink-0 fill-current" viewBox="0 0 24 24">
                   <path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z" />
                 </svg>
                 Continue with GitHub
               </Button>
+            </div>
+
+            {/* Divider */}
+            <div className="relative flex items-center justify-center my-1">
+              <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
+              <span className="bg-white dark:bg-slate-900 px-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider absolute">
+                or sign in with email
+              </span>
+            </div>
+
+            {/* Inline Email & Password Form */}
+            <form onSubmit={handleInlinePasswordSignIn} className="space-y-3 text-left relative z-10">
+              {inlineError && (
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 text-red-600 dark:text-red-400 text-xs">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                  <span>{inlineError}</span>
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-slate-400" />
+                  Email Address
+                </label>
+                <Input
+                  type="email"
+                  placeholder="name@example.com"
+                  value={inlineEmail}
+                  onChange={(e) => {
+                    setInlineEmail(e.target.value);
+                    if (inlineError) setInlineError(null);
+                  }}
+                  className="h-10 rounded-xl text-xs"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-slate-400" />
+                  Password
+                </label>
+                <div className="relative">
+                  <Input
+                    type={showInlinePassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    value={inlinePassword}
+                    onChange={(e) => {
+                      setInlinePassword(e.target.value);
+                      if (inlineError) setInlineError(null);
+                    }}
+                    className="h-10 rounded-xl text-xs pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowInlinePassword(!showInlinePassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    {showInlinePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
 
               <Button
+                type="submit"
+                disabled={inlineSubmitting}
+                className="w-full h-10 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold text-xs shadow-md hover:opacity-95 transition-opacity"
+              >
+                {inlineSubmitting ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Validating credentials...
+                  </span>
+                ) : (
+                  "Sign In & Access Spotlight"
+                )}
+              </Button>
+            </form>
+
+            <div className="pt-1 flex flex-col items-center gap-1.5">
+              <p className="text-xs text-slate-500">
+                Don't have an account yet?{" "}
+                <Link
+                  to={`/signup?returnTo=${encodeURIComponent(window.location.href.split('#')[0])}`}
+                  onClick={() => {
+                    try {
+                      sessionStorage.setItem('post_login_redirect', window.location.href.split('#')[0]);
+                    } catch {}
+                    setShowSignInGate(false);
+                  }}
+                  className="text-cyan-600 dark:text-cyan-400 font-bold hover:underline"
+                >
+                  Create Account
+                </Link>
+              </p>
+
+              <Button
+                type="button"
                 variant="ghost"
                 onClick={() => setShowSignInGate(false)}
-                className="w-full text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 text-xs py-2"
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-xs py-1 h-auto"
               >
                 Skip for now — View Spotlight
               </Button>

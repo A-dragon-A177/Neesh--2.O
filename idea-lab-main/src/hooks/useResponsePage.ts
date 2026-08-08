@@ -62,6 +62,7 @@ export const useResponsePage = (projectId: string | undefined) => {
     const [selectedMember, setSelectedMember] = useState<AudienceMemberDetail | null>(null);
     const [loading, setLoading] = useState(false);
     const [detailLoading, setDetailLoading] = useState(false);
+    const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
     const [answeringId, setAnsweringId] = useState<string | null>(null);
 
     /**
@@ -89,6 +90,7 @@ export const useResponsePage = (projectId: string | undefined) => {
      */
     const fetchMemberDetail = useCallback(async (memberId: string) => {
         setDetailLoading(true);
+        setDetailLoadingId(memberId);
         try {
             const data = await apiClient.get<AudienceMemberDetail>(
                 `/api/audience/${memberId}`
@@ -99,6 +101,7 @@ export const useResponsePage = (projectId: string | undefined) => {
             toast.error("Failed to load audience profile");
         } finally {
             setDetailLoading(false);
+            setDetailLoadingId(null);
         }
     }, []);
 
@@ -108,33 +111,40 @@ export const useResponsePage = (projectId: string | undefined) => {
     const answerQuestion = useCallback(async (questionId: string, answer: string) => {
         setAnsweringId(questionId);
         try {
-            const data = await apiClient.put<AnswerQuestionResponse>(
+            const res = await apiClient.put<AnswerQuestionResponse>(
                 `/api/audience/questions/${questionId}/answer`,
                 { answer }
             );
 
-            // Update the selected member's questions in state
-            if (selectedMember) {
-                setSelectedMember({
-                    ...selectedMember,
-                    questions: selectedMember.questions.map((q) =>
-                        q.id === questionId
-                            ? { ...q, customAdminAnswer: answer, status: "answered" as const, respondedAt: data.respondedAt }
-                            : q
-                    ),
-                });
-            }
+            // Update local state
+            setSelectedMember((prev) => {
+                if (!prev) return null;
+                const updatedQuestions = prev.questions.map((q) =>
+                    q.id === questionId
+                        ? {
+                            ...q,
+                            customAdminAnswer: answer,
+                            status: "answered",
+                            respondedAt: res.respondedAt,
+                            answeredAt: q.answeredAt || res.respondedAt,
+                        }
+                        : q
+                );
+                return { ...prev, questions: updatedQuestions };
+            });
 
-            toast.success("Reply sent & user notified!");
+            // Refresh member list in background
+            fetchMembers();
+            toast.success("Answer sent to audience member!");
             return true;
         } catch (err) {
             console.error("[ResponsePage] Error answering question:", err);
-            toast.error("Failed to send reply");
+            toast.error("Failed to send answer");
             return false;
         } finally {
             setAnsweringId(null);
         }
-    }, [selectedMember]);
+    }, [fetchMembers]);
 
     /**
      * Close the detail modal.
@@ -148,6 +158,7 @@ export const useResponsePage = (projectId: string | undefined) => {
         selectedMember,
         loading,
         detailLoading,
+        detailLoadingId,
         answeringId,
         fetchMembers,
         fetchMemberDetail,

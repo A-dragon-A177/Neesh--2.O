@@ -220,27 +220,27 @@ const CVPCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => void }) => {
       <div className="space-y-2">
         <label className="text-xs font-semibold text-gray-700">If your product vanished, what would they use?</label>
         <Select onValueChange={setAlt} value={alt}>
-          <SelectTrigger className="bg-white/60 h-11 rounded-xl border-white/40"><SelectValue placeholder="Select Alternative"/></SelectTrigger>
-          <SelectContent className="z-[110]">
-            <SelectItem value="Direct Competitor">Direct Competitor</SelectItem>
-            <SelectItem value="A Workaround">A Workaround</SelectItem>
-            <SelectItem value="Doing Nothing">Doing Nothing</SelectItem>
+          <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Alternative"/></SelectTrigger>
+          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+            <SelectItem value="Direct Competitor" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Direct Competitor</SelectItem>
+            <SelectItem value="A Workaround" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">A Workaround</SelectItem>
+            <SelectItem value="Doing Nothing" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Doing Nothing</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-2">
         <label className="text-xs font-semibold text-gray-700">Does your product primarily give them more money or time?</label>
         <Select onValueChange={setMetric} value={metric}>
-          <SelectTrigger className="bg-white/60 h-11 rounded-xl border-white/40"><SelectValue placeholder="Select Metric"/></SelectTrigger>
-          <SelectContent className="z-[110]">
-            <SelectItem value="More Money">More Money (Affordability)</SelectItem>
-            <SelectItem value="More Time">More Time (Convenience)</SelectItem>
+          <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Metric"/></SelectTrigger>
+          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+            <SelectItem value="More Money" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">More Money (Affordability)</SelectItem>
+            <SelectItem value="More Time" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">More Time (Convenience)</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="flex gap-3">
-        <div className="flex-1 space-y-1"><label className="text-xs font-semibold text-gray-700">Their Cost</label><Input type="number" placeholder="e.g. 500" value={altCost} onChange={e=>setAltCost(e.target.value)} className="bg-white/60 h-10 rounded-xl"/></div>
-        <div className="flex-1 space-y-1"><label className="text-xs font-semibold text-gray-700">Your Cost</label><Input type="number" placeholder="e.g. 100" value={mvpCost} onChange={e=>setMvpCost(e.target.value)} className="bg-white/60 h-10 rounded-xl"/></div>
+        <div className="flex-1 space-y-1"><label className="text-xs font-semibold text-gray-700">Their Cost</label><Input type="number" placeholder="e.g. 500" value={altCost} onChange={e=>setAltCost(e.target.value)} className="bg-white text-gray-900 h-10 rounded-xl border-gray-200"/></div>
+        <div className="flex-1 space-y-1"><label className="text-xs font-semibold text-gray-700">Your Cost</label><Input type="number" placeholder="e.g. 100" value={mvpCost} onChange={e=>setMvpCost(e.target.value)} className="bg-white text-gray-900 h-10 rounded-xl border-gray-200"/></div>
       </div>
       <Button onClick={()=>{ if(!alt||!metric||!altCost||!mvpCost){toast.error("Fill all fields");return;} onAnswer({cvp_input_a: alt, cvp_input_b: metric, cvp_input_c: altCost, cvp_input_d: mvpCost}, `${alt} • ${metric} — Cost: ${altCost} vs ${mvpCost}`);}} className="w-full h-11 rounded-xl bg-gradient-to-r from-[hsl(190,85%,38%)] to-[hsl(186,93%,48%)] text-white font-semibold shadow-md hover:opacity-95 transition-opacity">Compute Multiplier</Button>
     </div>
@@ -255,20 +255,20 @@ const MarketDesperationCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) =>
       <div className="flex items-center gap-2 text-cyan-600"><Activity className="w-4 h-4"/> <h3 className="font-bold text-gray-900 text-sm">Behavioral Audit</h3></div>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">Does your solution require a new habit?</label>
         <Select onValueChange={setHabit} value={habit}>
-          <SelectTrigger className="bg-white/60 h-11 rounded-xl border-white/40"><SelectValue placeholder="Select habit requirement"/></SelectTrigger>
-          <SelectContent className="z-[110]">
-            <SelectItem value="Requires new habit">Requires completely new habit</SelectItem>
-            <SelectItem value="Replaces existing habit">Replaces existing habit</SelectItem>
+          <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select habit requirement"/></SelectTrigger>
+          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+            <SelectItem value="Requires new habit" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Requires completely new habit</SelectItem>
+            <SelectItem value="Replaces existing habit" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Replaces existing habit</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">Are they currently spending money to solve this?</label>
         <Select onValueChange={setDesperation} value={desperation}>
-          <SelectTrigger className="bg-white/60 h-11 rounded-xl border-white/40"><SelectValue placeholder="Select spending behavior"/></SelectTrigger>
-          <SelectContent className="z-[110]">
-            <SelectItem value="Yes spend money">Yes, they spend money</SelectItem>
-            <SelectItem value="No">No, they don't</SelectItem>
-            <SelectItem value="Unsure">I am unsure</SelectItem>
+          <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select spending behavior"/></SelectTrigger>
+          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+            <SelectItem value="Yes spend money" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Yes, they spend money</SelectItem>
+            <SelectItem value="No" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">No, they don't</SelectItem>
+            <SelectItem value="Unsure" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">I am unsure</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -287,27 +287,27 @@ const MarketPopulationCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => 
     <div className="bg-white/50 backdrop-blur-3xl border border-white/60 rounded-3xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.04)] space-y-4 w-full text-left">
       <div className="flex items-center gap-2 text-cyan-600"><TrendingUp className="w-4 h-4"/> <h3 className="font-bold text-gray-900 text-sm">The 10 Crore Check</h3></div>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">Avg Unit Spend (Per Customer / Year)</label>
-        <Input type="number" placeholder="e.g. 5000" value={spend} onChange={e=>{setSpend(e.target.value); setCalcPop(Math.ceil(5000000000 / (Number(e.target.value)||1)));}} className="bg-white/60 h-10 rounded-xl"/>
+        <Input type="number" placeholder="e.g. 5000" value={spend} onChange={e=>{setSpend(e.target.value); setCalcPop(Math.ceil(5000000000 / (Number(e.target.value)||1)));}} className="bg-white text-gray-900 h-10 rounded-xl border-gray-200"/>
       </div>
       {calcPop !== null && calcPop > 0 && (
         <motion.div initial={{opacity:0, height:0}} animate={{opacity:1, height:'auto'}} className="p-3 bg-cyan-50/80 rounded-xl border border-cyan-100"><p className="text-xs text-cyan-900 leading-relaxed">To reach 10 Cr revenue at 2% market share, you need exactly <strong className="text-sm mx-0.5">{new Intl.NumberFormat('en-IN').format(calcPop)}</strong> desperate people.</p></motion.div>
       )}
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">Does this population exist in your target location?</label>
         <Select onValueChange={setPopValid} value={popValid}>
-          <SelectTrigger className="bg-white/60 h-11 rounded-xl border-white/40"><SelectValue placeholder="Select Population Reality"/></SelectTrigger>
-          <SelectContent className="z-[110]">
-            <SelectItem value="Yes exist in concentrated">Yes, they exist here</SelectItem>
-            <SelectItem value="No too small">No, too small</SelectItem>
-            <SelectItem value="Guessing">I am guessing</SelectItem>
+          <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Population Reality"/></SelectTrigger>
+          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+            <SelectItem value="Yes exist in concentrated" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Yes, they exist here</SelectItem>
+            <SelectItem value="No too small" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">No, too small</SelectItem>
+            <SelectItem value="Guessing" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">I am guessing</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">Is your primary market highly concentrated or dispersed?</label>
         <Select onValueChange={setGeo} value={geo}>
-          <SelectTrigger className="bg-white/60 h-11 rounded-xl border-white/40"><SelectValue placeholder="Select Geography"/></SelectTrigger>
-          <SelectContent className="z-[110]">
-            <SelectItem value="Concentrated Metro">Concentrated Metro</SelectItem>
-            <SelectItem value="Dispersed Tier 2-3">Dispersed Tier 2-3</SelectItem>
+          <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Geography"/></SelectTrigger>
+          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+            <SelectItem value="Concentrated Metro" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Concentrated Metro</SelectItem>
+            <SelectItem value="Dispersed Tier 2-3" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Dispersed Tier 2-3</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -324,20 +324,20 @@ const AcqTrustCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => void }) 
       <div className="flex items-center gap-2 text-cyan-600"><Users className="w-4 h-4"/> <h3 className="font-bold text-gray-900 text-sm">Trust & Credibility</h3></div>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">Can you instantly close 10 people without ads?</label>
         <Select onValueChange={setGrassroots} value={grassroots}>
-          <SelectTrigger className="bg-white/60 h-11 rounded-xl border-white/40"><SelectValue placeholder="Select Grassroots Reality"/></SelectTrigger>
-          <SelectContent className="z-[110]">
-            <SelectItem value="Yes have 10">Yes, I have these 10</SelectItem>
-            <SelectItem value="No need strangers">No, I need strangers/ads</SelectItem>
+          <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Grassroots Reality"/></SelectTrigger>
+          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+            <SelectItem value="Yes have 10" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Yes, I have these 10</SelectItem>
+            <SelectItem value="No need strangers" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">No, I need strangers/ads</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">If a stranger tries your product, what converts them?</label>
         <Select onValueChange={setChannel} value={channel}>
-          <SelectTrigger className="bg-white/60 h-11 rounded-xl border-white/40"><SelectValue placeholder="Select Primary Channel"/></SelectTrigger>
-          <SelectContent className="z-[110]">
-            <SelectItem value="Discounts or paid">Discounts / paid ads</SelectItem>
-            <SelectItem value="Organic recommend">Trusted customers recommend it</SelectItem>
-            <SelectItem value="Established rep">My established reputation</SelectItem>
+          <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Primary Channel"/></SelectTrigger>
+          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+            <SelectItem value="Discounts or paid" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Discounts / paid ads</SelectItem>
+            <SelectItem value="Organic recommend" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Trusted customers recommend it</SelectItem>
+            <SelectItem value="Established rep" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">My established reputation</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -355,31 +355,31 @@ const DefMoatCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => void }) =
       <div className="flex items-center gap-2 text-cyan-600"><ShieldCheck className="w-4 h-4"/> <h3 className="font-bold text-gray-900 text-sm">Defensibility Engine</h3></div>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">If a competitor finds you today, what is your primary defense?</label>
         <Select onValueChange={setTrap} value={trap}>
-          <SelectTrigger className="bg-white/60 h-11 rounded-xl border-white/40"><SelectValue placeholder="Select Primary Defense"/></SelectTrigger>
-          <SelectContent className="z-[110]">
-            <SelectItem value="Patents">Patents / legal</SelectItem>
-            <SelectItem value="Secret">Idea is a secret</SelectItem>
-            <SelectItem value="Speed of execution">Speed of execution</SelectItem>
+          <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Primary Defense"/></SelectTrigger>
+          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+            <SelectItem value="Patents" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Patents / legal</SelectItem>
+            <SelectItem value="Secret" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Idea is a secret</SelectItem>
+            <SelectItem value="Speed of execution" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Speed of execution</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">What operational barrier physically slows a giant clone?</label>
         <Select onValueChange={setLead} value={lead}>
-          <SelectTrigger className="bg-white/60 h-11 rounded-xl border-white/40"><SelectValue placeholder="Select Operational Barrier"/></SelectTrigger>
-          <SelectContent className="z-[110]">
-            <SelectItem value="Easily copyable">Nothing, easily copyable</SelectItem>
-            <SelectItem value="On-ground operations">Physical on-ground ops</SelectItem>
-            <SelectItem value="Deep R&D">Deep scientific R&D</SelectItem>
-            <SelectItem value="Uncopyable 20 yrs">Uncopyable for 20 years</SelectItem>
+          <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Operational Barrier"/></SelectTrigger>
+          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+            <SelectItem value="Easily copyable" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Nothing, easily copyable</SelectItem>
+            <SelectItem value="On-ground operations" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Physical on-ground ops</SelectItem>
+            <SelectItem value="Deep R&D" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Deep scientific R&D</SelectItem>
+            <SelectItem value="Uncopyable 20 yrs" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Uncopyable for 20 years</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">Once cloned, what is your roadmap to survive?</label>
         <Select onValueChange={setRoadmap} value={roadmap}>
-          <SelectTrigger className="bg-white/60 h-11 rounded-xl border-white/40"><SelectValue placeholder="Select Roadmap Strategy"/></SelectTrigger>
-          <SelectContent className="z-[110]">
-            <SelectItem value="Defend single idea">Defend this specific product</SelectItem>
-            <SelectItem value="Release next upgrade">Immediately release next upgrade</SelectItem>
+          <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Roadmap Strategy"/></SelectTrigger>
+          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+            <SelectItem value="Defend single idea" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Defend this specific product</SelectItem>
+            <SelectItem value="Release next upgrade" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Immediately release next upgrade</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -396,23 +396,23 @@ const BuildExecutionCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => vo
       <div className="flex items-center gap-2 text-cyan-600"><Rocket className="w-4 h-4"/> <h3 className="font-bold text-gray-900 text-sm">Execution Capacity</h3></div>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">How distributed is the workload among founders?</label>
         <Select onValueChange={setTeam} value={team}>
-          <SelectTrigger className="bg-white/60 h-11 rounded-xl border-white/40"><SelectValue placeholder="Select Team Workload"/></SelectTrigger>
-          <SelectContent className="z-[110]">
-            <SelectItem value="Missing Links">Missing key roles (Tech/Sales)</SelectItem>
-            <SelectItem value="Heavy Overlap">1-2 founders juggling 4-6 roles</SelectItem>
-            <SelectItem value="Balanced Overlap">Balanced (e.g. 3 founders, 2 roles each)</SelectItem>
-            <SelectItem value="Maximum Stability">Distinct experts for single roles</SelectItem>
+          <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Team Workload"/></SelectTrigger>
+          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+            <SelectItem value="Missing Links" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Missing key roles (Tech/Sales)</SelectItem>
+            <SelectItem value="Heavy Overlap" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">1-2 founders juggling 4-6 roles</SelectItem>
+            <SelectItem value="Balanced Overlap" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Balanced (e.g. 3 founders, 2 roles each)</SelectItem>
+            <SelectItem value="Maximum Stability" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Distinct experts for single roles</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">What is your MVP status and funding criticality?</label>
         <Select onValueChange={setMvp} value={mvp}>
-          <SelectTrigger className="bg-white/60 h-11 rounded-xl border-white/40"><SelectValue placeholder="Select MVP Status"/></SelectTrigger>
-          <SelectContent className="z-[110]">
-            <SelectItem value="Idea Stage">Idea Stage — Need money to build</SelectItem>
-            <SelectItem value="Stuck Stage">In progress — Need funding to finish</SelectItem>
-            <SelectItem value="Traction Stage">Fully built — Need money to scale</SelectItem>
-            <SelectItem value="Self-Sufficient">Generating revenue — Don't need investment</SelectItem>
+          <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select MVP Status"/></SelectTrigger>
+          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+            <SelectItem value="Idea Stage" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Idea Stage — Need money to build</SelectItem>
+            <SelectItem value="Stuck Stage" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">In progress — Need funding to finish</SelectItem>
+            <SelectItem value="Traction Stage" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Fully built — Need money to scale</SelectItem>
+            <SelectItem value="Self-Sufficient" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Generating revenue — Don't need investment</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -468,76 +468,87 @@ const CreateProjectWizard = ({
       setIndustry(project.industry || "");
       setStartupStage(project.startup_stage || "");
 
-      if (!project.validation_report || project.validation_report === "{}") {
-        if (project.validation_answers) {
-          try {
-            const parsed = JSON.parse(project.validation_answers);
-            const initialAnswers = { ...parsed };
-            setAnswers(initialAnswers);
+      if (project.validation_answers) {
+        try {
+          const parsed = JSON.parse(project.validation_answers);
+          const initialAnswers = { ...parsed };
+          setAnswers(initialAnswers);
 
-            let firstUnanswered = 0;
-            for (let i = 0; i < CHAT_QUESTIONS.length; i++) {
-              const q = CHAT_QUESTIONS[i];
-              if (q.inputType.endsWith("_card")) {
-                let isAnswered = true;
-                if (q.id === "cvp_card" && (!parsed["cvp_input_a"] || !parsed["cvp_input_c"] || !parsed["cvp_input_d"])) isAnswered = false;
-                if (q.id === "market_desperation_card" && (!parsed["market_input_a"] || !parsed["market_input_b"])) isAnswered = false;
-                if (q.id === "market_population_card" && (!parsed["market_input_c1"] || !parsed["market_input_c2"] || !parsed["market_input_d"])) isAnswered = false;
-                if (q.id === "acq_trust_card" && (!parsed["acq_input_a"] || !parsed["acq_input_b"])) isAnswered = false;
-                if (q.id === "def_moat_card" && (!parsed["def_input_a"] || !parsed["def_input_b"] || !parsed["def_input_c"])) isAnswered = false;
-                if (q.id === "build_execution_card" && (!parsed["build_input_a"] || !parsed["build_input_b"])) isAnswered = false;
-                if (!isAnswered) { firstUnanswered = i; break; }
-              } else {
-                const key = q.validationKey || q.id;
-                const val = parsed[key];
-                if (val === undefined || val === null || String(val).trim() === "") { firstUnanswered = i; break; }
-              }
-              if (i === CHAT_QUESTIONS.length - 1) firstUnanswered = CHAT_QUESTIONS.length;
+          let firstUnanswered = CHAT_QUESTIONS.length;
+          for (let i = 0; i < CHAT_QUESTIONS.length; i++) {
+            const q = CHAT_QUESTIONS[i];
+            let isAnswered = true;
+            if (q.inputType.endsWith("_card")) {
+              if (q.id === "cvp_card" && (!parsed["cvp_input_a"] || !parsed["cvp_input_c"] || !parsed["cvp_input_d"])) isAnswered = false;
+              if (q.id === "market_desperation_card" && (!parsed["market_input_a"] || !parsed["market_input_b"])) isAnswered = false;
+              if (q.id === "market_population_card" && (!parsed["market_input_c1"] || !parsed["market_input_c2"] || !parsed["market_input_d"])) isAnswered = false;
+              if (q.id === "acq_trust_card" && (!parsed["acq_input_a"] || !parsed["acq_input_b"])) isAnswered = false;
+              if (q.id === "def_moat_card" && (!parsed["def_input_a"] || !parsed["def_input_b"] || !parsed["def_input_c"])) isAnswered = false;
+              if (q.id === "build_execution_card" && (!parsed["build_input_a"] || !parsed["build_input_b"])) isAnswered = false;
+            } else {
+              const key = q.validationKey || q.id;
+              const val = parsed[key];
+              if (val === undefined || val === null || String(val).trim() === "") { isAnswered = false; }
             }
-
-            setQuestionIndex(firstUnanswered);
-            const priorMessages: ChatMessage[] = [];
-            for (let i = 0; i < firstUnanswered && i < CHAT_QUESTIONS.length; i++) {
-              const q = CHAT_QUESTIONS[i];
-              const agentText = typeof q.agentMessage === "function" ? q.agentMessage(initialAnswers) : q.agentMessage;
-              priorMessages.push({ id: `agent-${i}`, sender: "agent", text: agentText, timestamp: Date.now() - (firstUnanswered - i) * 1000 });
-              
-              if (q.inputType.endsWith("_card")) {
-                 let dt = "Data provided via interactive card.";
-                 if (q.id === "cvp_card") dt = `${parsed.cvp_input_a||""} • ${parsed.cvp_input_b||""} — Cost: ${parsed.cvp_input_c||""} vs ${parsed.cvp_input_d||""}`;
-                 else if (q.id === "market_desperation_card") dt = `${parsed.market_input_a||""} • ${parsed.market_input_b||""}`;
-                 else if (q.id === "market_population_card") dt = `${parsed.market_input_c1||""}/yr • ${parsed.market_input_c2||""} • ${parsed.market_input_d||""}`;
-                 else if (q.id === "acq_trust_card") dt = `${parsed.acq_input_a||""} • ${parsed.acq_input_b||""}`;
-                 else if (q.id === "def_moat_card") dt = `${parsed.def_input_a||""} • ${parsed.def_input_b||""} • ${parsed.def_input_c||""}`;
-                 else if (q.id === "build_execution_card") dt = `${parsed.build_input_a||""} • ${parsed.build_input_b||""}`;
-                 
-                 priorMessages.push({ id: `user-${i}`, sender: "user", text: dt, timestamp: Date.now() - (firstUnanswered - i) * 1000 + 500 });
-              } else {
-                const key = q.validationKey || q.id;
-                const val = parsed[key];
-                const displayVal = q.inputType === "mcq" ? q.options?.find(o => o.value === val)?.label || String(val) : String(val);
-                priorMessages.push({ id: `user-${i}`, sender: "user", text: displayVal, timestamp: Date.now() - (firstUnanswered - i) * 1000 + 500 });
-              }
+            if (!isAnswered) {
+              firstUnanswered = i;
+              break;
             }
-
-            // Append the active unanswered question's agent message to the history
-            if (firstUnanswered < CHAT_QUESTIONS.length) {
-              const activeQ = CHAT_QUESTIONS[firstUnanswered];
-              const activeText = typeof activeQ.agentMessage === "function" ? activeQ.agentMessage(initialAnswers) : activeQ.agentMessage;
-              priorMessages.push({ id: `agent-${firstUnanswered}`, sender: "agent", text: activeText, timestamp: Date.now() });
-            }
-
-            setMessages(priorMessages);
-            setStep("chat");
-          } catch (e) { 
-            setStep("chat"); 
           }
-        } else { 
+
+          const allAnswered = firstUnanswered >= CHAT_QUESTIONS.length;
+          const displayIndex = allAnswered ? CHAT_QUESTIONS.length - 1 : firstUnanswered;
+          setQuestionIndex(displayIndex);
+
+          const priorMessages: ChatMessage[] = [];
+          const numHistoryQuestions = allAnswered ? CHAT_QUESTIONS.length : firstUnanswered;
+          for (let i = 0; i < numHistoryQuestions; i++) {
+            const q = CHAT_QUESTIONS[i];
+            const agentText = typeof q.agentMessage === "function" ? q.agentMessage(initialAnswers) : q.agentMessage;
+            priorMessages.push({ id: `agent-${i}`, sender: "agent", text: agentText, timestamp: Date.now() - (numHistoryQuestions - i) * 1000 });
+            
+            if (q.inputType.endsWith("_card")) {
+              let dt = "Data provided via interactive card.";
+              if (q.id === "cvp_card") dt = `${parsed.cvp_input_a||""} • ${parsed.cvp_input_b||""} — Cost: ${parsed.cvp_input_c||""} vs ${parsed.cvp_input_d||""}`;
+              else if (q.id === "market_desperation_card") dt = `${parsed.market_input_a||""} • ${parsed.market_input_b||""}`;
+              else if (q.id === "market_population_card") dt = `${parsed.market_input_c1||""}/yr • ${parsed.market_input_c2||""} • ${parsed.market_input_d||""}`;
+              else if (q.id === "acq_trust_card") dt = `${parsed.acq_input_a||""} • ${parsed.acq_input_b||""}`;
+              else if (q.id === "def_moat_card") dt = `${parsed.def_input_a||""} • ${parsed.def_input_b||""} • ${parsed.def_input_c||""}`;
+              else if (q.id === "build_execution_card") dt = `${parsed.build_input_a||""} • ${parsed.build_input_b||""}`;
+              
+              priorMessages.push({ id: `user-${i}`, sender: "user", text: dt, timestamp: Date.now() - (numHistoryQuestions - i) * 1000 + 500 });
+            } else {
+              const key = q.validationKey || q.id;
+              const val = parsed[key];
+              const displayVal = q.inputType === "mcq" ? q.options?.find(o => o.value === val)?.label || String(val) : String(val || "");
+              priorMessages.push({ id: `user-${i}`, sender: "user", text: displayVal, timestamp: Date.now() - (numHistoryQuestions - i) * 1000 + 500 });
+            }
+          }
+
+          if (allAnswered) {
+            priorMessages.push({
+              id: "agent-complete",
+              sender: "agent",
+              text: "🎉 Amazing! Your Spotlight is ready. I've generated your blog and computed your validation score.",
+              timestamp: Date.now(),
+            });
+          } else if (firstUnanswered < CHAT_QUESTIONS.length) {
+            const activeQ = CHAT_QUESTIONS[firstUnanswered];
+            const activeText = typeof activeQ.agentMessage === "function" ? activeQ.agentMessage(initialAnswers) : activeQ.agentMessage;
+            priorMessages.push({ id: `agent-${firstUnanswered}`, sender: "agent", text: activeText, timestamp: Date.now() });
+          }
+
+          setMessages(priorMessages);
           setStep("chat");
-          const activeQ = CHAT_QUESTIONS[0];
-          const activeText = typeof activeQ.agentMessage === "function" ? activeQ.agentMessage({}) : activeQ.agentMessage;
-          setMessages([{ id: `agent-0`, sender: "agent", text: activeText, timestamp: Date.now() }]);
+        } catch (e) {
+          console.error("[CreateProjectWizard] Error parsing validation answers:", e);
+          setStep("chat");
         }
+      } else {
+        setStep("chat");
+        const activeQ = CHAT_QUESTIONS[0];
+        const activeText = typeof activeQ.agentMessage === "function" ? activeQ.agentMessage({}) : activeQ.agentMessage;
+        setMessages([{ id: `agent-0`, sender: "agent", text: activeText, timestamp: Date.now() }]);
       }
     }
   }, [project]);
@@ -685,38 +696,42 @@ const CreateProjectWizard = ({
 
   // ─── Inline Local Render Helpers ───
   const renderBasicInfoView = () => (
-    <div className="flex flex-col h-full bg-gradient-to-br from-white via-cyan-50/10 to-violet-50/10 px-8 py-10 scroll-smooth">
+    <div className="flex flex-col h-full bg-gradient-to-br from-white via-cyan-50/10 to-violet-50/10 px-4 sm:px-8 py-6 sm:py-10 scroll-smooth overflow-y-auto">
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
         <div className="absolute -top-24 -left-24 w-64 h-64 bg-cyan-400/20 rounded-full blur-[80px]" />
         <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-violet-400/20 rounded-full blur-[80px]" />
       </div>
 
-      <div className="relative z-10 flex flex-col h-full max-w-lg mx-auto w-full space-y-8">
-        <div className="space-y-3 text-center">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-[2rem] bg-gradient-to-tr from-cyan-50/50 to-blue-50/50 shadow-xl shadow-cyan-500/20 mb-3 border border-white p-1 shrink-0 overflow-hidden">
+      <div className="relative z-10 flex flex-col h-full max-w-lg mx-auto w-full justify-center space-y-6 sm:space-y-8">
+        <div className="space-y-2 sm:space-y-3 text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-24 sm:h-24 rounded-[1.5rem] sm:rounded-[2rem] bg-gradient-to-tr from-cyan-50/50 to-blue-50/50 shadow-xl shadow-cyan-500/20 mb-1 sm:mb-3 border border-white p-1 shrink-0 overflow-hidden mx-auto">
             <img src={chatbotAvatar} alt="Neesh AI Bot" className="w-full h-full object-contain scale-x-[-1]" />
           </div>
-          <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 tracking-tight">Create Workspace</h1>
-          <p className="text-gray-500 text-sm font-medium">Initialize your startup validation core and begin the reality check.</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 tracking-tight">Create Workspace</h1>
+          <p className="text-gray-500 text-xs sm:text-sm font-medium">Initialize your startup validation core and begin the reality check.</p>
         </div>
 
-        <div className="space-y-5 bg-white/60 backdrop-blur-xl border border-white/80 p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+        <div className="space-y-4 sm:space-y-5 bg-white/60 backdrop-blur-xl border border-white/80 p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-gray-700 ml-1 uppercase tracking-wider">Startup Name</label>
-            <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="e.g., Neesh AI" className="h-12 text-sm rounded-2xl border-gray-200/60 bg-white/60 focus:bg-white transition-all focus:ring-2 focus:ring-cyan-500/20 shadow-inner" />
+            <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="e.g., Neesh AI" className="h-11 sm:h-12 text-sm text-gray-900 font-medium rounded-xl sm:rounded-2xl border-gray-200 bg-white focus:bg-white transition-all focus:ring-2 focus:ring-cyan-500/20 shadow-sm" />
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-gray-700 ml-1 uppercase tracking-wider">Summary</label>
-            <Input value={oneLineDesc} onChange={(e) => setOneLineDesc(e.target.value)} placeholder="Describe what you do in one line..." className="h-12 text-sm rounded-2xl border-gray-200/60 bg-white/60 focus:bg-white transition-all focus:ring-2 focus:ring-cyan-500/20 shadow-inner" />
+            <Input value={oneLineDesc} onChange={(e) => setOneLineDesc(e.target.value)} placeholder="Describe what you do in one line..." className="h-11 sm:h-12 text-sm text-gray-900 font-medium rounded-xl sm:rounded-2xl border-gray-200 bg-white focus:bg-white transition-all focus:ring-2 focus:ring-cyan-500/20 shadow-sm" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-gray-700 ml-1 uppercase tracking-wider">Industry</label>
               <Select onValueChange={setIndustry} value={industry}>
-                <SelectTrigger className="h-12 rounded-2xl border-gray-200/60 bg-white/60 focus:bg-white shadow-inner"><SelectValue placeholder="Select industry"/></SelectTrigger>
-                <SelectContent position="popper" className="z-[110] max-h-64">
+                <SelectTrigger className="h-11 sm:h-12 rounded-xl sm:rounded-2xl border-gray-200 bg-white text-gray-900 font-medium focus:bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20">
+                  <SelectValue placeholder="Select industry" />
+                </SelectTrigger>
+                <SelectContent position="popper" className="z-[220] max-h-64 bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
                   {INDUSTRIES.map(ind => (
-                    <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+                    <SelectItem key={ind} value={ind} className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50 focus:text-cyan-900 font-medium">
+                      {ind}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -724,16 +739,20 @@ const CreateProjectWizard = ({
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-gray-700 ml-1 uppercase tracking-wider">Stage</label>
               <Select onValueChange={setStartupStage} value={startupStage}>
-                <SelectTrigger className="h-12 rounded-2xl border-gray-200/60 bg-white/60 focus:bg-white shadow-inner"><SelectValue placeholder="Select stage"/></SelectTrigger>
-                <SelectContent position="popper" className="z-[110] max-h-64">
+                <SelectTrigger className="h-11 sm:h-12 rounded-xl sm:rounded-2xl border-gray-200 bg-white text-gray-900 font-medium focus:bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20">
+                  <SelectValue placeholder="Select stage" />
+                </SelectTrigger>
+                <SelectContent position="popper" className="z-[220] max-h-64 bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
                   {STARTUP_STAGES.map(s => (
-                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    <SelectItem key={s.value} value={s.value} className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50 focus:text-cyan-900 font-medium">
+                      {s.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
-          <Button onClick={handleBasicInfoSubmit} disabled={isCreating} className="w-full h-14 text-base font-bold rounded-2xl gap-2 mt-2 bg-gradient-to-r from-[hsl(190,85%,38%)] to-[hsl(186,93%,48%)] hover:opacity-95 text-white shadow-lg shadow-cyan-500/20 hover:-translate-y-0.5 transition-all">
+          <Button onClick={handleBasicInfoSubmit} disabled={isCreating} className="w-full h-12 sm:h-14 text-sm sm:text-base font-bold rounded-xl sm:rounded-2xl gap-2 mt-2 bg-gradient-to-r from-[hsl(190,85%,38%)] to-[hsl(186,93%,48%)] hover:opacity-95 text-white shadow-lg shadow-cyan-500/20 hover:-translate-y-0.5 transition-all">
             {isCreating ? <><Loader2 className="w-5 h-5 animate-spin" /> Initializing...</> : <>Start Copilot <ChevronRight className="w-5 h-5" /></>}
           </Button>
         </div>
@@ -744,30 +763,30 @@ const CreateProjectWizard = ({
   const renderChatView = () => (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-5 bg-white/40 backdrop-blur-md border-b border-white/40 z-20 shrink-0 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-50/50 to-blue-50/50 flex items-center justify-center shadow-lg shadow-cyan-500/10 border border-white p-1 shrink-0">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 bg-white/60 backdrop-blur-md border-b border-gray-100 z-20 shrink-0 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-cyan-50/50 to-blue-50/50 flex items-center justify-center shadow-md border border-white p-0.5 shrink-0">
             <img src={chatbotAvatar} alt="Neesh AI Bot" className="w-full h-full object-contain scale-x-[-1]" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-gray-900 tracking-tight leading-tight">Neesh AI Navigator</h2>
+            <h2 className="text-base sm:text-lg font-bold text-gray-900 tracking-tight leading-tight">Neesh AI Navigator</h2>
             <div className="flex items-center gap-1.5 mt-0.5">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-xs text-gray-600 font-medium uppercase tracking-wider">Module {currentModule}/{totalModules}</span>
+              <span className="text-[11px] sm:text-xs text-gray-600 font-medium uppercase tracking-wider">Module {currentModule}/{totalModules}</span>
             </div>
           </div>
         </div>
-        <button onClick={onClose} className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-white/50 transition-colors"><X className="w-5 h-5 text-gray-500" /></button>
+        <button onClick={onClose} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"><X className="w-5 h-5 text-gray-500" /></button>
       </div>
 
       {/* Progress */}
-      <div className="w-full h-0.5 bg-gray-200/50 shrink-0"><motion.div className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 shadow-[0_0_10px_rgba(6,182,212,0.5)]" initial={{ width: 0 }} animate={{ width: `${currentQuestion ? ((questionIndex + 1) / CHAT_QUESTIONS.length) * 100 : 100}%` }} transition={{ duration: 0.5 }} /></div>
+      <div className="w-full h-1 bg-gray-100 shrink-0"><motion.div className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 shadow-[0_0_10px_rgba(6,182,212,0.5)]" initial={{ width: 0 }} animate={{ width: `${currentQuestion ? ((questionIndex + 1) / CHAT_QUESTIONS.length) * 100 : 100}%` }} transition={{ duration: 0.5 }} /></div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-6 space-y-5 scroll-smooth z-10">
+      <div className="flex-1 overflow-y-auto custom-scrollbar px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-5 scroll-smooth z-10">
         <style dangerouslySetInnerHTML={{__html: `
           .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
+            width: 5px;
           }
           .custom-scrollbar::-webkit-scrollbar-track {
             background: transparent;
@@ -783,8 +802,8 @@ const CreateProjectWizard = ({
         <AnimatePresence mode="popLayout">
           {messages.map((msg) => (
             <motion.div key={msg.id} initial={{ opacity: 0, y: 15, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.3, type: "spring", bounce: 0.2 }} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
-              {msg.sender === "agent" && <div className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center mr-3 bg-gradient-to-tr from-cyan-50/50 to-blue-50/50 border border-white shadow-sm overflow-hidden p-0.5"><img src={chatbotAvatar} alt="Bot" className="w-full h-full object-contain scale-x-[-1]" /></div>}
-              <div className={`max-w-[85%] px-5 py-3.5 text-[15px] leading-relaxed tracking-tight mt-1 ${msg.sender === "user" ? "text-white rounded-[20px] rounded-br-sm bg-gradient-to-tr from-[hsl(190,85%,38%)] to-[hsl(186,93%,48%)] shadow-md shadow-cyan-500/10" : "text-gray-800 rounded-[20px] rounded-bl-sm bg-white/70 backdrop-blur-xl border border-white/50 shadow-sm"}`}>
+              {msg.sender === "agent" && <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex-shrink-0 flex items-center justify-center mr-2 sm:mr-3 bg-gradient-to-tr from-cyan-50/50 to-blue-50/50 border border-white shadow-sm overflow-hidden p-0.5"><img src={chatbotAvatar} alt="Bot" className="w-full h-full object-contain scale-x-[-1]" /></div>}
+              <div className={`max-w-[88%] sm:max-w-[85%] px-4 sm:px-5 py-3 sm:py-3.5 text-sm sm:text-[15px] leading-relaxed tracking-tight mt-0.5 ${msg.sender === "user" ? "text-white rounded-[18px] sm:rounded-[20px] rounded-br-sm bg-gradient-to-tr from-[hsl(190,85%,38%)] to-[hsl(186,93%,48%)] shadow-md shadow-cyan-500/10" : "text-gray-800 rounded-[18px] sm:rounded-[20px] rounded-bl-sm bg-white/80 backdrop-blur-xl border border-gray-100 shadow-sm"}`}>
                 {msg.text.split(/(\*\*.*?\*\*)/).map((part, i) => part.startsWith('**') && part.endsWith('**') ? <strong key={i} className="font-bold text-gray-900 bg-cyan-100/50 px-1 rounded">{part.slice(2, -2)}</strong> : part )}
               </div>
             </motion.div>
@@ -792,8 +811,8 @@ const CreateProjectWizard = ({
         </AnimatePresence>
         {isAgentTyping && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex justify-start">
-            <div className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center mr-3 bg-gradient-to-tr from-cyan-50/50 to-blue-50/50 border border-white shadow-sm overflow-hidden p-0.5"><img src={chatbotAvatar} alt="Bot" className="w-full h-full object-contain scale-x-[-1]" /></div>
-            <div className="px-5 py-3 rounded-[20px] rounded-bl-sm bg-white/70 backdrop-blur-xl border border-white/50 shadow-sm mt-1">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex-shrink-0 flex items-center justify-center mr-2 sm:mr-3 bg-gradient-to-tr from-cyan-50/50 to-blue-50/50 border border-white shadow-sm overflow-hidden p-0.5"><img src={chatbotAvatar} alt="Bot" className="w-full h-full object-contain scale-x-[-1]" /></div>
+            <div className="px-4 py-2.5 rounded-[18px] rounded-bl-sm bg-white/80 backdrop-blur-xl border border-gray-100 shadow-sm mt-0.5">
               <div className="flex gap-1.5"><div className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce" style={{ animationDelay: "0ms" }} /><div className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce" style={{ animationDelay: "150ms" }} /><div className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce" style={{ animationDelay: "300ms" }} /></div>
             </div>
           </motion.div>
@@ -803,7 +822,7 @@ const CreateProjectWizard = ({
 
       {/* Input Area */}
       {currentQuestion && !isAgentTyping && (
-        <div className="px-6 pb-6 pt-2 z-20 shrink-0 bg-white/10 backdrop-blur-md border-t border-white/20">
+        <div className="px-3 sm:px-6 pb-3 sm:pb-6 pt-2 z-30 shrink-0 bg-white/80 backdrop-blur-md border-t border-gray-100">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full">
             
             {currentQuestion.id === "cvp_card" && <CVPCard onAnswer={handleAnswer} />}
@@ -814,7 +833,7 @@ const CreateProjectWizard = ({
             {currentQuestion.id === "build_execution_card" && <BuildExecutionCard onAnswer={handleAnswer} />}
 
             {currentQuestion.inputType === "mcq" && (
-              <div className="flex items-center gap-3 max-w-xl mx-auto w-full bg-white/70 backdrop-blur-2xl p-1.5 rounded-[1.5rem] border border-white/60 shadow-md">
+              <div className="flex items-center gap-3 max-w-xl mx-auto w-full bg-white backdrop-blur-2xl p-1.5 rounded-2xl border border-gray-200 shadow-md">
                 <div className="flex-1 min-w-0">
                   <Select onValueChange={(val) => {
                     const label = currentQuestion.options?.find(o => o.value === val)?.label || val;
@@ -823,7 +842,7 @@ const CreateProjectWizard = ({
                     <SelectTrigger className="bg-transparent border-0 h-11 focus:ring-0 focus:ring-offset-0 text-[14px] shadow-none">
                       <SelectValue placeholder="Choose an option..." />
                     </SelectTrigger>
-                    <SelectContent className="z-[110]">
+                    <SelectContent className="z-[220]">
                       {currentQuestion.options?.map((opt) => (
                         <SelectItem key={opt.value} value={opt.value}>
                           {opt.label}
@@ -839,7 +858,7 @@ const CreateProjectWizard = ({
               const wordCount = chatInput.trim() ? chatInput.trim().split(/\s+/).length : 0;
               const wordColor = wordCount >= 100 ? "text-emerald-500" : wordCount >= 51 ? "text-amber-500" : "text-red-400";
               return (
-              <div className="flex flex-col gap-0 bg-white/70 backdrop-blur-2xl p-1.5 rounded-[1.5rem] border border-white/60 shadow-md focus-within:shadow-[0_4px_20px_rgba(6,182,212,0.15)] focus-within:border-cyan-300 transition-all duration-300">
+              <div className="flex flex-col gap-0 bg-white backdrop-blur-2xl p-1.5 sm:p-2 rounded-2xl sm:rounded-[1.5rem] border border-gray-200 shadow-md focus-within:shadow-[0_4px_20px_rgba(6,182,212,0.15)] focus-within:border-cyan-400 transition-all duration-300">
                 <div className="flex items-end gap-2">
                   <textarea
                     ref={inputRef}
@@ -847,16 +866,16 @@ const CreateProjectWizard = ({
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={currentQuestion.placeholder || "Type your answer..."}
-                    rows={currentQuestion.inputType === "numeric" ? 1 : 5}
-                    className="flex-1 px-4 py-2.5 text-[14px] text-gray-800 bg-transparent resize-none focus:outline-none placeholder:text-gray-400/70 placeholder:text-[13px] placeholder:leading-relaxed"
+                    rows={currentQuestion.inputType === "numeric" ? 1 : 2}
+                    className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-[14px] text-gray-800 bg-transparent resize-none focus:outline-none placeholder:text-gray-400/70 placeholder:text-xs sm:placeholder:text-[13px] placeholder:leading-relaxed max-h-28 sm:max-h-40"
                   />
-                  <button onClick={currentQuestion.inputType === "numeric" ? handleNumericSubmit : handleTextSubmit} disabled={isSaving || !chatInput.trim()} className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-tr from-gray-900 to-gray-800 hover:from-cyan-500 hover:to-blue-500 text-white shadow-md transition-all duration-300 disabled:opacity-40 mb-0.5 mr-0.5">
+                  <button onClick={currentQuestion.inputType === "numeric" ? handleNumericSubmit : handleTextSubmit} disabled={isSaving || !chatInput.trim()} className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-tr from-gray-900 to-gray-800 hover:from-cyan-500 hover:to-blue-500 text-white shadow-md transition-all duration-300 disabled:opacity-40 active:scale-95 mb-0.5 mr-0.5">
                     {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 ml-0.5" />}
                   </button>
                 </div>
                 {currentQuestion.inputType === "textarea" && (
-                  <div className="flex justify-end px-4 pb-1.5 pt-0.5">
-                    <span className={`text-xs font-semibold tabular-nums transition-colors duration-200 ${wordColor}`}>
+                  <div className="flex justify-end px-3 sm:px-4 pb-1 pt-0.5">
+                    <span className={`text-[10px] sm:text-xs font-semibold tabular-nums transition-colors duration-200 ${wordColor}`}>
                       {wordCount}/100 words
                     </span>
                   </div>
@@ -871,13 +890,13 @@ const CreateProjectWizard = ({
   );
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-6">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-0 md:p-6">
       {/* The Dark Overlay over the main dashboard */}
       <motion.div 
         initial={{ opacity: 0 }} 
         animate={{ opacity: 1 }} 
         exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/25 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
       
@@ -887,7 +906,7 @@ const CreateProjectWizard = ({
         animate={{ opacity: 1, scale: 1 }} 
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ type: "spring", damping: 25, stiffness: 220 }}
-        className="relative w-full md:w-[760px] h-full md:h-[88vh] md:max-h-[820px] bg-white/95 backdrop-blur-3xl border border-white/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] rounded-none md:rounded-[2.5rem] flex flex-col overflow-hidden z-10"
+        className="relative w-full md:w-[760px] h-[100dvh] md:h-[88vh] md:max-h-[820px] bg-white backdrop-blur-3xl border-0 md:border md:border-white/80 shadow-2xl rounded-none md:rounded-[2.5rem] flex flex-col overflow-hidden z-10"
       >
         {step === "basic_info" ? renderBasicInfoView() : renderChatView()}
       </motion.div>

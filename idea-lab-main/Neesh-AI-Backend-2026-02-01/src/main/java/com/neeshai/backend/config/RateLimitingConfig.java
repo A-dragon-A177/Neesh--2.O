@@ -38,8 +38,8 @@ public class RateLimitingConfig implements WebMvcConfigurer {
         private static final Logger log = LoggerFactory.getLogger(RateLimitInterceptor.class);
 
         // Different rate limits for different endpoint types
-        private static final int CHAT_REQUESTS_PER_MINUTE = 10;
-        private static final int GENERAL_REQUESTS_PER_MINUTE = 30;
+        private static final int CHAT_REQUESTS_PER_MINUTE = 60;
+        private static final int GENERAL_REQUESTS_PER_MINUTE = 300;
 
         private static final int MAX_BUCKETS = 5000;
 

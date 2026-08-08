@@ -50,6 +50,7 @@ interface ProjectOverviewProps {
     elevatorPitchUrl?: string | null;
     earlyAccessPrice?: number | null;
   };
+  validationAnswers?: string | null;
   validationReport?: string | null;
   onResumeOnboarding?: () => void;
   questionsData: Array<{
@@ -462,6 +463,7 @@ function generateDynamicProjectReport(projectId: string, projectTitle: string) {
 const ProjectOverview = ({
   projectId,
   projectData,
+  validationAnswers,
   validationReport,
   onResumeOnboarding,
   questionsData,
@@ -668,7 +670,25 @@ const ProjectOverview = ({
   );
 
   const resumeUrl = `${window.location.origin}/project/${projectId}?resume=true`;
-  const isValidationComplete = projectData.onboardingCompleted !== false;
+  const isValidationComplete = useMemo(() => {
+    if (projectData.onboardingCompleted === true) return true;
+    if (validationReport && validationReport !== "{}" && validationReport !== "null" && validationReport.trim().length > 20) {
+      return true;
+    }
+    if (validationAnswers) {
+      try {
+        const parsed = JSON.parse(validationAnswers);
+        if (
+          (parsed["problem_story"] || parsed["cvp_input_a"]) &&
+          (parsed["our_solution"] || parsed["market_input_a"]) &&
+          (parsed["target_customer"] || parsed["acq_trust_card"] || parsed["acq_input_a"])
+        ) {
+          return true;
+        }
+      } catch (e) {}
+    }
+    return projectData.onboardingCompleted !== false;
+  }, [projectData.onboardingCompleted, validationReport, validationAnswers]);
 
   // Extract effective report JSON (dynamic per project if report missing)
   const effectiveReportJson = useMemo(() => {

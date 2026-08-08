@@ -73,7 +73,18 @@ public class PromotionController {
     @GetMapping("/api/public/pitches")
     public ResponseEntity<List<PromotionDTOs.PitchFeedItemDTO>> getPitchFeed(
             @RequestParam(defaultValue = "20") int limit,
-            @RequestParam(defaultValue = "0") int offset) {
-        return ResponseEntity.ok(promotionService.getPitchFeed(limit, offset));
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(required = false) Long seed,
+            @RequestParam(required = false) String exclude) {
+        // Parse comma-separated exclude IDs (project IDs already loaded by frontend)
+        java.util.Set<UUID> excludeIds = null;
+        if (exclude != null && !exclude.isBlank()) {
+            excludeIds = java.util.Arrays.stream(exclude.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .map(UUID::fromString)
+                    .collect(java.util.stream.Collectors.toSet());
+        }
+        return ResponseEntity.ok(promotionService.getPitchFeed(limit, offset, seed, excludeIds));
     }
 }

@@ -22,13 +22,16 @@ public class ProjectService {
     private final ProjectLinkService projectLinkService;
     private final UserRepository userRepository;
     private final ValidationEngine validationEngine;
+    private final com.neeshai.backend.service.SupabaseStorageService supabaseStorageService;
 
     public ProjectService(ProjectRepository projectRepository, ProjectLinkService projectLinkService,
-                          UserRepository userRepository, ValidationEngine validationEngine) {
+                          UserRepository userRepository, ValidationEngine validationEngine,
+                          com.neeshai.backend.service.SupabaseStorageService supabaseStorageService) {
         this.projectRepository = projectRepository;
         this.projectLinkService = projectLinkService;
         this.userRepository = userRepository;
         this.validationEngine = validationEngine;
+        this.supabaseStorageService = supabaseStorageService;
     }
 
     @Transactional
@@ -121,8 +124,11 @@ public class ProjectService {
                         project.setValidationReport(validationEngine.generateReport(request.validationAnswers()));
                     }
 
-                    if (request.onboardingCompleted() != null)
+                    if (request.onboardingCompleted() != null) {
                         project.setOnboardingCompleted(request.onboardingCompleted());
+                    } else if (project.getValidationReport() != null && !project.getValidationReport().equals("{}") && !project.getValidationReport().isBlank()) {
+                        project.setOnboardingCompleted(true);
+                    }
 
                     if (request.elevatorPitchUrl() != null)
                         project.setElevatorPitchUrl(request.elevatorPitchUrl());
@@ -183,6 +189,16 @@ public class ProjectService {
             project.setPitchViewCount(current + 1);
             projectRepository.save(project);
         });
+    }
+
+    @Transactional
+    public String uploadPitchVideo(UUID projectId, org.springframework.web.multipart.MultipartFile file) {
+        String ext = "mp4";
+        if (file.getOriginalFilename() != null && file.getOriginalFilename().contains(".")) {
+            ext = file.getOriginalFilename().substring(file.getOriginalFilename().lastIndexOf(".") + 1);
+        }
+        String destinationPath = projectId + "/pitch-" + System.currentTimeMillis() + "." + ext;
+        return supabaseStorageService.uploadFileToBucket(file, destinationPath, "pitch-videos");
     }
 
     // Deterministic Slug Resolution

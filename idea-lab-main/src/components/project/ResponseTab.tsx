@@ -38,6 +38,32 @@ const getOccColor = (occupation: string | null) => {
     return occupationColors[occupation] || { bg: "bg-gray-500/15", text: "text-gray-500", dot: "bg-gray-400" };
 };
 
+const getFeedbackSummary = (raw: string | null) => {
+    if (!raw) return "No feedback yet";
+    const lines = raw.split('\n').filter((l: string) => l.trim());
+    for (const line of lines) {
+        const colonIdx = line.indexOf(':');
+        if (colonIdx !== -1) {
+            const key = line.substring(0, colonIdx).trim();
+            const val = line.substring(colonIdx + 1).trim();
+            if (/comment|feedback|notes?|thought|message|opinion/i.test(key) && val) {
+                return val;
+            }
+        }
+    }
+    for (const line of lines) {
+        if (!line.includes(':') && !line.includes('?')) {
+            return line.trim();
+        }
+    }
+    for (const line of lines) {
+        if (line.includes(':')) {
+            return line.trim();
+        }
+    }
+    return raw.trim();
+};
+
 interface ResponseTabProps {
     projectId: string;
 }
@@ -48,6 +74,7 @@ const ResponseTab = ({ projectId }: ResponseTabProps) => {
         selectedMember,
         loading,
         detailLoading,
+        detailLoadingId,
         answeringId,
         fetchMembers,
         fetchMemberDetail,
@@ -215,7 +242,7 @@ const ResponseTab = ({ projectId }: ResponseTabProps) => {
                                                                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center ring-2 ring-border/50">
                                                                     <User className="w-5 h-5 text-primary" />
                                                                 </div>
-                                                                <span className="font-medium text-foreground">{member.name}</span>
+                                                                <span className="font-semibold text-slate-900 dark:text-white text-base">{member.name}</span>
                                                             </div>
                                                         </td>
                                                         <td className="p-4 text-muted-foreground text-sm">{member.email}</td>
@@ -228,26 +255,7 @@ const ResponseTab = ({ projectId }: ResponseTabProps) => {
                                                             </span>
                                                         </td>
                                                         <td className="p-4 text-muted-foreground text-sm max-w-[220px] truncate">
-                                                            {(() => {
-                                                                const raw = member.feedbackSummary;
-                                                                if (!raw) return "No feedback yet";
-                                                                const lines = raw.split('\n').filter((l: string) => l.trim());
-                                                                for (const line of lines) {
-                                                                    const colonIdx = line.indexOf(':');
-                                                                    if (colonIdx === -1) continue;
-                                                                    const key = line.substring(0, colonIdx).trim();
-                                                                    if (/additional\s*comments?/i.test(key)) {
-                                                                        const val = line.substring(colonIdx + 1).trim();
-                                                                        if (val) return val;
-                                                                    }
-                                                                }
-                                                                for (const line of lines) {
-                                                                    if (line.indexOf(':') === -1 || line.indexOf('?') === -1) {
-                                                                        return line.trim();
-                                                                    }
-                                                                }
-                                                                return raw;
-                                                            })()}
+                                                            {getFeedbackSummary(member.feedbackSummary)}
                                                         </td>
                                                         <td className="p-4">
                                                             <Button
@@ -257,7 +265,7 @@ const ResponseTab = ({ projectId }: ResponseTabProps) => {
                                                                 onClick={() => handleViewMember(member.id)}
                                                                 disabled={detailLoading}
                                                             >
-                                                                {detailLoading ? (
+                                                                {detailLoadingId === member.id ? (
                                                                     <Loader2 className="w-4 h-4 animate-spin" />
                                                                 ) : (
                                                                     <Eye className="w-4 h-4" />
@@ -293,26 +301,7 @@ const ResponseTab = ({ projectId }: ResponseTabProps) => {
                                 {filteredMembers.length > 0 ? (
                                     filteredMembers.map((member) => {
                                         const occColor = getOccColor(member.occupation);
-                                        const feedbackText = (() => {
-                                            const raw = member.feedbackSummary;
-                                            if (!raw) return "No feedback yet";
-                                            const lines = raw.split('\n').filter((l: string) => l.trim());
-                                            for (const line of lines) {
-                                                const colonIdx = line.indexOf(':');
-                                                if (colonIdx === -1) continue;
-                                                const key = line.substring(0, colonIdx).trim();
-                                                if (/additional\s*comments?/i.test(key)) {
-                                                    const val = line.substring(colonIdx + 1).trim();
-                                                    if (val) return val;
-                                                }
-                                            }
-                                            for (const line of lines) {
-                                                if (line.indexOf(':') === -1 || line.indexOf('?') === -1) {
-                                                    return line.trim();
-                                                }
-                                            }
-                                            return raw;
-                                        })();
+                                        const feedbackText = getFeedbackSummary(member.feedbackSummary);
                                         
                                         return (
                                             <div key={member.id} className="p-4 space-y-3">
@@ -348,7 +337,7 @@ const ResponseTab = ({ projectId }: ResponseTabProps) => {
                                                         onClick={() => handleViewMember(member.id)}
                                                         disabled={detailLoading}
                                                     >
-                                                        {detailLoading ? (
+                                                        {detailLoadingId === member.id ? (
                                                             <Loader2 className="w-4 h-4 animate-spin" />
                                                         ) : (
                                                             <Eye className="w-4 h-4" />

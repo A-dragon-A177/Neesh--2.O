@@ -69,6 +69,10 @@ const VideoPlayer = ({
   // Auto-play when this card becomes active, pause when not
   useEffect(() => {
     if (!videoRef.current || !videoUrl) return;
+    try {
+      videoRef.current.playbackRate = 1.0;
+      videoRef.current.defaultPlaybackRate = 1.0;
+    } catch {}
     if (isActive) {
       const playPromise = videoRef.current.play();
       if (playPromise !== undefined) {
@@ -95,6 +99,9 @@ const VideoPlayer = ({
     e.stopPropagation();
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
+      // User gesture -> unmute so audio is heard clearly
+      videoRef.current.muted = false;
+      setMuted(false);
       videoRef.current.play().then(() => setPlaying(true)).catch(() => {});
     } else {
       videoRef.current.pause();
@@ -105,9 +112,13 @@ const VideoPlayer = ({
   const toggleMute = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (videoRef.current) {
-      videoRef.current.muted = !muted;
+      const nextMuted = !muted;
+      videoRef.current.muted = nextMuted;
+      setMuted(nextMuted);
+      if (!nextMuted && videoRef.current.paused) {
+        videoRef.current.play().then(() => setPlaying(true)).catch(() => {});
+      }
     }
-    setMuted((m) => !m);
   };
 
   const handleTimeUpdate = () => {
@@ -271,6 +282,16 @@ const SpotlightPanel = ({
   );
 };
 
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+  return isMobile;
+};
+
 /* ═══════════════════════════════════════════════════════════════
    Pitch Card — Desktop (split) and Mobile (fullscreen)
    ═══════════════════════════════════════════════════════════════ */
@@ -284,8 +305,10 @@ const PitchCard = ({
   isActive: boolean;
   onSpotlightOpen: () => void;
 }) => {
+  const isMobile = useIsMobile();
   const [copied, setCopied] = useState(false);
   const [neeshCount, setNeeshCount] = useState<number>(0);
+  const [showDetailsSheet, setShowDetailsSheet] = useState(false);
   const publicUrl = `${window.location.origin}/p/${card.slug ? `${card.slug}-` : ""}${card.projectId}`;
 
   useEffect(() => {
@@ -306,8 +329,8 @@ const PitchCard = ({
     }
   }, [isActive, card.projectId]);
 
-  const handleShare = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleShare = async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     await navigator.clipboard.writeText(publicUrl);
     setCopied(true);
     toast.success("Link copied!");
@@ -315,10 +338,160 @@ const PitchCard = ({
   };
 
   return (
-    <div className="spatial-snap-card w-full h-[100dvh] flex items-center justify-center pt-16 pb-4 md:pt-20 md:pb-8 px-4 md:px-8 lg:px-12 xl:px-16">
+    <div className="spatial-snap-card w-full h-[100dvh] flex items-center justify-center p-0 md:pt-20 md:pb-8 md:px-8 lg:px-12 xl:px-16">
       
-      {/* ─── Main Liquid Glass Tab ─── */}
-      <div className="w-full h-full max-w-7xl mx-auto rounded-[2rem] md:rounded-[3rem] overflow-hidden bg-white/60 backdrop-blur-2xl border border-white shadow-[0_8px_32px_rgba(99,102,241,0.12)] flex flex-col md:flex-row relative">
+      {/* ─── Mobile View (Full Screen Reels Layout) ─── */}
+      <div className="w-full h-full relative block md:hidden bg-black overflow-hidden select-none">
+        {/* 1. Top Header (White round buttons, Black icons, Centered Title) */}
+        <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-3 bg-black/50 backdrop-blur-md border-b border-white/20">
+          {/* Left: Back button (White background, Black arrow) */}
+          <Link
+            to="/space"
+            className="w-9 h-9 rounded-full bg-white hover:bg-white/90 text-black border border-white flex items-center justify-center transition-all shadow-md shrink-0"
+            title="Back to Space"
+          >
+            <ArrowLeft className="w-5 h-5 text-black" />
+          </Link>
+
+          {/* Center: Title */}
+          <h2 className="text-white font-black text-base sm:text-lg truncate max-w-[200px] sm:max-w-xs text-center mx-auto drop-shadow px-2 tracking-tight">
+            {card.title}
+          </h2>
+
+          <div className="w-9 h-9 opacity-0" />
+        </div>
+
+        {/* 2. Full-screen Elevator Pitch Video */}
+        <div className="w-full h-full">
+          <VideoPlayer
+            videoUrl={card.videoUrl}
+            thumbnailUrl={card.thumbnailUrl}
+            coverImageUrl={card.coverImageUrl}
+            title={card.title}
+            isActive={isActive && isMobile && !showDetailsSheet}
+          />
+        </div>
+
+        {/* 3. Action Buttons on Right (White background, Black icons) */}
+        <div className="absolute bottom-20 right-3 z-30 flex flex-col items-center gap-4">
+          {/* Flame Emoji Button */}
+          <button
+            onClick={(e) => { e.stopPropagation(); onSpotlightOpen(); }}
+            className="flex flex-col items-center gap-0.5 group cursor-pointer"
+            title="Express Interest"
+          >
+            <div className="w-10 h-10 rounded-full bg-white hover:bg-white/90 backdrop-blur-md flex items-center justify-center border border-white text-black group-hover:scale-105 transition-all shadow-lg">
+              <span className="text-lg">🔥</span>
+            </div>
+            <span className="text-white text-[10px] font-black drop-shadow">{neeshCount}</span>
+          </button>
+
+          {/* Share Button */}
+          <button
+            onClick={handleShare}
+            className="flex flex-col items-center gap-0.5 group cursor-pointer"
+            title="Share pitch"
+          >
+            <div className="w-10 h-10 rounded-full bg-white hover:bg-white/90 backdrop-blur-md flex items-center justify-center border border-white text-black group-hover:scale-105 transition-all shadow-lg">
+              <Share2 className="w-4.5 h-4.5 text-black" />
+            </div>
+            <span className="text-white text-[9px] font-bold drop-shadow">{copied ? "Copied!" : "Share"}</span>
+          </button>
+
+          {/* Open Spotlight Button */}
+          <button
+            onClick={(e) => { e.stopPropagation(); onSpotlightOpen(); }}
+            className="flex flex-col items-center gap-0.5 group cursor-pointer"
+            title="Open Spotlight"
+          >
+            <div className="w-10 h-10 rounded-full bg-white hover:bg-white/90 backdrop-blur-md flex items-center justify-center border border-white text-black group-hover:scale-105 transition-all shadow-lg">
+              <BookOpen className="w-4.5 h-4.5 text-black" />
+            </div>
+            <span className="text-white text-[9px] font-bold drop-shadow">Spotlight</span>
+          </button>
+        </div>
+
+        {/* 4. Transparent Bottom Bar (Increased size footer) */}
+        <div
+          className="absolute bottom-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-3.5 sm:py-4 bg-black/60 backdrop-blur-md border-t border-white/20 cursor-pointer"
+          onClick={() => setShowDetailsSheet(true)}
+        >
+          {/* Founder Profile Avatar + Name */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-white text-black font-black text-base flex items-center justify-center border border-white shadow-md shrink-0 aspect-square">
+              {card.authorName?.[0]?.toUpperCase() || "N"}
+            </div>
+            <div className="text-left min-w-0">
+              <p className="text-white font-extrabold text-sm sm:text-base leading-none truncate max-w-[130px] sm:max-w-[170px]">{card.authorName}</p>
+              <p className="text-white/70 text-xs font-semibold mt-1">Founder</p>
+            </div>
+          </div>
+
+          {/* White Handle Line in Center */}
+          <div className="flex flex-col items-center gap-1">
+            <div className="w-14 h-1.5 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.9)] animate-pulse" />
+            <span className="text-[9px] text-white/80 font-bold tracking-wide uppercase">Tap for details</span>
+          </div>
+
+          {/* Placeholder for symmetry */}
+          <div className="w-20" />
+        </div>
+
+        {/* Expandable Project Details Drawer */}
+        {showDetailsSheet && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center">
+            <div
+              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+              onClick={() => setShowDetailsSheet(false)}
+            />
+            <div className="relative w-full max-w-lg mx-auto bg-black text-white border-t border-white/30 rounded-t-3xl p-6 space-y-4 shadow-2xl z-10 max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom duration-300">
+              <div className="flex items-center justify-between border-b border-white/20 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-white text-black font-extrabold text-sm flex items-center justify-center">
+                    {card.authorName?.[0]?.toUpperCase() || "N"}
+                  </div>
+                  <div>
+                    <p className="text-white text-sm font-bold leading-none">{card.authorName}</p>
+                    <p className="text-white/60 text-xs mt-0.5">Founder</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowDetailsSheet(false)}
+                  className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center hover:bg-white/90 transition-colors border border-white"
+                >
+                  <X className="w-4 h-4 text-black" />
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold text-white tracking-tight">{card.title}</h2>
+                {card.hook && (
+                  <p className="text-sm text-white/80 font-medium leading-relaxed">
+                    {card.hook}
+                  </p>
+                )}
+              </div>
+
+              <div className="pt-2">
+                <button
+                  onClick={() => {
+                    setShowDetailsSheet(false);
+                    onSpotlightOpen();
+                  }}
+                  className="w-full h-12 bg-white text-black hover:bg-white/90 font-extrabold rounded-2xl text-base shadow-lg flex items-center justify-center gap-2"
+                >
+                  <BookOpen className="w-5 h-5 text-black" />
+                  <span>Open Spotlight</span>
+                  <ArrowRight className="w-4 h-4 text-black" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ─── Desktop View (Split Liquid Glass Tab) ─── */}
+      <div className="w-full h-full max-w-7xl mx-auto rounded-[2rem] md:rounded-[3rem] overflow-hidden bg-white/60 backdrop-blur-2xl border border-white shadow-[0_8px_32px_rgba(99,102,241,0.12)] hidden md:flex flex-col md:flex-row relative">
         
         {/* Left: Video */}
         <div className="relative w-full md:w-3/5 lg:w-2/3 h-[50%] md:h-full bg-slate-50/50 border-b md:border-b-0 md:border-r border-white/40">
@@ -327,7 +500,7 @@ const PitchCard = ({
             thumbnailUrl={card.thumbnailUrl}
             coverImageUrl={card.coverImageUrl}
             title={card.title}
-            isActive={isActive}
+            isActive={isActive && !isMobile}
           />
         </div>
 
@@ -437,13 +610,15 @@ const SharedPitchFeed = ({ projectId }: SharedPitchFeedProps) => {
         );
         setSharedProject(project);
 
-        // Also fetch blog for cover image
+        // Fetch dedicated cover image if set on blog
         try {
-          const blog = await apiClient.get<{ coverImageUrl?: string }>(
+          const blog = await apiClient.get<any>(
             `/api/public/projects/${projectId}/blog`,
             { skipAuth: true }
           );
-          if (blog?.coverImageUrl) setSharedBlogCover(blog.coverImageUrl);
+          if (blog?.coverImageUrl || blog?.cover_image_url) {
+            setSharedBlogCover(blog.coverImageUrl || blog.cover_image_url);
+          }
         } catch { /* no blog, OK */ }
       } catch (err: any) {
         console.error("[SharedPitchFeed] Error fetching project:", err);
@@ -462,13 +637,13 @@ const SharedPitchFeed = ({ projectId }: SharedPitchFeedProps) => {
   const feedCards: FeedCard[] = useMemo(() => {
     const cards: FeedCard[] = [];
 
-    // 1. The shared project (always first)
+    // 1. The shared project (always first) - only use dedicated elevatorPitchUrl and coverImageUrl
     if (sharedProject) {
       cards.push({
         projectId,
         title: sharedProject.title,
         hook: sharedProject.oneLineSummary || sharedProject.introduction || sharedProject.description || "",
-        videoUrl: sharedProject.elevatorPitchUrl,
+        videoUrl: sharedProject.elevatorPitchUrl || null,
         thumbnailUrl: sharedProject.elevatorPitchThumbnail,
         coverImageUrl: sharedBlogCover || null,
         authorName: "Creator",
@@ -583,19 +758,7 @@ const SharedPitchFeed = ({ projectId }: SharedPitchFeedProps) => {
 
   return (
     <div className="fixed inset-0 bg-slate-50 text-slate-900 spatial-ui select-none overflow-hidden">
-      {/* Neesh AI logo watermark and Back to Space button */}
-      <div className="fixed top-4 left-5 z-30 flex items-center gap-3">
-        <Link 
-          to="/space" 
-          className="flex items-center gap-2 bg-white/70 backdrop-blur-xl border border-white/60 text-slate-800 hover:bg-white hover:text-slate-950 transition-all text-xs font-bold px-4 py-2.5 rounded-full shadow-sm"
-        >
-          <ArrowLeft className="w-4 h-4 text-indigo-600" />
-          Back to Space
-        </Link>
-        <Link to="/" className="hidden sm:flex items-center justify-center bg-white/70 backdrop-blur-xl border border-white/60 h-10 px-3 rounded-full shadow-sm hover:bg-white transition-all overflow-hidden">
-          <NeeshLogo size="sm" showText={false} />
-        </Link>
-      </div>
+
 
       {/* Card counter (desktop) */}
       {feedCards.length > 1 && !spotlightProjectId && (

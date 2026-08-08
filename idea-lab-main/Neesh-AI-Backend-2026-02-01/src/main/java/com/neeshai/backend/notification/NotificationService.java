@@ -1,5 +1,7 @@
 package com.neeshai.backend.notification;
 
+import com.neeshai.backend.audience.AudienceQuestion;
+import com.neeshai.backend.audience.AudienceQuestionRepository;
 import com.neeshai.backend.project.Project;
 import com.neeshai.backend.project.ProjectRepository;
 import org.slf4j.Logger;
@@ -21,6 +23,7 @@ public class NotificationService {
     private final ClusterInstanceRepository instanceRepository;
     private final ClusterReplyRepository replyRepository;
     private final ProjectRepository projectRepository;
+    private final AudienceQuestionRepository audienceQuestionRepository;
 
     private final com.neeshai.backend.email.EmailService emailService;
 
@@ -28,11 +31,13 @@ public class NotificationService {
             ClusterInstanceRepository instanceRepository,
             ClusterReplyRepository replyRepository,
             ProjectRepository projectRepository,
+            AudienceQuestionRepository audienceQuestionRepository,
             com.neeshai.backend.email.EmailService emailService) {
         this.clusterRepository = clusterRepository;
         this.instanceRepository = instanceRepository;
         this.replyRepository = replyRepository;
         this.projectRepository = projectRepository;
+        this.audienceQuestionRepository = audienceQuestionRepository;
         this.emailService = emailService;
     }
 
@@ -216,6 +221,9 @@ public class NotificationService {
         }
 
         Instant now = Instant.now();
+        UUID projectId = cluster.getProject().getId();
+        List<AudienceQuestion> audienceQuestions = audienceQuestionRepository.findByAudienceMemberProjectId(projectId);
+
         for (ClusterInstance instance : toAnswer) {
             instance.setStatus("ANSWERED");
             instance.setAnsweredAt(now);
@@ -223,8 +231,27 @@ public class NotificationService {
             instance.setAnsweredBy(userId);
             instanceRepository.save(instance);
 
+            // Sync with AudienceQuestion entity so Audience Inbox marks it answered
+            if (audienceQuestions != null && !audienceQuestions.isEmpty()) {
+                for (AudienceQuestion q : audienceQuestions) {
+                    if (q.getAudienceMember() != null && q.getQuestionText() != null) {
+                        boolean emailMatch = instance.getUserEmail() != null && instance.getUserEmail().equalsIgnoreCase(q.getAudienceMember().getEmail());
+                        boolean questionMatch = instance.getOriginalQuestion() != null && (q.getQuestionText().equalsIgnoreCase(instance.getOriginalQuestion()) || q.getQuestionText().contains(instance.getOriginalQuestion()) || instance.getOriginalQuestion().contains(q.getQuestionText()));
+                        if (emailMatch || questionMatch) {
+                            q.setCustomAdminAnswer(request.answerText().trim());
+                            q.setStatus("answered");
+                            q.setRespondedAt(now);
+                            if (q.getAnsweredAt() == null) {
+                                q.setAnsweredAt(now);
+                            }
+                            audienceQuestionRepository.save(q);
+                        }
+                    }
+                }
+            }
+
             // Send email
-            if (instance.getUserEmail() != null && !instance.getUserEmail().isEmpty()) {
+            if (instance.getUserEmail() != null && !instance.getUserEmail().isEmpty() && !instance.getUserEmail().endsWith("@chatbot")) {
                 emailService.sendReply(instance.getUserEmail(), request.emailSubject(), request.answerText());
             } else {
                 log.info("Skipping email for user '{}' (no email provided)", instance.getUserName());

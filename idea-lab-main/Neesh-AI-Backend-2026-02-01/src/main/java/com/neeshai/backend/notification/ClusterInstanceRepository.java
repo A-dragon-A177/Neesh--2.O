@@ -15,6 +15,8 @@ public interface ClusterInstanceRepository extends JpaRepository<ClusterInstance
 
     List<ClusterInstance> findByClusterIdAndStatus(UUID clusterId, String status);
 
+    List<ClusterInstance> findByClusterProjectId(UUID projectId);
+
     @Query("SELECT COUNT(ci) FROM ClusterInstance ci WHERE ci.cluster.id = :clusterId AND ci.status = 'ANSWERED'")
     long countAnsweredByClusterId(@Param("clusterId") UUID clusterId);
 

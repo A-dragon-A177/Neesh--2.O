@@ -144,13 +144,13 @@ export default function SpotlightEditorTab({
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground">Cover Image</label>
           {coverImage ? (
-            <div className="relative rounded-xl overflow-hidden border border-border/50 group">
+            <div className="relative rounded-xl overflow-hidden border border-border/50 bg-slate-950/30 flex items-center justify-center group min-h-[160px] max-h-[600px] p-1">
               <img
                 src={coverImage}
                 alt="Cover"
-                className="w-full h-48 object-cover"
+                className="w-full h-auto max-h-[580px] object-contain rounded-lg"
               />
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                 <label className="cursor-pointer">
                   <Button variant="secondary" size="sm" className="gap-2 pointer-events-none">
                     <Upload className="w-4 h-4" /> Change Image
@@ -264,12 +264,12 @@ export default function SpotlightEditorTab({
               </div>
             ) : section.type === "image" ? (
               <div className="space-y-3">
-                {section.imageUrl ? (
-                  <div className="relative rounded-xl overflow-hidden border border-border/50 group/img">
+                {section.imageUrl || (section.content && (section.content.startsWith("http") || section.content.startsWith("data:") || section.content.startsWith("blob:"))) ? (
+                  <div className="relative rounded-xl overflow-hidden border border-border/50 bg-slate-950/30 flex items-center justify-center group/img min-h-[160px] max-h-[600px] p-1">
                     <img
-                      src={section.imageUrl}
+                      src={section.imageUrl || section.content}
                       alt={section.title}
-                      className="w-full h-56 object-cover"
+                      className="w-full h-auto max-h-[580px] object-contain rounded-lg"
                     />
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
                       <label className="cursor-pointer">
@@ -306,9 +306,15 @@ export default function SpotlightEditorTab({
               </div>
             ) : section.type === "video" ? (
               <div className="space-y-3">
-                {section.videoUrl ? (
-                  <div className="relative rounded-xl overflow-hidden border border-border/50">
-                    <video src={section.videoUrl} controls className="w-full h-56 object-cover" />
+                {section.videoUrl || (section.content && (section.content.startsWith("http") || section.content.startsWith("data:") || section.content.startsWith("blob:"))) ? (
+                  <div className="relative rounded-xl overflow-hidden border border-border/50 bg-black flex items-center justify-center min-h-[200px] max-h-[620px] p-1">
+                    <video
+                      src={section.videoUrl || section.content}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      className="w-full h-auto max-h-[600px] object-contain rounded-lg mx-auto"
+                    />
                   </div>
                 ) : (
                   <label className="border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer block border-border bg-muted/30 hover:bg-muted/50 hover:border-primary/50">

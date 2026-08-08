@@ -8,7 +8,6 @@ import {
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import CinematicVFXCanvas from '@/components/ecosystem/CinematicVFXCanvas';
-import EcosystemGravityCore3D from '@/components/ecosystem/EcosystemGravityCore3D';
 import OpportunityNetworkSimulator from '@/components/ecosystem/OpportunityNetworkSimulator';
 import OrbitalJourneyTimeline from '@/components/ecosystem/OrbitalJourneyTimeline';
 import LiveOpportunityCollision from '@/components/ecosystem/LiveOpportunityCollision';
@@ -92,10 +91,6 @@ export const InnovationEcosystem: React.FC = () => {
           </motion.div>
         </div>
 
-        {/* Interactive 3D Holographic Gravity Nucleus */}
-        <div className="w-full max-w-5xl mt-8 sm:mt-12 relative z-10">
-          <EcosystemGravityCore3D />
-        </div>
       </section>
 
       {/* Section 2: The 7 Pillars of Ecosystem Gravity */}

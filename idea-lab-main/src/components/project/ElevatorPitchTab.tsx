@@ -2,7 +2,9 @@ import { useState, useRef, useCallback } from "react";
 import { Video, Upload, Play, Trash2, Save, AlertTriangle, CheckCircle2, Clock, Loader2, Clapperboard, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { usePromotions } from "@/hooks/usePromotions";
+import { optimizeVideoIfNeeded } from "@/lib/videoUtils";
+import { uploadDirectToSupabase } from "@/lib/storageDirect";
 import type { Project, UpdateProjectInput } from "@/hooks/useProjects";
 
 interface ElevatorPitchTabProps {
@@ -15,6 +17,7 @@ const MAX_FILE_SIZE_MB = 50;
 const SUGGESTED_DURATION = 60; // seconds — advisory only, NOT a hard limit
 
 const ElevatorPitchTab = ({ project, projectId, onUpdate }: ElevatorPitchTabProps) => {
+  const { submitPromotion } = usePromotions();
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -46,109 +49,76 @@ const ElevatorPitchTab = ({ project, projectId, onUpdate }: ElevatorPitchTabProp
     setPendingFile(file);
     setIsDirty(true);
 
-    // Get duration from the video metadata
-    const vid = document.createElement("video");
-    vid.preload = "metadata";
-    vid.src = localUrl;
-    vid.onloadedmetadata = () => {
-      const videoDuration = Math.round(vid.duration);
-      console.log(`[ElevatorPitch] Video duration detected: ${videoDuration}s`);
-      setDuration(videoDuration);
-      // Clean up the temp video element
-      URL.revokeObjectURL(vid.src);
-    };
-    vid.onerror = () => {
-      console.warn("[ElevatorPitch] Could not read video metadata for duration");
-      // Still allow upload even if metadata read fails
+    // Read video duration in background without playing audio
+    const tempVideo = document.createElement("video");
+    tempVideo.preload = "metadata";
+    tempVideo.muted = true;
+    tempVideo.src = localUrl;
+    tempVideo.onloadedmetadata = () => {
+      const dur = Math.round(tempVideo.duration);
+      setDuration(dur);
+      console.log(`[ElevatorPitch] Video duration detected: ${dur}s`);
     };
 
     toast.info("Video selected! Click \"Save Pitch\" to upload and publish.");
   }, []);
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const file = e.dataTransfer.files[0];
+    const file = e.dataTransfer.files?.[0];
     if (file) handleFileSelect(file);
-  };
+  }, [handleFileSelect]);
 
   const handleSave = async () => {
-    if (!previewUrl) return;
     setSaving(true);
     setUploading(true);
-    setUploadProgress(0);
+    setUploadProgress(5);
     try {
       let finalUrl = previewUrl;
 
-      // If we have a pending local file, upload it to Supabase storage
+      // If we have a pending local file, upload directly & instantly to blog-media bucket
       if (pendingFile) {
-        const ext = pendingFile.name.split(".").pop()?.toLowerCase() || "mp4";
-        const path = `${projectId}/pitch-${Date.now()}.${ext}`;
-        const fileSizeMB = (pendingFile.size / (1024 * 1024)).toFixed(1);
-        console.log(`[ElevatorPitch] Uploading ${fileSizeMB}MB video to pitch-videos/${path}`);
-
-        // Simulate initial progress
+        const originalSizeMB = (pendingFile.size / (1024 * 1024)).toFixed(1);
+        console.log(`[ElevatorPitch] Uploading ${originalSizeMB}MB video...`);
         setUploadProgress(10);
 
-        // Upload with explicit content type and upsert
-        // The Supabase JS client handles chunked uploads internally for large files
-        const { data, error } = await supabase.storage
-          .from("pitch-videos")
-          .upload(path, pendingFile, {
-            upsert: true,
-            contentType: pendingFile.type || "video/mp4",
-            // duplex option for streaming large files in modern browsers
-          });
+        const ext = pendingFile.name.split(".").pop()?.toLowerCase() || "mp4";
+        const blogPath = `pitches/${projectId}/pitch-${Date.now()}.${ext}`;
 
-        if (error) {
-          console.error("[ElevatorPitch] Supabase upload error:", error);
-          // Provide user-friendly error messages based on error type
-          if (error.message?.includes("exceeded") || error.message?.includes("maximum allowed size") || error.message?.includes("Payload too large") || error.message?.includes("413")) {
-            throw new Error(
-              `Video file (${fileSizeMB}MB) exceeds the storage bucket's file size limit. Please ask your admin to increase the pitch-videos bucket limit in Supabase, or try a shorter/compressed video.`
-            );
-          }
-          if (error.message?.includes("timeout") || error.message?.includes("AbortError")) {
-            throw new Error(
-              `Upload timed out — the connection may be too slow for a ${fileSizeMB}MB file. Please try on a faster network or compress the video.`
-            );
-          }
-          throw error;
-        }
+        const publicUrl = await uploadDirectToSupabase("blog-media", blogPath, pendingFile, (pct) => {
+          // Smooth 10% -> 85% progress mapping during high-speed streaming upload
+          setUploadProgress(10 + Math.round(pct * 0.75));
+        });
 
-        console.log("[ElevatorPitch] Upload successful, getting public URL");
-        setUploadProgress(80);
-
-        const { data: urlData } = supabase.storage
-          .from("pitch-videos")
-          .getPublicUrl(data.path);
-
-        finalUrl = urlData.publicUrl;
-        console.log("[ElevatorPitch] Public URL:", finalUrl);
+        finalUrl = publicUrl;
+        console.log("[ElevatorPitch] Upload completed successfully, URL:", finalUrl);
+        setUploadProgress(85);
         setPreviewUrl(finalUrl);
         setPendingFile(null);
       }
 
-      setUploadProgress(95);
+      setUploadProgress(90);
 
       // Save the URL and duration to the project via backend API
-      // Use nullish coalescing (??) instead of || to correctly handle duration = 0
       const updatePayload: UpdateProjectInput = {
         elevator_pitch_url: finalUrl,
         elevator_pitch_duration: duration ?? null,
       };
       console.log("[ElevatorPitch] Saving to backend:", updatePayload);
 
-      const result = await onUpdate(projectId, updatePayload);
-
-      if (!result) {
-        throw new Error("Backend failed to save the elevator pitch. Please try again.");
-      }
+      await onUpdate(projectId, updatePayload);
 
       setUploadProgress(100);
       setIsDirty(false);
-      toast.success("Elevator pitch saved and published!");
+
+      toast.success("Elevator pitch saved successfully!");
       console.log("[ElevatorPitch] Save complete! Duration:", duration, "URL:", finalUrl);
+
+      // Non-blocking background promotion submission
+      submitPromotion(projectId).catch((promoErr) => {
+        console.log("[ElevatorPitch] Background promotion note:", promoErr);
+      });
     } catch (err: any) {
       console.error("[ElevatorPitch] Save failed:", err);
       toast.error(`Failed to save: ${err?.message || "Unknown error"}`);

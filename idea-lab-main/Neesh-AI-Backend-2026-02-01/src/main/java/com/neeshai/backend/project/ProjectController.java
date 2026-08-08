@@ -121,6 +121,19 @@ public class ProjectController {
         }
     }
 
+    @PostMapping(value = "/{id}/pitch-video", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<java.util.Map<String, String>> uploadPitchVideo(
+            @PathVariable UUID id,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID ownerId = getUserIdFromJwt(jwt);
+        if (projectService.getProject(id, ownerId).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        String publicUrl = projectService.uploadPitchVideo(id, file);
+        return ResponseEntity.ok(java.util.Map.of("publicUrl", publicUrl));
+    }
+
     // Blog Endpoints
     @GetMapping("/{id}/blog")
     public ResponseEntity<com.neeshai.backend.blog.BlogDTOs.BlogContentDTO> getBlogContent(

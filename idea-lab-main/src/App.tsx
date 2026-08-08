@@ -43,7 +43,17 @@ const PitchFeed = lazy(() => import("./pages/PitchFeed"));
 const Space = lazy(() => import("./pages/Space"));
 const InnovationEcosystem = lazy(() => import("./pages/InnovationEcosystem"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,       // 5 minutes — prevent refetch on remount
+      gcTime: 10 * 60 * 1000,          // 10 minutes — keep data in cache
+      refetchOnWindowFocus: false,      // Don't refetch just because tab regained focus
+      retry: 2,                         // Retry failed requests twice
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000), // Exponential backoff
+    },
+  },
+});
 
 // Loading fallback component
 const PageLoader = () => (
