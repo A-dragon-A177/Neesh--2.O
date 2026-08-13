@@ -75,13 +75,14 @@ import { BetaBadge } from "@/components/BetaBadge";
 import { generateShareableUrl } from "@/lib/slugify";
 import apiClient from "@/lib/api";
 import { useBlogs } from "@/hooks/useBlogs";
+import { ProjectTimer } from "@/components/project/ProjectTimer";
 
 // Status styles mapping
-
 const statusStyles = {
   draft: "status-draft",
   active: "status-active",
   published: "status-published",
+  locked: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 font-bold",
 };
 
 // Helper function to get cover image URL from localStorage
@@ -593,8 +594,18 @@ const Dashboard = () => {
                         </div>
                       )}
 
-                      {/* Status badge and copy link overlay */}
-                      <div className="absolute top-3 right-3 flex items-center gap-2">
+                      {/* Project Timer countdown badge on top-left */}
+                      <div className="absolute top-3 left-3 flex items-center gap-1.5 z-10">
+                        <ProjectTimer
+                          deadline={project.timer_deadline}
+                          createdAt={project.created_at}
+                          status={project.status}
+                          variant="compact"
+                        />
+                      </div>
+
+                      {/* Status badge and copy link overlay on top-right */}
+                      <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <button
@@ -679,135 +690,96 @@ const Dashboard = () => {
                   <h2 className="font-display text-xl font-bold text-foreground">
                     Cross-Promotion Engine
                   </h2>
-                  {isPro && (
-                    <span className="px-2 py-0.5 rounded-full bg-[#09daed]/10 text-[#09daed] text-[10px] font-bold border border-[#09daed]/20">PRO</span>
-                  )}
                 </div>
                 <div className="flex flex-col">
                   <p className="text-sm text-muted-foreground">
                     Promote your blogs in other users' "More Like This" sections
                   </p>
-                  {isPro && daysRemaining !== null && (
-                    <span className={`text-[10px] font-medium mt-0.5 ${daysRemaining <= 5 ? 'text-red-500' : 'text-[#09daed]'}`}>
-                      ⏳ {daysRemaining > 0 ? `PRO status expires in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}` : 'Subscription expired'}
-                    </span>
-                  )}
                 </div>
               </div>
             </div>
-            {isPro && (
-              <Button onClick={() => setPromoteOpen(true)} className="gap-1.5 shadow-sm w-full sm:w-auto h-10">
-                <Plus className="w-4 h-4" />
-                Add Project
-              </Button>
-            )}
+            <Button onClick={() => setPromoteOpen(true)} className="gap-1.5 shadow-sm w-full sm:w-auto h-10">
+              <Plus className="w-4 h-4" />
+              Add Project
+            </Button>
           </div>
 
-          {isPro ? (
-            // ── Pro users: show managed promotions ──
-            <div>
-              {promotions.filter(p => p.status?.toUpperCase() === 'ACTIVE').length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {promotions.filter(p => p.status?.toUpperCase() === 'ACTIVE').map((promo) => {
-                    const project = projects.find(p => p.id === promo.projectId);
-                    const coverImg = (project ? (getProjectCoverImage(project.id) || coverImages[project.id]) : null) || promo.coverImageUrl || project?.elevator_pitch_thumbnail;
-                    const displayTitle = (promo.blogTitle && promo.blogTitle !== "Untitled") ? promo.blogTitle : (project?.title || "Startup Project");
-                    return (
-                      <div
-                        key={promo.id}
-                        className="relative bg-card rounded-xl border border-blue-500/20 overflow-hidden group hover:shadow-lg transition-all"
-                      >
-                        {/* Cover */}
-                        <div className="relative h-32 overflow-hidden bg-gradient-to-br from-blue-600/10 via-indigo-600/10 to-muted">
-                          {coverImg ? (
-                            <img src={coverImg} alt={displayTitle} className="w-full h-full object-cover" loading="lazy" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Megaphone className="w-8 h-8 text-muted-foreground/30" />
-                            </div>
-                          )}
-                          <div className="absolute inset-0 bg-gradient-to-t from-card/80 to-transparent" />
-                        </div>
-
-                        {/* Content */}
-                        <div className="p-4">
-                          <h4 className="font-semibold text-sm mb-2 line-clamp-1">{displayTitle}</h4>
-
-                          {/* Status + Remove */}
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 uppercase">
-                              {promo.status?.toUpperCase() === 'ACTIVE' ? '● Live' : promo.status}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={async (e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                if (!window.confirm(`Are you sure you want to remove this promotion?\nTitle: ${promo.blogTitle}`)) {
-                                  return;
-                                }
-                                const ok = await removePromotion(promo.id);
-                                if (ok) {
-                                  toast.success("Promotion removed.");
-                                } else {
-                                  toast.error("Failed to remove promotion.");
-                                }
-                              }}
-                              className="p-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm border border-red-100 flex items-center gap-1.5"
-                              title="Remove promotion"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              <span className="text-[10px] font-bold">Remove</span>
-                            </button>
+          <div>
+            {promotions.filter(p => p.status?.toUpperCase() === 'ACTIVE').length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {promotions.filter(p => p.status?.toUpperCase() === 'ACTIVE').map((promo) => {
+                  const project = projects.find(p => p.id === promo.projectId);
+                  const coverImg = (project ? (getProjectCoverImage(project.id) || coverImages[project.id]) : null) || promo.coverImageUrl || project?.elevator_pitch_thumbnail;
+                  const displayTitle = (promo.blogTitle && promo.blogTitle !== "Untitled") ? promo.blogTitle : (project?.title || "Startup Project");
+                  return (
+                    <div
+                      key={promo.id}
+                      className="relative bg-card rounded-xl border border-blue-500/20 overflow-hidden group hover:shadow-lg transition-all"
+                    >
+                      {/* Cover */}
+                      <div className="relative h-32 overflow-hidden bg-gradient-to-br from-blue-600/10 via-indigo-600/10 to-muted">
+                        {coverImg ? (
+                          <img src={coverImg} alt={displayTitle} className="w-full h-full object-cover" loading="lazy" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Megaphone className="w-8 h-8 text-muted-foreground/30" />
                           </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-card/80 to-transparent" />
+                      </div>
+
+                      {/* Content */}
+                      <div className="p-4">
+                        <h4 className="font-semibold text-sm mb-2 line-clamp-1">{displayTitle}</h4>
+
+                        {/* Status + Remove */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 uppercase">
+                            {promo.status?.toUpperCase() === 'ACTIVE' ? '● Live' : promo.status}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (!window.confirm(`Are you sure you want to remove this promotion?\nTitle: ${promo.blogTitle}`)) {
+                                return;
+                              }
+                              const ok = await removePromotion(promo.id);
+                              if (ok) {
+                                toast.success("Promotion removed.");
+                              } else {
+                                toast.error("Failed to remove promotion.");
+                              }
+                            }}
+                            className="p-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm border border-red-100 flex items-center gap-1.5"
+                            title="Remove promotion"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span className="text-[10px] font-bold">Remove</span>
+                          </button>
                         </div>
                       </div>
-                    );
-                  })}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-card rounded-xl border border-dashed border-blue-500/30">
+                <div className="w-14 h-14 rounded-2xl bg-blue-600/10 flex items-center justify-center mx-auto mb-4">
+                  <Megaphone className="w-7 h-7 text-blue-500" />
                 </div>
-              ) : (
-                <div className="text-center py-12 bg-card rounded-xl border border-dashed border-blue-500/30">
-                  <div className="w-14 h-14 rounded-2xl bg-blue-600/10 flex items-center justify-center mx-auto mb-4">
-                    <Megaphone className="w-7 h-7 text-blue-500" />
-                  </div>
-                  <h3 className="font-semibold text-foreground mb-1">No promoted projects yet</h3>
-                  <p className="text-sm text-muted-foreground mb-4 max-w-sm mx-auto">
-                    Add your projects here to promote them in other users' blogs under "More Like This" sections.
-                  </p>
-                  <Button onClick={() => setPromoteOpen(true)} className="gap-1.5 shadow-sm">
-                    <Plus className="w-4 h-4" />
-                    Promote Your First Project
-                  </Button>
-                </div>
-              )}
-            </div>
-          ) : (
-            // ── Free users: locked section with upgrade CTA ──
-            <div className="relative rounded-xl border border-border/50 bg-card overflow-hidden">
-              {/* Blurred overlay */}
-              <div className="absolute inset-0 bg-background/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
-                <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-4">
-                  <Lock className="w-7 h-7 text-muted-foreground" />
-                </div>
-                <h3 className="font-semibold text-lg text-foreground mb-1">Pro Feature</h3>
-                <BetaBadge variant="glow" type="beta" className="mb-2" />
-                <p className="text-sm text-muted-foreground mb-4 max-w-sm text-center">
-                  Free during Beta! Upgrade to Pro to promote your blogs across the Neesh AI network.
+                <h3 className="font-semibold text-foreground mb-1">No promoted projects yet</h3>
+                <p className="text-sm text-muted-foreground mb-4 max-w-sm mx-auto">
+                  Add your projects here to promote them in other users' blogs under "More Like This" sections.
                 </p>
-                <Button onClick={() => setUpgradeOpen(true)} disabled={isUpgrading} className="gap-1.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white">
-                  {isUpgrading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                  Upgrade Free ⚡
+                <Button onClick={() => setPromoteOpen(true)} className="gap-1.5 shadow-sm">
+                  <Plus className="w-4 h-4" />
+                  Promote Your First Project
                 </Button>
               </div>
-
-              {/* Placeholder cards (decorative, behind blur) */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 opacity-40 select-none pointer-events-none">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="bg-muted rounded-xl h-48 animate-pulse" />
-                ))}
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </section>
       </main>
 

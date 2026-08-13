@@ -40,20 +40,24 @@ export class ChatService {
     private evaluationService: EvaluationService;
     private queryExpansionService: QueryExpansionService;
 
-    constructor() {
-        // Shared CacheService instance — used by EmbeddingService, retrieval, and response caches
-        this.cacheService = new CacheService();
-
-        // Services that share the cache
-        this.embeddingService    = new EmbeddingService(this.cacheService);
-        this.rerankerService     = new RerankerService(this.embeddingService);
-
-        // Independent services
-        this.vectorStore         = new VectorStoreService();
-        this.llmService          = new LlmService();
-        this.learningService     = new LearningService();
-        this.evaluationService   = new EvaluationService(this.cacheService);
-        this.queryExpansionService = new QueryExpansionService();
+    constructor(deps?: {
+        cacheService?: CacheService;
+        embeddingService?: EmbeddingService;
+        vectorStore?: VectorStoreService;
+        llmService?: LlmService;
+        learningService?: LearningService;
+        rerankerService?: RerankerService;
+        evaluationService?: EvaluationService;
+        queryExpansionService?: QueryExpansionService;
+    }) {
+        this.cacheService = deps?.cacheService || new CacheService();
+        this.embeddingService = deps?.embeddingService || new EmbeddingService(this.cacheService);
+        this.rerankerService = deps?.rerankerService || new RerankerService(this.embeddingService);
+        this.vectorStore = deps?.vectorStore || new VectorStoreService();
+        this.llmService = deps?.llmService || new LlmService();
+        this.learningService = deps?.learningService || new LearningService(this.embeddingService, this.vectorStore);
+        this.evaluationService = deps?.evaluationService || new EvaluationService(this.cacheService);
+        this.queryExpansionService = deps?.queryExpansionService || new QueryExpansionService();
 
         console.log('[ChatService] Initialized — reranking, caching, evaluation, query-expansion active');
     }
@@ -83,19 +87,16 @@ export class ChatService {
             return cachedResponse;
         }
 
-        // ── 1. Log the question ──────────────────────────────────────────────────
-        let questionId: string;
-        try {
-            questionId = await this.learningService.logQuestion(projectId, query);
-            console.log(`[ChatService] Question logged: ${questionId}`);
-        } catch (logError: any) {
+        // ── 1. Parallel Start: Log Question + Query Expansion + Primary Embedding ──────
+        const logPromise = this.learningService.logQuestion(projectId, query).catch((logError: any) => {
             console.warn(`[ChatService] Failed to log question (non-fatal): ${logError.message}`);
-            questionId = 'unlogged-' + Date.now();
-        }
+            return 'unlogged-' + Date.now();
+        });
 
-        // ── 2. Greeting shortcut — skip RAG entirely ─────────────────────────────
+        // ── 2. Greeting shortcut — check immediately ─────────────────────────────
         if (this.isGreeting(query)) {
             console.log('[ChatService] Greeting detected — skipping RAG');
+            const questionId = await logPromise;
             try {
                 const generated = await this.llmService.generateGreeting(query, provider, apiKey);
                 const logId = await this.safeLogAnswer(questionId, generated.answer, 'HIGH', false);
@@ -121,28 +122,33 @@ export class ChatService {
 
         // ── 3. RAG retrieval ─────────────────────────────────────────────────────
         let chunks: QueryResult[] = [];
+        let questionId: string = 'unlogged-' + Date.now();
+
         try {
             // 3a. Check retrieval cache
             const cachedRetrieval = this.cacheService.getCachedRetrievalResults(projectId, query);
 
             if (cachedRetrieval) {
                 chunks = cachedRetrieval;
+                questionId = await logPromise;
                 console.log(`[ChatService] Retrieval cache HIT — ${chunks.length} chunks`);
             } else {
-                // 3b. Query expansion — generate query variations via LLM
-                let queryVariations: string[] = [query];
-                try {
-                    queryVariations = await this.queryExpansionService.expandQuery(
-                        query, provider, apiKey, 3
-                    );
-                    console.log(`[ChatService] Query expanded to ${queryVariations.length} variations`);
-                } catch (expandErr: any) {
-                    console.warn(`[ChatService] Query expansion failed (non-fatal): ${expandErr.message}`);
-                }
+                // 3b & 3c. Parallel execution of query expansion and primary query embedding
+                console.log('[ChatService] Running query expansion & primary embedding in parallel...');
+                const [expandResult, embeddingResult, loggedId] = await Promise.all([
+                    this.queryExpansionService.expandQuery(query, provider, apiKey, 3).catch(err => {
+                        console.warn(`[ChatService] Query expansion failed (non-fatal): ${err.message}`);
+                        return [query];
+                    }),
+                    this.embeddingService.generateEmbedding(query),
+                    logPromise
+                ]);
 
-                // 3c. Embed primary query
-                console.log('[ChatService] Generating query embedding...');
-                const queryEmbedding = await this.embeddingService.generateEmbedding(query);
+                const queryVariations = expandResult;
+                const queryEmbedding = embeddingResult;
+                questionId = loggedId;
+
+                console.log(`[ChatService] Query expanded to ${queryVariations.length} variations`);
 
                 // 3d. Hybrid search on primary query
                 chunks = await this.vectorStore.queryHybrid(projectId, queryEmbedding, query, 8, 0.05);

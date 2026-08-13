@@ -50,6 +50,7 @@ public class ProjectDTOs {
             String elevatorPitchThumbnail,
             Integer elevatorPitchDuration,
             Double earlyAccessPrice,
+            ZonedDateTime timerDeadline,
             ZonedDateTime createdAt,
             ZonedDateTime updatedAt) {
         public static PrivateProjectDTO fromEntity(Project project) {
@@ -70,9 +71,29 @@ public class ProjectDTOs {
                     project.getElevatorPitchThumbnail(),
                     project.getElevatorPitchDuration(),
                     project.getEarlyAccessPrice(),
+                    project.getTimerDeadline() != null ? project.getTimerDeadline() : (project.getCreatedAt() != null ? project.getCreatedAt().plusDays(5) : null),
                     project.getCreatedAt(),
                     project.getUpdatedAt());
         }
+    }
+
+    // PROJECT TIMER & AUDIENCE SPRINT STATUS DTO
+    public record ProjectTimerStatusDTO(
+            UUID projectId,
+            String status,
+            ZonedDateTime createdAt,
+            ZonedDateTime timerDeadline,
+            long secondsRemaining,
+            boolean isExpired,
+            boolean isLocked,
+            boolean meetsRequirements,
+            int goldCount,
+            int goldTarget,
+            int silverCount,
+            int silverTarget,
+            int bronzeCount,
+            int bronzeTarget
+    ) {
     }
 
     // PUBLIC DTO (Public access - Restricted fields)

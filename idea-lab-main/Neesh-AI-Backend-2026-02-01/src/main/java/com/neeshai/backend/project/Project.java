@@ -83,6 +83,9 @@ public class Project {
     @Column(name = "pitch_view_count")
     private Integer pitchViewCount = 0;
 
+    @Column(name = "timer_deadline", columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    private ZonedDateTime timerDeadline;
+
     public Project() {
     }
 
@@ -93,6 +96,7 @@ public class Project {
         this.slug = slug;
         this.status = "DRAFT";
         this.deleted = false;
+        this.timerDeadline = ZonedDateTime.now().plusDays(5);
     }
 
     @PrePersist
@@ -103,6 +107,8 @@ public class Project {
             this.updatedAt = ZonedDateTime.now();
         if (this.status == null)
             this.status = "DRAFT";
+        if (this.timerDeadline == null)
+            this.timerDeadline = (this.createdAt != null ? this.createdAt : ZonedDateTime.now()).plusDays(5);
         if (this.id == null)
             this.id = UUID.randomUUID();
     }
@@ -279,5 +285,13 @@ public class Project {
 
     public void setPitchViewCount(Integer pitchViewCount) {
         this.pitchViewCount = pitchViewCount;
+    }
+
+    public ZonedDateTime getTimerDeadline() {
+        return timerDeadline;
+    }
+
+    public void setTimerDeadline(ZonedDateTime timerDeadline) {
+        this.timerDeadline = timerDeadline;
     }
 }

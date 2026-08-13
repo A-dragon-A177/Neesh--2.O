@@ -1,4 +1,7 @@
 import { Request, Response } from 'express';
+import crypto from 'crypto';
+import { services } from '../services/ServiceContainer';
+import { ragCacheService } from '../services/RagCacheService';
 import { IngestionService } from '../services/IngestionService';
 import { VectorStoreService } from '../services/VectorStoreService';
 import { EmbeddingService } from '../services/EmbeddingService';
@@ -11,19 +14,16 @@ export class RagController {
     private vectorStore: VectorStoreService;
     private embeddingService: EmbeddingService;
     private chatService: ChatService;
-    // Shared service instances for analytics endpoints
     private cacheService: CacheService;
     private evaluationService: EvaluationService;
 
     constructor() {
-        // Create a shared CacheService instance for all services that need it
-        this.cacheService = new CacheService();
-
-        this.ingestionService = new IngestionService(this.cacheService);
-        this.embeddingService = new EmbeddingService(this.cacheService);
-        this.evaluationService = new EvaluationService(this.cacheService);
-        this.vectorStore = new VectorStoreService();
-        this.chatService = new ChatService();
+        this.cacheService = services.cacheService;
+        this.ingestionService = services.ingestionService;
+        this.embeddingService = services.embeddingService;
+        this.evaluationService = services.evaluationService;
+        this.vectorStore = services.vectorStore;
+        this.chatService = services.chatService;
     }
 
     async ingestProject(req: Request, res: Response) {
@@ -90,8 +90,8 @@ export class RagController {
         }
 
         try {
-            const queryHash = require('crypto').createHash('md5').update(query.trim().toLowerCase()).digest('hex');
-            const cached = require('../services/RagCacheService').ragCacheService.get(projectId, queryHash);
+            const queryHash = crypto.createHash('md5').update(query.trim().toLowerCase()).digest('hex');
+            const cached = ragCacheService.get(projectId, queryHash);
             if (cached) {
                 console.log(`[RagController] CACHE HIT — Returning versioned cached response for project ${projectId}`);
                 return res.json({ ...cached, cached: true });
@@ -103,7 +103,7 @@ export class RagController {
             );
             const elapsed = Date.now() - startTime;
 
-            require('../services/RagCacheService').ragCacheService.set(projectId, queryHash, response);
+            ragCacheService.set(projectId, queryHash, response);
 
             console.log(
                 `[RagController] ChatService responded in ${elapsed}ms — confidence: ${response.confidence}`

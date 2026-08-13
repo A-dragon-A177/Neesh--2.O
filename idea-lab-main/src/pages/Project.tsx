@@ -36,8 +36,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { uploadFileToStorage, migrateBase64ToStorage, isBase64 } from "@/lib/storage";
 import GuidedProductTour from "@/components/project/GuidedProductTour";
-
-
+import { ProjectTimer } from "@/components/project/ProjectTimer";
+import { ProjectLockedOverlay } from "@/components/project/ProjectLockedOverlay";
+import { useValidatedBuyers } from "@/hooks/useValidatedBuyers";
 
 const Project = () => {
   const { id } = useParams();
@@ -45,8 +46,9 @@ const Project = () => {
   const [searchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const { profile } = useProfile();
-  const { getProject, updateProject, deleteProject } = useProjects();
+  const { getProject, updateProject, deleteProject, unlockProject } = useProjects();
   const { getBlog, upsertBlog } = useBlogs();
+  const { data: buyersData, refetch: refetchBuyers } = useValidatedBuyers(id);
 
   const [project, setProject] = useState<ProjectType | null>(null);
   const [projectLoading, setProjectLoading] = useState(true);
@@ -364,13 +366,24 @@ const Project = () => {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile Header - visible only on mobile */}
         <header className="md:hidden h-14 bg-card border-b border-border/50 flex items-center justify-between px-4 shadow-sm sticky top-0 z-30">
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
             <Link to="/dashboard" className="flex items-center justify-center w-9 h-9 rounded-lg bg-muted hover:bg-muted/80 transition-colors flex-shrink-0">
               <ChevronLeft className="w-5 h-5" />
             </Link>
-            <span className="text-sm font-semibold truncate">{project.title}</span>
+            <span className="text-sm font-semibold truncate max-w-[120px]">{project.title}</span>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {/* 5-Day Validation Sprint Timer */}
+            <ProjectTimer
+              deadline={project.timer_deadline}
+              createdAt={project.created_at}
+              status={project.status}
+              goldCount={buyersData?.goldCount || 0}
+              silverCount={buyersData?.silverCount || 0}
+              bronzeCount={buyersData?.bronzeCount || 0}
+              variant="compact"
+            />
             <button
               onClick={() => setIsShareModalOpen(true)}
               className="p-1.5 rounded-lg bg-[#09daed]/10 text-[#09daed] hover:bg-[#09daed]/20 flex items-center justify-center transition-colors font-medium text-xs gap-1"
@@ -409,6 +422,16 @@ const Project = () => {
         {/* Desktop Top Header - hidden on mobile */}
         <header className="hidden md:flex h-16 bg-card border-b border-border/50 items-center justify-between px-6 shadow-sm">
           <div className="flex items-center gap-3">
+            {/* 5-Day Validation Sprint Timer Pill */}
+            <ProjectTimer
+              deadline={project.timer_deadline}
+              createdAt={project.created_at}
+              status={project.status}
+              goldCount={buyersData?.goldCount || 0}
+              silverCount={buyersData?.silverCount || 0}
+              bronzeCount={buyersData?.bronzeCount || 0}
+              variant="header"
+            />
             <Button
               variant="outline"
               size="sm"
@@ -488,6 +511,24 @@ const Project = () => {
 
         {/* Content Area */}
         <main className="flex-1 overflow-auto p-4 md:p-8 bg-background has-bottom-nav md:pb-8">
+          {/* Project Locked Banner / Overlay if 5-day timer concluded without goals */}
+          {project.status?.toUpperCase() === "LOCKED" && (
+            <ProjectLockedOverlay
+              projectId={id || ""}
+              projectTitle={project.title}
+              goldCount={buyersData?.goldCount || 0}
+              silverCount={buyersData?.silverCount || 0}
+              bronzeCount={buyersData?.bronzeCount || 0}
+              onUnlock={async () => {
+                const unlocked = await unlockProject(id || "");
+                if (unlocked) {
+                  setProject(unlocked);
+                  refetchBuyers();
+                }
+              }}
+            />
+          )}
+
           {activeTab === "overview" && project && (
             <>
               <ProjectOverview
@@ -500,6 +541,8 @@ const Project = () => {
                   onboardingCompleted: project.onboarding_completed,
                   elevatorPitchUrl: project.elevator_pitch_url || null,
                   earlyAccessPrice: project.early_access_price,
+                  timerDeadline: project.timer_deadline,
+                  createdAt: project.created_at,
                 }}
                 validationAnswers={project.validation_answers || null}
                 validationReport={project.validation_report || null}

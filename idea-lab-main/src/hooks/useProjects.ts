@@ -25,6 +25,7 @@ interface BackendProject {
   elevatorPitchThumbnail: string | null;
   elevatorPitchDuration: number | null;
   earlyAccessPrice: number | null;
+  timerDeadline: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -52,9 +53,27 @@ export interface Project {
   elevator_pitch_thumbnail: string | null;
   elevator_pitch_duration: number | null;
   early_access_price: number | null;
+  timer_deadline: string | null;
   deleted: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface ProjectTimerStatus {
+  projectId: string;
+  status: string;
+  createdAt: string;
+  timerDeadline: string;
+  secondsRemaining: number;
+  isExpired: boolean;
+  isLocked: boolean;
+  meetsRequirements: boolean;
+  goldCount: number;
+  goldTarget: number;
+  silverCount: number;
+  silverTarget: number;
+  bronzeCount: number;
+  bronzeTarget: number;
 }
 
 export interface CreateProjectInput {
@@ -115,6 +134,7 @@ const transformProject = (backendProject: BackendProject): Project => ({
   elevator_pitch_thumbnail: backendProject.elevatorPitchThumbnail,
   elevator_pitch_duration: backendProject.elevatorPitchDuration,
   early_access_price: backendProject.earlyAccessPrice,
+  timer_deadline: backendProject.timerDeadline || null,
   deleted: false,
   created_at: backendProject.createdAt,
   updated_at: backendProject.updatedAt,
@@ -308,6 +328,32 @@ export const useProjects = () => {
     }
   };
 
+  const unlockProject = async (id: string): Promise<Project | null> => {
+    try {
+      console.log("[useProjects] Unlocking project:", id);
+      const backendProject = await apiClient.post<BackendProject>(`/api/projects/${id}/unlock`);
+      const updated = transformProject(backendProject);
+      setProjects(prev => prev.map(p => p.id === id ? updated : p));
+      toast.success("Project unlocked successfully! 🚀");
+      return updated;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to unlock project";
+      toast.error(message);
+      console.error("[useProjects] Error unlocking project:", err);
+      return null;
+    }
+  };
+
+  const getTimerStatus = async (id: string): Promise<ProjectTimerStatus | null> => {
+    try {
+      const res = await apiClient.get<ProjectTimerStatus>(`/api/projects/${id}/timer-status`);
+      return res;
+    } catch (err) {
+      console.error("[useProjects] Error fetching timer status:", err);
+      return null;
+    }
+  };
+
   return {
     projects,
     loading,
@@ -318,5 +364,7 @@ export const useProjects = () => {
     deleteProject,
     getProject,
     getPublicProject,
+    unlockProject,
+    getTimerStatus,
   };
 };

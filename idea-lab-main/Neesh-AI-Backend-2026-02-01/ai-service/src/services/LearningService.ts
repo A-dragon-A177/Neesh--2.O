@@ -7,14 +7,14 @@ export class LearningService {
     private embeddingService: EmbeddingService;
     private vectorStore: VectorStoreService;
 
-    constructor() {
+    constructor(embeddingService?: EmbeddingService, vectorStore?: VectorStoreService) {
         const sbUrl = process.env.SUPABASE_URL;
         const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
         if (!sbUrl || !sbKey) throw new Error("SUPABASE env vars missing");
 
         this.supabase = createClient(sbUrl, sbKey);
-        this.embeddingService = new EmbeddingService();
-        this.vectorStore = new VectorStoreService();
+        this.embeddingService = embeddingService || new EmbeddingService();
+        this.vectorStore = vectorStore || new VectorStoreService();
     }
 
     async logQuestion(projectId: string, questionText: string): Promise<string> {

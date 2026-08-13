@@ -22,4 +22,11 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
     // global uniqueness)
     @Query(value = "SELECT COUNT(*) > 0 FROM projects WHERE slug = :slug", nativeQuery = true)
     boolean existsBySlugInDb(@Param("slug") String slug);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE Project p SET p.pitchViewCount = COALESCE(p.pitchViewCount, 0) + 1 WHERE p.id = :id")
+    void incrementPitchViewCount(@Param("id") UUID id);
+
+    @Query("SELECT p FROM Project p WHERE (p.deleted = false OR p.deleted IS NULL) AND p.status != 'LOCKED' AND p.timerDeadline IS NOT NULL AND p.timerDeadline < :now")
+    List<Project> findExpiredActiveProjects(@Param("now") java.time.ZonedDateTime now);
 }

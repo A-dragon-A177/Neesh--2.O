@@ -160,7 +160,7 @@ const MoreLikeThis = ({ projectId }: MoreLikeThisProps) => {
             <Sparkles className="w-5 h-5 text-muted-foreground/50 flex-shrink-0" />
             <p className="text-sm text-muted-foreground">
               No similar blogs available right now. Check back later —
-              Pro users can promote their blogs to appear here.
+              users can promote their projects from their dashboard to appear here.
             </p>
           </div>
         )}

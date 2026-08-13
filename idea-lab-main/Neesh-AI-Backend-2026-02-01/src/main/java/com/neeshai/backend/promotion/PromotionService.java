@@ -38,18 +38,12 @@ public class PromotionService {
     }
 
     /**
-     * Submit a blog for promotion (Pro users only).
+     * Submit a blog for promotion (All users).
      */
     @Transactional
     public PromotionDTOs.PromotionDTO submitForPromotion(UUID userId, UUID projectId, List<String> tags) {
-        // Validate user is Pro
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
-
-        String plan = user.getSubscriptionPlan();
-        if (plan == null || "FREE".equalsIgnoreCase(plan)) {
-            throw new IllegalArgumentException("Only Pro or Enterprise users can promote blogs. Please upgrade your plan.");
-        }
 
         // Find blog for this project, or auto-create if missing
         Blog blog = blogRepository.findByProjectId(projectId)

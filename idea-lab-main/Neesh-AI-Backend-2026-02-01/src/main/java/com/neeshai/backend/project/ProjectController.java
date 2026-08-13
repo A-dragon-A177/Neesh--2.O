@@ -188,4 +188,25 @@ public class ProjectController {
                 .map(project -> ResponseEntity.ok(audienceService.updatePilotCohortStatus(projectId, request.memberIds(), request.enroll())))
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    // 5-Day Validation Timer Status Endpoint
+    @GetMapping("/{id}/timer-status")
+    public ResponseEntity<ProjectDTOs.ProjectTimerStatusDTO> getProjectTimerStatus(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID ownerId = getUserIdFromJwt(jwt);
+        return ResponseEntity.ok(projectService.getTimerStatus(id, ownerId));
+    }
+
+    // Unlock Project Endpoint (Allows unlocking locked project via Pro)
+    @PostMapping("/{id}/unlock")
+    public ResponseEntity<ProjectDTOs.PrivateProjectDTO> unlockProject(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID ownerId = getUserIdFromJwt(jwt);
+        return projectService.unlockProject(id, ownerId)
+                .map(ProjectDTOs.PrivateProjectDTO::fromEntity)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
 }

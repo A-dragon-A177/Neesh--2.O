@@ -53,11 +53,12 @@ public class ChatController {
     private final FAQService faqService;
     private final DocumentRepository documentRepository;
 
-    public ChatController(ProjectLinkService projectLinkService, UserApiKeyService userApiKeyService,
+    public ChatController(RestTemplate restTemplate,
+                          ProjectLinkService projectLinkService, UserApiKeyService userApiKeyService,
                           com.neeshai.backend.project.ProjectRepository projectRepository,
                           BlogService blogService, FAQService faqService,
                           DocumentRepository documentRepository) {
-        this.restTemplate = new RestTemplate();
+        this.restTemplate = restTemplate;
         this.projectLinkService = projectLinkService;
         this.userApiKeyService = userApiKeyService;
         this.projectRepository = projectRepository;
