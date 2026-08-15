@@ -146,6 +146,7 @@ const AudienceInboxTab = ({ projectId, earlyAccessPrice }: AudienceInboxTabProps
 
         {/* Toggle Pills */}
         <div className="flex overflow-x-auto whitespace-nowrap no-scrollbar gap-1 bg-muted/40 p-1 rounded-xl w-full md:w-fit">
+          {/* SECURITY: Static CSS only — never pass dynamic/user inputs into __html */}
           <style dangerouslySetInnerHTML={{__html: `
             .no-scrollbar::-webkit-scrollbar {
               display: none;

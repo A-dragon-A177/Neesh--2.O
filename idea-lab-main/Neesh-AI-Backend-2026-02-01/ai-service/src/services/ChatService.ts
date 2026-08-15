@@ -275,12 +275,7 @@ export class ChatService {
         // ── 6. Log answer ────────────────────────────────────────────────────────
         const logId = await this.safeLogAnswer(questionId, answer, confidence, isAi);
 
-        // ── 7. Report unanswered questions ───────────────────────────────────────
-        if (confidence === 'LOW') {
-            this.reportUnansweredQuestion(projectId, query, userName, userEmail).catch(err =>
-                console.warn(`[ChatService] Failed to report unanswered question: ${err.message}`)
-            );
-        }
+        // ── 7. Question reporting is centralized in the backend response pipeline ─
 
         // ── 8. Async RAG Triad evaluation (non-blocking — fires and forgets) ─────
         let ragScore: RAGTriadMetrics | undefined;

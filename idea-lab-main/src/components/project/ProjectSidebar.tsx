@@ -69,7 +69,7 @@ export default function ProjectSidebar({
       {/* Project Info */}
       {!sidebarCollapsed && (
         <div className="p-5 border-b border-border/50 flex-shrink-0">
-          <h2 className="font-display font-semibold text-lg mb-2">Spotlight Editor</h2>
+          <h2 className="font-display font-semibold text-lg mb-2">Project Workspace</h2>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <div className="w-8 h-8 bg-primary/10 flex items-center justify-center">
               <Database className="w-5 h-5 text-primary" />

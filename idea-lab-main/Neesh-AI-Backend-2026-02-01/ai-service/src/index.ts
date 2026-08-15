@@ -1,11 +1,9 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import compression from 'compression';
-import dotenv from 'dotenv';
 import { RagController } from './controllers/RagController';
-
-dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;

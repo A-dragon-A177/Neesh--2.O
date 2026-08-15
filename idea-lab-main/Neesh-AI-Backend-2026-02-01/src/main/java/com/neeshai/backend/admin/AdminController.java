@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/public/admin")
+@RequestMapping("/api/admin")
 public class AdminController {
 
     private static final Logger log = LoggerFactory.getLogger(AdminController.class);

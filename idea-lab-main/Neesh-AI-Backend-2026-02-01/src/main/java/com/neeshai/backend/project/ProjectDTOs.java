@@ -52,8 +52,15 @@ public class ProjectDTOs {
             Double earlyAccessPrice,
             ZonedDateTime timerDeadline,
             ZonedDateTime createdAt,
-            ZonedDateTime updatedAt) {
+            ZonedDateTime updatedAt,
+            Integer audienceViewCount) {
         public static PrivateProjectDTO fromEntity(Project project) {
+            return fromEntity(project, 0);
+        }
+
+        public static PrivateProjectDTO fromEntity(Project project, int audienceCount) {
+            int pitchViews = project.getPitchViewCount() != null ? project.getPitchViewCount() : 0;
+            int totalAudienceViews = Math.max(pitchViews, audienceCount);
             return new PrivateProjectDTO(
                     project.getId(),
                     project.getTitle(),
@@ -73,7 +80,8 @@ public class ProjectDTOs {
                     project.getEarlyAccessPrice(),
                     project.getTimerDeadline() != null ? project.getTimerDeadline() : (project.getCreatedAt() != null ? project.getCreatedAt().plusDays(5) : null),
                     project.getCreatedAt(),
-                    project.getUpdatedAt());
+                    project.getUpdatedAt(),
+                    totalAudienceViews);
         }
     }
 

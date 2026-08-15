@@ -73,6 +73,12 @@ public class ProjectService {
         return projectRepository.save(project);
     }
 
+    public ProjectDTOs.PrivateProjectDTO toPrivateDTO(Project project) {
+        if (project == null) return null;
+        int audienceCount = (int) audienceMemberRepository.countByProjectId(project.getId());
+        return ProjectDTOs.PrivateProjectDTO.fromEntity(project, audienceCount);
+    }
+
     public List<Project> getMyProjects(UUID ownerId) {
         // Repository filters deleted=false via @Where/@SQLRestriction
         return projectRepository.findByOwnerId(ownerId);
@@ -80,7 +86,7 @@ public class ProjectService {
 
     public com.neeshai.backend.util.PageResponse<ProjectDTOs.PrivateProjectDTO> getMyProjects(UUID ownerId, org.springframework.data.domain.Pageable pageable) {
         org.springframework.data.domain.Page<Project> page = projectRepository.findByOwnerId(ownerId, pageable);
-        return com.neeshai.backend.util.PageResponse.from(page.map(ProjectDTOs.PrivateProjectDTO::fromEntity));
+        return com.neeshai.backend.util.PageResponse.from(page.map(this::toPrivateDTO));
     }
 
     public Optional<Project> getProject(UUID id, UUID ownerId) {

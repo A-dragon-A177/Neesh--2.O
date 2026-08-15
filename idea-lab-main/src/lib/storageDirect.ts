@@ -1,4 +1,7 @@
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://qqmxnldyocsennypnbic.supabase.co";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+if (!SUPABASE_URL) {
+  throw new Error("[StorageDirect] VITE_SUPABASE_URL is not configured. Cannot initialize storage.");
+}
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
 
 function getAuthToken(): string {

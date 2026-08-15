@@ -38,6 +38,25 @@ const getOccupationStyle = (occupation: string | null) => {
     return occupationColors[occupation] || { bg: "bg-gray-500/15", text: "text-gray-600", border: "border-gray-500/30" };
 };
 
+const isQuestionAnswered = (q: AudienceQuestionDTO): boolean => {
+    if (q.customAdminAnswer && q.customAdminAnswer.trim().length > 0) return true;
+    if (q.status === "answered") return true;
+    if (q.chatbotAnswer && q.chatbotAnswer.trim().length > 0) {
+        const lower = q.chatbotAnswer.toLowerCase();
+        if (
+            lower.includes("don't have enough information") ||
+            lower.includes("i don't have information") ||
+            lower.includes("haven't found") ||
+            lower.includes("could not find") ||
+            lower.includes("unanswerable")
+        ) {
+            return false;
+        }
+        return true;
+    }
+    return false;
+};
+
 interface AudienceProfileModalProps {
     member: AudienceMemberDetail;
     onClose: () => void;
@@ -46,8 +65,8 @@ interface AudienceProfileModalProps {
 }
 
 const AudienceProfileModal = ({ member, onClose, onAnswerQuestion, answeringId }: AudienceProfileModalProps) => {
-    const answeredQuestions = member.questions ? member.questions.filter((q) => q.chatbotAnswer != null || q.customAdminAnswer != null) : [];
-    const unansweredQuestions = member.questions ? member.questions.filter((q) => q.customAdminAnswer == null) : [];
+    const answeredQuestions = member.questions ? member.questions.filter(isQuestionAnswered) : [];
+    const unansweredQuestions = member.questions ? member.questions.filter((q) => !isQuestionAnswered(q)) : [];
 
     const [activeSection, setActiveSection] = useState<"answered" | "unanswered">(() => {
         return unansweredQuestions.length > 0 ? "unanswered" : "answered";

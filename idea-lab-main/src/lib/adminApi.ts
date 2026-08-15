@@ -38,7 +38,7 @@ async function adminFetch<T>(endpoint: string, options: RequestInit = {}): Promi
 
 // --- Auth ---
 export async function adminLogin(username: string, password: string) {
-  const response = await fetch(`${BASE_URL}/api/public/admin/login`, {
+  const response = await fetch(`${BASE_URL}/api/admin/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
@@ -54,43 +54,43 @@ export async function adminLogin(username: string, password: string) {
 
 // --- Users ---
 export async function getAdminUsers() {
-  return adminFetch<AdminUser[]>('/api/public/admin/users');
+  return adminFetch<AdminUser[]>('/api/admin/users');
 }
 
 // --- Roles ---
 export async function getAdminRoles() {
-  return adminFetch<AdminRoleDTO[]>('/api/public/admin/roles');
+  return adminFetch<AdminRoleDTO[]>('/api/admin/roles');
 }
 
 export async function createAdminRole(username: string, password: string, displayName: string) {
-  return adminFetch<AdminRoleDTO>('/api/public/admin/roles', {
+  return adminFetch<AdminRoleDTO>('/api/admin/roles', {
     method: 'POST',
     body: JSON.stringify({ username, password, displayName }),
   });
 }
 
 export async function deleteAdminRole(id: string) {
-  return adminFetch<void>(`/api/public/admin/roles/${id}`, { method: 'DELETE' });
+  return adminFetch<void>(`/api/admin/roles/${id}`, { method: 'DELETE' });
 }
 
 // --- Coupons ---
 export async function getAdminCoupons() {
-  return adminFetch<CouponDTO[]>('/api/public/admin/coupons');
+  return adminFetch<CouponDTO[]>('/api/admin/coupons');
 }
 
 export async function createAdminCoupon(data: CreateCouponRequest) {
-  return adminFetch<CouponDTO>('/api/public/admin/coupons', {
+  return adminFetch<CouponDTO>('/api/admin/coupons', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
 export async function deleteAdminCoupon(id: string) {
-  return adminFetch<void>(`/api/public/admin/coupons/${id}`, { method: 'DELETE' });
+  return adminFetch<void>(`/api/admin/coupons/${id}`, { method: 'DELETE' });
 }
 
 export async function validateCoupon(code: string) {
-  return adminFetch<{ valid: boolean; discountPercentage: number; message: string }>('/api/public/admin/coupons/validate', {
+  return adminFetch<{ valid: boolean; discountPercentage: number; message: string }>('/api/admin/coupons/validate', {
     method: 'POST',
     body: JSON.stringify({ code }),
   });

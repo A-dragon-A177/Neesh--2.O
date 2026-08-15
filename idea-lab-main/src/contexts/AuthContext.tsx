@@ -134,7 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signIn = async (email: string, password: string) => {
-    const isMockAuthEnabled = import.meta.env.VITE_ENABLE_MOCK_AUTH === "true";
+    const isMockAuthEnabled = import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOCK_AUTH === "true";
     if (isMockAuthEnabled && email.toLowerCase() === "test@example.com" && password === "test1234") {
       console.log('[AuthContext] Bypassing login with mock credentials');
       const mockUser: User = {

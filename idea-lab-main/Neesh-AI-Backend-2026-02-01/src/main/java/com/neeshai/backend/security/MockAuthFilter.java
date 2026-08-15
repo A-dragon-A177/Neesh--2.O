@@ -13,6 +13,14 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Mock authentication filter for LOCAL DEVELOPMENT ONLY.
+ * <p>
+ * This filter is ONLY registered when the Spring profile "dev" is active
+ * AND the property app.mock-auth.enabled=true. It must NEVER be active
+ * in production. See SecurityConfig for registration logic.
+ * </p>
+ */
 public class MockAuthFilter extends OncePerRequestFilter {
 
     private final boolean enabled;
@@ -50,4 +58,3 @@ public class MockAuthFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 }
-

@@ -33,4 +33,6 @@ public interface AudienceMemberRepository extends JpaRepository<AudienceMember, 
     @Query("SELECT COUNT(m) FROM AudienceMember m WHERE m.project.id = :projectId " +
            "AND m.interestedAt IS NOT NULL")
     long countInterestedByProjectId(@Param("projectId") UUID projectId);
+
+    long countByProjectId(UUID projectId);
 }

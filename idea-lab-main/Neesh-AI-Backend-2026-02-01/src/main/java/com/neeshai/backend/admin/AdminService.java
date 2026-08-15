@@ -7,12 +7,14 @@ import com.neeshai.backend.user.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.annotation.PostConstruct;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -21,11 +23,20 @@ public class AdminService {
     private static final Logger log = LoggerFactory.getLogger(AdminService.class);
     private static final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
+    // Token expiry: 1 hour
+    private static final long TOKEN_TTL_MS = 3_600_000L;
+    // Brute-force protection: max 5 failed attempts, lockout for 15 minutes
+    private static final int MAX_FAILED_ATTEMPTS = 5;
+    private static final long LOCKOUT_DURATION_MS = 900_000L;
+
     @Value("${admin.master.username:Admin@neeshi.ai}")
     private String masterAdminUsername;
 
     @Value("${admin.master.password}")
     private String masterAdminPassword;
+
+    // Hashed master password (computed at init)
+    private String masterAdminPasswordHash;
 
     private final AdminRoleRepository adminRoleRepository;
     private final CouponCodeRepository couponCodeRepository;
@@ -33,8 +44,19 @@ public class AdminService {
     private final ProjectRepository projectRepository;
     private final PromotionService promotionService;
 
-    // Simple token store (in production, use JWT or Redis)
-    private final Map<String, String> activeTokens = Collections.synchronizedMap(new HashMap<>());
+    // Token store with expiry timestamps
+    private final ConcurrentHashMap<String, TokenEntry> activeTokens = new ConcurrentHashMap<>();
+    // Failed login attempt tracking
+    private final ConcurrentHashMap<String, FailedLoginTracker> failedAttempts = new ConcurrentHashMap<>();
+
+    private record TokenEntry(String username, long expiresAt) {
+        boolean isExpired() { return System.currentTimeMillis() > expiresAt; }
+    }
+
+    private static class FailedLoginTracker {
+        int attempts = 0;
+        long lockedUntil = 0;
+    }
 
     public AdminService(AdminRoleRepository adminRoleRepository,
                         CouponCodeRepository couponCodeRepository,
@@ -50,6 +72,9 @@ public class AdminService {
 
     @PostConstruct
     public void initMasterAdmin() {
+        // Hash the master admin password at startup so we never compare plaintext
+        this.masterAdminPasswordHash = passwordEncoder.encode(masterAdminPassword);
+
         // Ensure master admin exists in DB
         if (!adminRoleRepository.existsByUsername(masterAdminUsername)) {
             AdminRole master = new AdminRole(
@@ -65,29 +90,78 @@ public class AdminService {
     // --- Authentication ---
 
     public Optional<AdminDTOs.AdminLoginResponse> authenticate(String username, String password) {
-        // Check master admin first
-        if (masterAdminUsername.equalsIgnoreCase(username) && masterAdminPassword.equals(password)) {
+        String normalizedUsername = username.toLowerCase();
+
+        // Check brute-force lockout
+        FailedLoginTracker tracker = failedAttempts.get(normalizedUsername);
+        if (tracker != null && tracker.lockedUntil > System.currentTimeMillis()) {
+            long remainingSecs = (tracker.lockedUntil - System.currentTimeMillis()) / 1000;
+            log.warn("Admin login blocked for {} - account locked for {} more seconds", username, remainingSecs);
+            return Optional.empty();
+        }
+
+        // Check master admin (using BCrypt, not plaintext comparison)
+        boolean isMasterAuth = masterAdminUsername.equalsIgnoreCase(username)
+                && passwordEncoder.matches(password, masterAdminPasswordHash);
+
+        if (isMasterAuth) {
+            clearFailedAttempts(normalizedUsername);
             String token = generateToken(username);
             return Optional.of(new AdminDTOs.AdminLoginResponse(token, "Super Admin"));
         }
 
         // Check DB roles
-        return adminRoleRepository.findByUsername(username)
+        Optional<AdminDTOs.AdminLoginResponse> dbAuth = adminRoleRepository.findByUsername(username)
                 .filter(role -> passwordEncoder.matches(password, role.getPasswordHash()))
                 .map(role -> {
+                    clearFailedAttempts(normalizedUsername);
                     String token = generateToken(username);
                     return new AdminDTOs.AdminLoginResponse(token, role.getDisplayName());
                 });
+
+        if (dbAuth.isEmpty()) {
+            recordFailedAttempt(normalizedUsername);
+        }
+
+        return dbAuth;
     }
 
     public boolean validateToken(String token) {
-        return token != null && activeTokens.containsKey(token);
+        if (token == null) return false;
+        TokenEntry entry = activeTokens.get(token);
+        if (entry == null) return false;
+        if (entry.isExpired()) {
+            activeTokens.remove(token);
+            return false;
+        }
+        return true;
     }
 
     private String generateToken(String username) {
         String token = UUID.randomUUID().toString();
-        activeTokens.put(token, username);
+        activeTokens.put(token, new TokenEntry(username, System.currentTimeMillis() + TOKEN_TTL_MS));
         return token;
+    }
+
+    private void recordFailedAttempt(String username) {
+        FailedLoginTracker tracker = failedAttempts.computeIfAbsent(username, k -> new FailedLoginTracker());
+        tracker.attempts++;
+        if (tracker.attempts >= MAX_FAILED_ATTEMPTS) {
+            tracker.lockedUntil = System.currentTimeMillis() + LOCKOUT_DURATION_MS;
+            log.warn("Admin account {} locked after {} failed attempts", username, tracker.attempts);
+        }
+    }
+
+    private void clearFailedAttempts(String username) {
+        failedAttempts.remove(username);
+    }
+
+    /** Cleanup expired tokens and stale lockout entries every 10 minutes */
+    @Scheduled(fixedRate = 600_000)
+    public void cleanupExpiredTokensAndLockouts() {
+        long now = System.currentTimeMillis();
+        activeTokens.entrySet().removeIf(e -> e.getValue().isExpired());
+        failedAttempts.entrySet().removeIf(e -> e.getValue().lockedUntil > 0 && e.getValue().lockedUntil < now);
     }
 
     // --- Admin Roles ---

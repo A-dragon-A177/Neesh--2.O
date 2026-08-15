@@ -263,6 +263,33 @@ public class AudienceService {
                 .collect(java.util.stream.Collectors.toList());
     }
 
+    private static final java.util.regex.Pattern GREETING_PATTERN = java.util.regex.Pattern.compile(
+            "^(hi|hello|hey|howdy|greetings|good\\s*(morning|afternoon|evening)|what'?s?\\s*up|sup|yo|hola|namaste|ok|okay|k|thanks|thank\\s*you|thx|ty|cool|great|nice|awesome|got\\s*it|understood|bye|goodbye|see\\s*ya|test|testing)[\\s!?.,]*$",
+            java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    public static boolean isGreetingOrFiller(String text) {
+        if (text == null || text.trim().isBlank()) {
+            return true;
+        }
+        String clean = text.trim();
+        if (clean.length() <= 2 && !clean.equalsIgnoreCase("ai") && !clean.equalsIgnoreCase("ui")) {
+            return true;
+        }
+        return GREETING_PATTERN.matcher(clean).matches();
+    }
+
+    public static boolean isUnanswerableFallback(String answer) {
+        if (answer == null || answer.isBlank()) {
+            return true;
+        }
+        String lower = answer.toLowerCase().trim();
+        return lower.contains("as of now this needs to be discussed")
+                || lower.contains("couldn't generate a response")
+                || lower.contains("could not generate a response")
+                || lower.contains("something went wrong")
+                || lower.contains("i'm sorry, something went wrong");
+    }
+
     /**
      * Record a chatbot interaction as an audience question.
      */
@@ -327,30 +354,36 @@ public class AudienceService {
         member.setLastInteractionAt(Instant.now());
         memberRepository.save(member);
 
+        boolean isGreeting = isGreetingOrFiller(request.query());
+        boolean hasValidAnswer = request.answer() != null && !request.answer().isBlank() && !isUnanswerableFallback(request.answer());
+        boolean isAnswered = hasValidAnswer || isGreeting;
+
         // Create the question
         AudienceQuestion question = new AudienceQuestion(member, request.query().trim());
         if (request.answer() != null && !request.answer().isBlank()) {
             question.setChatbotAnswer(request.answer().trim());
             question.setAnsweredAt(Instant.now());
         }
-        // Always mark status as "unanswered" until founder provides a customAdminAnswer
-        question.setStatus("unanswered");
+        question.setStatus(isAnswered ? "answered" : "unanswered");
         questionRepository.save(question);
 
         // Ingest into NotificationService for Question Clusters (Notification Tab)
-        try {
-            if (notificationService != null) {
-                notificationService.ingestQuestion(projectId, request.query().trim(), userName, userEmail, member.getOccupation(), "Spotlight Chatbot");
+        // Skip conversational greetings and fillers from creating cluster tickets
+        if (!isGreeting) {
+            try {
+                if (notificationService != null) {
+                    notificationService.ingestQuestion(projectId, request.query().trim(), request.answer(), isAnswered, userName, userEmail, member.getOccupation(), "Spotlight Chatbot");
+                }
+            } catch (Exception e) {
+                log.warn("Failed to ingest question into NotificationService: {}", e.getMessage());
             }
-        } catch (Exception e) {
-            log.warn("Failed to ingest question into NotificationService: {}", e.getMessage());
         }
 
         // Recompute scores
         computeAndSetScores(member);
         memberRepository.save(member);
 
-        log.info("Chat interaction recorded for project {} by {}", projectId, userEmail);
+        log.info("Chat interaction recorded for project {} by {} (answered={})", projectId, userEmail, isAnswered);
     }
 
     /**
@@ -440,11 +473,11 @@ public class AudienceService {
 
         List<AudienceMember> members = memberRepository.findRealAudienceByProjectId(projectId);
 
-        int spotlightOpens = members.size();
+        long questionCount = questionRepository.countByAudienceMemberProjectId(projectId);
 
-        int chatbotInteractions = (int) members.stream()
-                .filter(m -> m.getQuestions() != null && !m.getQuestions().isEmpty())
-                .count();
+        int spotlightOpens = Math.max(pitchViews, Math.max(members.size(), (int) questionCount));
+
+        int chatbotInteractions = (int) questionCount;
 
         int interestClicks = (int) members.stream()
                 .filter(m -> m.getInterestedAt() != null)

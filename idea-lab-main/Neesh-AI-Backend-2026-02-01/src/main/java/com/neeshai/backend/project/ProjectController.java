@@ -65,7 +65,7 @@ public class ProjectController {
 
         Project project = projectService.createProject(ownerId, processedRequest);
         log.info("Project created successfully with ID: {}", project.getId());
-        return ResponseEntity.ok(ProjectDTOs.PrivateProjectDTO.fromEntity(project));
+        return ResponseEntity.ok(projectService.toPrivateDTO(project));
     }
 
     @GetMapping
@@ -83,7 +83,7 @@ public class ProjectController {
         }
         List<ProjectDTOs.PrivateProjectDTO> projects = projectService.getMyProjects(ownerId)
                 .stream()
-                .map(ProjectDTOs.PrivateProjectDTO::fromEntity)
+                .map(projectService::toPrivateDTO)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(projects);
     }
@@ -93,7 +93,7 @@ public class ProjectController {
             @AuthenticationPrincipal Jwt jwt) {
         UUID ownerId = getUserIdFromJwt(jwt);
         return projectService.getProject(id, ownerId)
-                .map(ProjectDTOs.PrivateProjectDTO::fromEntity)
+                .map(projectService::toPrivateDTO)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -105,7 +105,7 @@ public class ProjectController {
             @AuthenticationPrincipal Jwt jwt) {
         UUID ownerId = getUserIdFromJwt(jwt);
         return projectService.updateProject(id, ownerId, request)
-                .map(ProjectDTOs.PrivateProjectDTO::fromEntity)
+                .map(projectService::toPrivateDTO)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }

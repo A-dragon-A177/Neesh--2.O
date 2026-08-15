@@ -208,7 +208,7 @@ interface CreateProjectWizardProps {
 
 // ─── Custom Interactive Cards (Declared Outside to Fix Focus Bug) ───
 
-const CVPCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => void }) => {
+const CVPCard = ({ onAnswer, isSaving }: { onAnswer: (p: any, t?: string) => void; isSaving: boolean }) => {
   const [alt, setAlt] = useState("");
   const [metric, setMetric] = useState("");
   const [altCost, setAltCost] = useState("");
@@ -219,7 +219,7 @@ const CVPCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => void }) => {
       <div className="flex items-center gap-2 text-cyan-600"><Zap className="w-4 h-4"/> <h3 className="font-bold text-gray-900 text-sm">Value Multiplier Math</h3></div>
       <div className="space-y-2">
         <label className="text-xs font-semibold text-gray-700">If your product vanished, what would they use?</label>
-        <Select onValueChange={setAlt} value={alt}>
+        <Select onValueChange={setAlt} value={alt} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Alternative"/></SelectTrigger>
           <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Direct Competitor" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Direct Competitor</SelectItem>
@@ -230,7 +230,7 @@ const CVPCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => void }) => {
       </div>
       <div className="space-y-2">
         <label className="text-xs font-semibold text-gray-700">Does your product primarily give them more money or time?</label>
-        <Select onValueChange={setMetric} value={metric}>
+        <Select onValueChange={setMetric} value={metric} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Metric"/></SelectTrigger>
           <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="More Money" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">More Money (Affordability)</SelectItem>
@@ -239,22 +239,24 @@ const CVPCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => void }) => {
         </Select>
       </div>
       <div className="flex gap-3">
-        <div className="flex-1 space-y-1"><label className="text-xs font-semibold text-gray-700">Their Cost</label><Input type="number" placeholder="e.g. 500" value={altCost} onChange={e=>setAltCost(e.target.value)} className="bg-white text-gray-900 h-10 rounded-xl border-gray-200"/></div>
-        <div className="flex-1 space-y-1"><label className="text-xs font-semibold text-gray-700">Your Cost</label><Input type="number" placeholder="e.g. 100" value={mvpCost} onChange={e=>setMvpCost(e.target.value)} className="bg-white text-gray-900 h-10 rounded-xl border-gray-200"/></div>
+        <div className="flex-1 space-y-1"><label className="text-xs font-semibold text-gray-700">Their Cost</label><Input type="number" placeholder="e.g. 500" value={altCost} onChange={e=>setAltCost(e.target.value)} disabled={isSaving} className="bg-white text-gray-900 h-10 rounded-xl border-gray-200"/></div>
+        <div className="flex-1 space-y-1"><label className="text-xs font-semibold text-gray-700">Your Cost</label><Input type="number" placeholder="e.g. 100" value={mvpCost} onChange={e=>setMvpCost(e.target.value)} disabled={isSaving} className="bg-white text-gray-900 h-10 rounded-xl border-gray-200"/></div>
       </div>
-      <Button onClick={()=>{ if(!alt||!metric||!altCost||!mvpCost){toast.error("Fill all fields");return;} onAnswer({cvp_input_a: alt, cvp_input_b: metric, cvp_input_c: altCost, cvp_input_d: mvpCost}, `${alt} • ${metric} — Cost: ${altCost} vs ${mvpCost}`);}} className="w-full h-11 rounded-xl bg-gradient-to-r from-[hsl(190,85%,38%)] to-[hsl(186,93%,48%)] text-white font-semibold shadow-md hover:opacity-95 transition-opacity">Compute Multiplier</Button>
+      <Button disabled={isSaving} onClick={()=>{ if(isSaving) return; if(!alt||!metric||!altCost||!mvpCost){toast.error("Fill all fields");return;} onAnswer({cvp_input_a: alt, cvp_input_b: metric, cvp_input_c: altCost, cvp_input_d: mvpCost}, `${alt} • ${metric} — Cost: ${altCost} vs ${mvpCost}`);}} className="w-full h-11 rounded-xl bg-gradient-to-r from-[hsl(190,85%,38%)] to-[hsl(186,93%,48%)] text-white font-semibold shadow-md hover:opacity-95 transition-opacity disabled:opacity-50">
+        {isSaving ? <><Loader2 className="w-4 h-4 animate-spin mr-2"/> Saving...</> : "Compute Multiplier"}
+      </Button>
     </div>
   );
 };
 
-const MarketDesperationCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => void }) => {
+const MarketDesperationCard = ({ onAnswer, isSaving }: { onAnswer: (p: any, t?: string) => void; isSaving: boolean }) => {
   const [habit, setHabit] = useState("");
   const [desperation, setDesperation] = useState("");
   return (
     <div className="bg-white/50 backdrop-blur-3xl border border-white/60 rounded-3xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.04)] space-y-4 w-full text-left">
       <div className="flex items-center gap-2 text-cyan-600"><Activity className="w-4 h-4"/> <h3 className="font-bold text-gray-900 text-sm">Behavioral Audit</h3></div>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">Does your solution require a new habit?</label>
-        <Select onValueChange={setHabit} value={habit}>
+        <Select onValueChange={setHabit} value={habit} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select habit requirement"/></SelectTrigger>
           <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Requires new habit" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Requires completely new habit</SelectItem>
@@ -263,7 +265,7 @@ const MarketDesperationCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) =>
         </Select>
       </div>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">Are they currently spending money to solve this?</label>
-        <Select onValueChange={setDesperation} value={desperation}>
+        <Select onValueChange={setDesperation} value={desperation} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select spending behavior"/></SelectTrigger>
           <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Yes spend money" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Yes, they spend money</SelectItem>
@@ -272,12 +274,14 @@ const MarketDesperationCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) =>
           </SelectContent>
         </Select>
       </div>
-      <Button onClick={()=>{ if(!habit||!desperation){toast.error("Fill all fields");return;} onAnswer({market_input_a: habit, market_input_b: desperation}, `${habit} • ${desperation}`);}} className="w-full h-11 rounded-xl bg-gradient-to-r from-[hsl(190,85%,38%)] to-[hsl(186,93%,48%)] text-white font-semibold shadow-md hover:opacity-95 transition-opacity">Verify Behavior</Button>
+      <Button disabled={isSaving} onClick={()=>{ if(isSaving) return; if(!habit||!desperation){toast.error("Fill all fields");return;} onAnswer({market_input_a: habit, market_input_b: desperation}, `${habit} • ${desperation}`);}} className="w-full h-11 rounded-xl bg-gradient-to-r from-[hsl(190,85%,38%)] to-[hsl(186,93%,48%)] text-white font-semibold shadow-md hover:opacity-95 transition-opacity disabled:opacity-50">
+        {isSaving ? <><Loader2 className="w-4 h-4 animate-spin mr-2"/> Saving...</> : "Verify Behavior"}
+      </Button>
     </div>
   );
 };
 
-const MarketPopulationCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => void }) => {
+const MarketPopulationCard = ({ onAnswer, isSaving }: { onAnswer: (p: any, t?: string) => void; isSaving: boolean }) => {
   const [spend, setSpend] = useState("");
   const [popValid, setPopValid] = useState("");
   const [geo, setGeo] = useState("");
@@ -287,13 +291,13 @@ const MarketPopulationCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => 
     <div className="bg-white/50 backdrop-blur-3xl border border-white/60 rounded-3xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.04)] space-y-4 w-full text-left">
       <div className="flex items-center gap-2 text-cyan-600"><TrendingUp className="w-4 h-4"/> <h3 className="font-bold text-gray-900 text-sm">The 10 Crore Check</h3></div>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">Avg Unit Spend (Per Customer / Year)</label>
-        <Input type="number" placeholder="e.g. 5000" value={spend} onChange={e=>{setSpend(e.target.value); setCalcPop(Math.ceil(5000000000 / (Number(e.target.value)||1)));}} className="bg-white text-gray-900 h-10 rounded-xl border-gray-200"/>
+        <Input type="number" placeholder="e.g. 5000" value={spend} onChange={e=>{setSpend(e.target.value); setCalcPop(Math.ceil(5000000000 / (Number(e.target.value)||1)));}} disabled={isSaving} className="bg-white text-gray-900 h-10 rounded-xl border-gray-200"/>
       </div>
       {calcPop !== null && calcPop > 0 && (
         <motion.div initial={{opacity:0, height:0}} animate={{opacity:1, height:'auto'}} className="p-3 bg-cyan-50/80 rounded-xl border border-cyan-100"><p className="text-xs text-cyan-900 leading-relaxed">To reach 10 Cr revenue at 2% market share, you need exactly <strong className="text-sm mx-0.5">{new Intl.NumberFormat('en-IN').format(calcPop)}</strong> desperate people.</p></motion.div>
       )}
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">Does this population exist in your target location?</label>
-        <Select onValueChange={setPopValid} value={popValid}>
+        <Select onValueChange={setPopValid} value={popValid} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Population Reality"/></SelectTrigger>
           <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Yes exist in concentrated" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Yes, they exist here</SelectItem>
@@ -303,7 +307,7 @@ const MarketPopulationCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => 
         </Select>
       </div>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">Is your primary market highly concentrated or dispersed?</label>
-        <Select onValueChange={setGeo} value={geo}>
+        <Select onValueChange={setGeo} value={geo} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Geography"/></SelectTrigger>
           <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Concentrated Metro" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Concentrated Metro</SelectItem>
@@ -311,19 +315,21 @@ const MarketPopulationCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => 
           </SelectContent>
         </Select>
       </div>
-      <Button onClick={()=>{ if(!spend||!popValid||!geo){toast.error("Fill all fields");return;} onAnswer({market_input_c1: spend, market_input_c2: popValid, market_input_d: geo}, `${spend}/yr • ${popValid} • ${geo}`);}} className="w-full h-11 rounded-xl bg-gradient-to-r from-[hsl(190,85%,38%)] to-[hsl(186,93%,48%)] text-white font-semibold shadow-md hover:opacity-95 transition-opacity">Run Math</Button>
+      <Button disabled={isSaving} onClick={()=>{ if(isSaving) return; if(!spend||!popValid||!geo){toast.error("Fill all fields");return;} onAnswer({market_input_c1: spend, market_input_c2: popValid, market_input_d: geo}, `${spend}/yr • ${popValid} • ${geo}`);}} className="w-full h-11 rounded-xl bg-gradient-to-r from-[hsl(190,85%,38%)] to-[hsl(186,93%,48%)] text-white font-semibold shadow-md hover:opacity-95 transition-opacity disabled:opacity-50">
+        {isSaving ? <><Loader2 className="w-4 h-4 animate-spin mr-2"/> Saving...</> : "Run Math"}
+      </Button>
     </div>
   );
 };
 
-const AcqTrustCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => void }) => {
+const AcqTrustCard = ({ onAnswer, isSaving }: { onAnswer: (p: any, t?: string) => void; isSaving: boolean }) => {
   const [grassroots, setGrassroots] = useState("");
   const [channel, setChannel] = useState("");
   return (
     <div className="bg-white/50 backdrop-blur-3xl border border-white/60 rounded-3xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.04)] space-y-4 w-full text-left">
       <div className="flex items-center gap-2 text-cyan-600"><Users className="w-4 h-4"/> <h3 className="font-bold text-gray-900 text-sm">Trust & Credibility</h3></div>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">Can you instantly close 10 people without ads?</label>
-        <Select onValueChange={setGrassroots} value={grassroots}>
+        <Select onValueChange={setGrassroots} value={grassroots} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Grassroots Reality"/></SelectTrigger>
           <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Yes have 10" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Yes, I have these 10</SelectItem>
@@ -332,7 +338,7 @@ const AcqTrustCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => void }) 
         </Select>
       </div>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">If a stranger tries your product, what converts them?</label>
-        <Select onValueChange={setChannel} value={channel}>
+        <Select onValueChange={setChannel} value={channel} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Primary Channel"/></SelectTrigger>
           <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Discounts or paid" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Discounts / paid ads</SelectItem>
@@ -341,12 +347,14 @@ const AcqTrustCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => void }) 
           </SelectContent>
         </Select>
       </div>
-      <Button onClick={()=>{ if(!grassroots||!channel){toast.error("Fill all fields");return;} onAnswer({acq_input_a: grassroots, acq_input_b: channel}, `${grassroots} • ${channel}`);}} className="w-full h-11 rounded-xl bg-gradient-to-r from-[hsl(190,85%,38%)] to-[hsl(186,93%,48%)] text-white font-semibold shadow-md hover:opacity-95 transition-opacity">Evaluate Trust</Button>
+      <Button disabled={isSaving} onClick={()=>{ if(isSaving) return; if(!grassroots||!channel){toast.error("Fill all fields");return;} onAnswer({acq_input_a: grassroots, acq_input_b: channel}, `${grassroots} • ${channel}`);}} className="w-full h-11 rounded-xl bg-gradient-to-r from-[hsl(190,85%,38%)] to-[hsl(186,93%,48%)] text-white font-semibold shadow-md hover:opacity-95 transition-opacity disabled:opacity-50">
+        {isSaving ? <><Loader2 className="w-4 h-4 animate-spin mr-2"/> Saving...</> : "Evaluate Trust"}
+      </Button>
     </div>
   );
 };
 
-const DefMoatCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => void }) => {
+const DefMoatCard = ({ onAnswer, isSaving }: { onAnswer: (p: any, t?: string) => void; isSaving: boolean }) => {
   const [trap, setTrap] = useState("");
   const [lead, setLead] = useState("");
   const [roadmap, setRoadmap] = useState("");
@@ -354,7 +362,7 @@ const DefMoatCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => void }) =
     <div className="bg-white/50 backdrop-blur-3xl border border-white/60 rounded-3xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.04)] space-y-4 w-full text-left">
       <div className="flex items-center gap-2 text-cyan-600"><ShieldCheck className="w-4 h-4"/> <h3 className="font-bold text-gray-900 text-sm">Defensibility Engine</h3></div>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">If a competitor finds you today, what is your primary defense?</label>
-        <Select onValueChange={setTrap} value={trap}>
+        <Select onValueChange={setTrap} value={trap} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Primary Defense"/></SelectTrigger>
           <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Patents" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Patents / legal</SelectItem>
@@ -364,7 +372,7 @@ const DefMoatCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => void }) =
         </Select>
       </div>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">What operational barrier physically slows a giant clone?</label>
-        <Select onValueChange={setLead} value={lead}>
+        <Select onValueChange={setLead} value={lead} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Operational Barrier"/></SelectTrigger>
           <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Easily copyable" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Nothing, easily copyable</SelectItem>
@@ -375,7 +383,7 @@ const DefMoatCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => void }) =
         </Select>
       </div>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">Once cloned, what is your roadmap to survive?</label>
-        <Select onValueChange={setRoadmap} value={roadmap}>
+        <Select onValueChange={setRoadmap} value={roadmap} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Roadmap Strategy"/></SelectTrigger>
           <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Defend single idea" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Defend this specific product</SelectItem>
@@ -383,19 +391,21 @@ const DefMoatCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => void }) =
           </SelectContent>
         </Select>
       </div>
-      <Button onClick={()=>{ if(!trap||!lead||!roadmap){toast.error("Fill all fields");return;} onAnswer({def_input_a: trap, def_input_b: lead, def_input_c: roadmap}, `${trap} • ${lead} • ${roadmap}`);}} className="w-full h-11 rounded-xl bg-gradient-to-r from-[hsl(190,85%,38%)] to-[hsl(186,93%,48%)] text-white font-semibold shadow-md hover:opacity-95 transition-opacity">Calculate Lead Time</Button>
+      <Button disabled={isSaving} onClick={()=>{ if(isSaving) return; if(!trap||!lead||!roadmap){toast.error("Fill all fields");return;} onAnswer({def_input_a: trap, def_input_b: lead, def_input_c: roadmap}, `${trap} • ${lead} • ${roadmap}`);}} className="w-full h-11 rounded-xl bg-gradient-to-r from-[hsl(190,85%,38%)] to-[hsl(186,93%,48%)] text-white font-semibold shadow-md hover:opacity-95 transition-opacity disabled:opacity-50">
+        {isSaving ? <><Loader2 className="w-4 h-4 animate-spin mr-2"/> Saving...</> : "Calculate Lead Time"}
+      </Button>
     </div>
   );
 };
 
-const BuildExecutionCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => void }) => {
+const BuildExecutionCard = ({ onAnswer, isSaving }: { onAnswer: (p: any, t?: string) => void; isSaving: boolean }) => {
   const [team, setTeam] = useState("");
   const [mvp, setMvp] = useState("");
   return (
     <div className="bg-white/50 backdrop-blur-3xl border border-white/60 rounded-3xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.04)] space-y-4 w-full text-left">
       <div className="flex items-center gap-2 text-cyan-600"><Rocket className="w-4 h-4"/> <h3 className="font-bold text-gray-900 text-sm">Execution Capacity</h3></div>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">How distributed is the workload among founders?</label>
-        <Select onValueChange={setTeam} value={team}>
+        <Select onValueChange={setTeam} value={team} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Team Workload"/></SelectTrigger>
           <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Missing Links" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Missing key roles (Tech/Sales)</SelectItem>
@@ -406,7 +416,7 @@ const BuildExecutionCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => vo
         </Select>
       </div>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">What is your MVP status and funding criticality?</label>
-        <Select onValueChange={setMvp} value={mvp}>
+        <Select onValueChange={setMvp} value={mvp} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select MVP Status"/></SelectTrigger>
           <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Idea Stage" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Idea Stage — Need money to build</SelectItem>
@@ -416,7 +426,9 @@ const BuildExecutionCard = ({ onAnswer }: { onAnswer: (p: any, t?: string) => vo
           </SelectContent>
         </Select>
       </div>
-      <Button onClick={()=>{ if(!team||!mvp){toast.error("Fill all fields");return;} onAnswer({build_input_a: team, build_input_b: mvp}, `${team} • ${mvp}`);}} className="w-full h-11 rounded-xl bg-gradient-to-r from-[hsl(190,85%,38%)] to-[hsl(186,93%,48%)] text-white font-semibold shadow-md hover:opacity-95 transition-opacity">Finalize Buildability</Button>
+      <Button disabled={isSaving} onClick={()=>{ if(isSaving) return; if(!team||!mvp){toast.error("Fill all fields");return;} onAnswer({build_input_a: team, build_input_b: mvp}, `${team} • ${mvp}`);}} className="w-full h-11 rounded-xl bg-gradient-to-r from-[hsl(190,85%,38%)] to-[hsl(186,93%,48%)] text-white font-semibold shadow-md hover:opacity-95 transition-opacity disabled:opacity-50">
+        {isSaving ? <><Loader2 className="w-4 h-4 animate-spin mr-2"/> Saving...</> : "Finalize Buildability"}
+      </Button>
     </div>
   );
 };
@@ -644,7 +656,7 @@ const CreateProjectWizard = ({
   };
 
   const handleAnswer = async (payload: any, displayText?: string) => {
-    if (!createdProject || !currentQuestion) return;
+    if (!createdProject || !currentQuestion || isSaving) return;
     const q = currentQuestion;
 
     addUserMessage(displayText || "Data provided.");
@@ -658,18 +670,22 @@ const CreateProjectWizard = ({
       }
       setAnswers(updatedAnswers);
       const validationJson = buildValidationAnswersJson(updatedAnswers);
-      await saveBlog(createdProject, updatedAnswers);
 
       if (isLastQuestion) {
-        const updated = await updateProject(createdProject.id, { validation_answers: validationJson, onboarding_completed: true });
+        // Final step: update project with onboarding_completed: true and finalize blog in parallel
+        const [updated] = await Promise.all([
+          updateProject(createdProject.id, { validation_answers: validationJson, onboarding_completed: true }),
+          saveBlog(createdProject, updatedAnswers)
+        ]);
         if (updated) {
           setCreatedProject(updated);
         }
         setTimeout(() => {
           addAgentMessage("🎉 Amazing! Your Spotlight is ready. I've generated your blog and computed your validation score.");
           setTimeout(() => { onProjectCreated(updated || createdProject); }, 1500);
-        }, 500);
+        }, 400);
       } else {
+        // Intermediate step: quick background update of validation_answers
         const updated = await updateProject(createdProject.id, { validation_answers: validationJson, onboarding_completed: false });
         if (updated) {
           setCreatedProject(updated);
@@ -678,20 +694,30 @@ const CreateProjectWizard = ({
         if (nextQ && nextQ.module !== q.module) {
           setTimeout(() => {
             addAgentMessage(`✅ Module ${q.module} complete! Moving on to ${nextQ.moduleName}...`);
-            setTimeout(() => { setQuestionIndex(prev => prev + 1); showNextQuestion(nextQ, updatedAnswers); }, 800);
-          }, 500);
+            setTimeout(() => { setQuestionIndex(prev => prev + 1); showNextQuestion(nextQ, updatedAnswers); }, 600);
+          }, 300);
         } else if (nextQ) {
           setQuestionIndex(prev => prev + 1);
-          setTimeout(() => { showNextQuestion(nextQ, updatedAnswers); }, 400);
+          setTimeout(() => { showNextQuestion(nextQ, updatedAnswers); }, 300);
         }
       }
-    } catch { toast.error("Failed to save."); } finally { setIsSaving(false); }
+    } catch (err) {
+      console.error("[CreateProjectWizard] Save error:", err);
+      toast.error("Failed to save answer.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleTextSubmit = () => { if (!chatInput.trim()) return; handleAnswer(chatInput.trim()); setChatInput(""); };
-  const handleNumericSubmit = () => { const val = parseFloat(chatInput); if (isNaN(val) || val <= 0) { toast.error("Valid number required"); return; } handleAnswer(val, String(val)); setChatInput(""); };
+  const handleTextSubmit = () => { if (isSaving || !chatInput.trim()) return; handleAnswer(chatInput.trim()); setChatInput(""); };
+  const handleNumericSubmit = () => { if (isSaving) return; const val = parseFloat(chatInput); if (isNaN(val) || val <= 0) { toast.error("Valid number required"); return; } handleAnswer(val, String(val)); setChatInput(""); };
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (currentQuestion?.inputType === "numeric") handleNumericSubmit(); else handleTextSubmit(); }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (isSaving) return;
+      if (currentQuestion?.inputType === "numeric") handleNumericSubmit();
+      else handleTextSubmit();
+    }
   };
 
   // ─── Inline Local Render Helpers ───
@@ -825,32 +851,27 @@ const CreateProjectWizard = ({
         <div className="px-3 sm:px-6 pb-3 sm:pb-6 pt-2 z-30 shrink-0 bg-white/80 backdrop-blur-md border-t border-gray-100">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full">
             
-            {currentQuestion.id === "cvp_card" && <CVPCard onAnswer={handleAnswer} />}
-            {currentQuestion.id === "market_desperation_card" && <MarketDesperationCard onAnswer={handleAnswer} />}
-            {currentQuestion.id === "market_population_card" && <MarketPopulationCard onAnswer={handleAnswer} />}
-            {currentQuestion.id === "acq_trust_card" && <AcqTrustCard onAnswer={handleAnswer} />}
-            {currentQuestion.id === "def_moat_card" && <DefMoatCard onAnswer={handleAnswer} />}
-            {currentQuestion.id === "build_execution_card" && <BuildExecutionCard onAnswer={handleAnswer} />}
+            {currentQuestion.id === "cvp_card" && <CVPCard onAnswer={handleAnswer} isSaving={isSaving} />}
+            {currentQuestion.id === "market_desperation_card" && <MarketDesperationCard onAnswer={handleAnswer} isSaving={isSaving} />}
+            {currentQuestion.id === "market_population_card" && <MarketPopulationCard onAnswer={handleAnswer} isSaving={isSaving} />}
+            {currentQuestion.id === "acq_trust_card" && <AcqTrustCard onAnswer={handleAnswer} isSaving={isSaving} />}
+            {currentQuestion.id === "def_moat_card" && <DefMoatCard onAnswer={handleAnswer} isSaving={isSaving} />}
+            {currentQuestion.id === "build_execution_card" && <BuildExecutionCard onAnswer={handleAnswer} isSaving={isSaving} />}
 
             {currentQuestion.inputType === "mcq" && (
-              <div className="flex items-center gap-3 max-w-xl mx-auto w-full bg-white backdrop-blur-2xl p-1.5 rounded-2xl border border-gray-200 shadow-md">
-                <div className="flex-1 min-w-0">
-                  <Select onValueChange={(val) => {
-                    const label = currentQuestion.options?.find(o => o.value === val)?.label || val;
-                    handleAnswer(val, label);
-                  }}>
-                    <SelectTrigger className="bg-transparent border-0 h-11 focus:ring-0 focus:ring-offset-0 text-[14px] shadow-none">
-                      <SelectValue placeholder="Choose an option..." />
-                    </SelectTrigger>
-                    <SelectContent className="z-[220]">
-                      {currentQuestion.options?.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="flex flex-col sm:flex-row gap-3 max-w-xl mx-auto w-full">
+                {currentQuestion.options?.map((opt) => (
+                  <Button
+                    key={opt.value}
+                    type="button"
+                    disabled={isSaving}
+                    onClick={() => handleAnswer(opt.value, opt.label)}
+                    className="flex-1 h-12 rounded-xl bg-white hover:bg-cyan-50/80 text-gray-900 border border-gray-200 font-semibold shadow-sm hover:border-cyan-400 transition-all text-sm justify-center text-center hover:text-cyan-700 disabled:opacity-50"
+                  >
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                    {opt.label}
+                  </Button>
+                ))}
               </div>
             )}
 
@@ -863,11 +884,12 @@ const CreateProjectWizard = ({
                   <textarea
                     ref={inputRef}
                     value={chatInput}
+                    disabled={isSaving}
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={currentQuestion.placeholder || "Type your answer..."}
                     rows={currentQuestion.inputType === "numeric" ? 1 : 2}
-                    className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-[14px] text-gray-800 bg-transparent resize-none focus:outline-none placeholder:text-gray-400/70 placeholder:text-xs sm:placeholder:text-[13px] placeholder:leading-relaxed max-h-28 sm:max-h-40"
+                    className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-[14px] text-gray-800 bg-transparent resize-none focus:outline-none placeholder:text-gray-400/70 placeholder:text-xs sm:placeholder:text-[13px] placeholder:leading-relaxed max-h-28 sm:max-h-40 disabled:opacity-50"
                   />
                   <button onClick={currentQuestion.inputType === "numeric" ? handleNumericSubmit : handleTextSubmit} disabled={isSaving || !chatInput.trim()} className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-tr from-gray-900 to-gray-800 hover:from-cyan-500 hover:to-blue-500 text-white shadow-md transition-all duration-300 disabled:opacity-40 active:scale-95 mb-0.5 mr-0.5">
                     {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 ml-0.5" />}

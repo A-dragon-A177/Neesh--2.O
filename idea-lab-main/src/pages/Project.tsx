@@ -54,9 +54,22 @@ const Project = () => {
   const [projectLoading, setProjectLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "blog" | "knowledge" | "inbox" | "elevator-pitch" | "chatbot" | "audience">(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'blog') return 'blog';
+    if (tab && ['overview', 'blog', 'knowledge', 'inbox', 'elevator-pitch', 'chatbot', 'audience'].includes(tab)) {
+      return tab as any;
+    }
     return 'overview';
   });
+
+  const handleTabChange = (tab: "overview" | "blog" | "knowledge" | "inbox" | "elevator-pitch" | "chatbot" | "audience") => {
+    setActiveTab(tab);
+    const newParams = new URLSearchParams(searchParams);
+    if (tab === "overview") {
+      newParams.delete("tab");
+    } else {
+      newParams.set("tab", tab);
+    }
+    navigate({ search: newParams.toString() ? `?${newParams.toString()}` : "" }, { replace: true });
+  };
   
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -357,7 +370,7 @@ const Project = () => {
         sidebarCollapsed={sidebarCollapsed}
         setSidebarCollapsed={setSidebarCollapsed}
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleTabChange}
         projectTitle={project.title}
         badgeCount={badgeCount}
       />
@@ -707,7 +720,7 @@ const Project = () => {
 
       <ProjectMobileNav
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleTabChange}
         badgeCount={badgeCount}
         isMoreSheetOpen={isMoreSheetOpen}
         setIsMoreSheetOpen={setIsMoreSheetOpen}
@@ -727,7 +740,7 @@ const Project = () => {
         isOpen={isTourOpen}
         onClose={handleCloseTour}
         currentTab={activeTab}
-        onSelectTab={(tab) => setActiveTab(tab)}
+        onSelectTab={(tab) => handleTabChange(tab as any)}
       />
     </div>
   );

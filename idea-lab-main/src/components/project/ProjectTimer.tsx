@@ -182,14 +182,14 @@ export const ProjectTimer: React.FC<ProjectTimerProps> = ({
 
   // Variant: Header (sleek glowing pill with icon)
   if (variant === "header") {
-    let colorClasses = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20";
+    let colorClasses = "bg-emerald-50/90 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60";
     let dotClasses = "bg-emerald-500";
 
     if (isUrgent) {
-      colorClasses = "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 shadow-[0_0_12px_rgba(244,63,94,0.2)] animate-pulse";
+      colorClasses = "bg-rose-50/90 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-800/60 shadow-[0_0_12px_rgba(244,63,94,0.2)] animate-pulse";
       dotClasses = "bg-rose-500";
     } else if (isWarning) {
-      colorClasses = "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20";
+      colorClasses = "bg-amber-50/90 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800/60";
       dotClasses = "bg-amber-500";
     }
 
@@ -197,15 +197,15 @@ export const ProjectTimer: React.FC<ProjectTimerProps> = ({
       <Tooltip>
         <TooltipTrigger asChild>
           <div
-            className={`cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all hover:scale-105 select-none ${colorClasses} ${className}`}
+            className={`cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all hover:scale-105 select-none font-sans ${colorClasses} ${className}`}
           >
             <span className="relative flex h-2 w-2">
               <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${dotClasses}`} />
               <span className={`relative inline-flex rounded-full h-2 w-2 ${dotClasses}`} />
             </span>
-            <Clock className="w-3.5 h-3.5 shrink-0" />
-            <span className="tabular-nums font-mono tracking-tight">{formattedTime}</span>
-            <span className="hidden sm:inline text-[10px] opacity-75 font-normal">left</span>
+            <Clock className="w-3.5 h-3.5 shrink-0 text-current" />
+            <span className="font-sans font-semibold tracking-normal tabular-nums text-xs">{formattedTime}</span>
+            <span className="hidden sm:inline text-[11px] font-medium opacity-80">left</span>
           </div>
         </TooltipTrigger>
         <TooltipContent side="bottom" align="end" className="bg-popover/95 backdrop-blur-md border border-border/60 shadow-xl p-3">
@@ -217,21 +217,21 @@ export const ProjectTimer: React.FC<ProjectTimerProps> = ({
 
   // Variant: Compact (for dashboard grid cards)
   if (variant === "compact") {
-    let bgClasses = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20";
+    let bgClasses = "bg-emerald-50/90 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60";
     if (isUrgent) {
-      bgClasses = "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 animate-pulse";
+      bgClasses = "bg-rose-50/90 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-800/60 animate-pulse";
     } else if (isWarning) {
-      bgClasses = "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20";
+      bgClasses = "bg-amber-50/90 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800/60";
     }
 
     return (
       <Tooltip>
         <TooltipTrigger asChild>
           <div
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border backdrop-blur-sm ${bgClasses} ${className}`}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border backdrop-blur-sm font-sans ${bgClasses} ${className}`}
           >
-            <Clock className="w-3 h-3" />
-            <span className="tabular-nums font-mono">{formattedTime}</span>
+            <Clock className="w-3 h-3 text-current" />
+            <span className="font-sans font-semibold tracking-normal tabular-nums">{formattedTime}</span>
           </div>
         </TooltipTrigger>
         <TooltipContent side="top" className="bg-popover/95 backdrop-blur-md border border-border/60 shadow-xl p-3">
@@ -242,19 +242,19 @@ export const ProjectTimer: React.FC<ProjectTimerProps> = ({
   }
 
   // Default badge variant
-  let badgeColor = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20";
+  let badgeColor = "bg-emerald-50/90 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60";
   if (isUrgent) {
-    badgeColor = "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20";
+    badgeColor = "bg-rose-50/90 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-800/60";
   } else if (isWarning) {
-    badgeColor = "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20";
+    badgeColor = "bg-amber-50/90 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800/60";
   }
 
   return (
     <div
-      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${badgeColor} ${className}`}
+      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border font-sans ${badgeColor} ${className}`}
     >
-      <Clock className="w-3.5 h-3.5" />
-      <span className="tabular-nums font-mono">{formattedTime} remaining</span>
+      <Clock className="w-3.5 h-3.5 text-current" />
+      <span className="font-sans font-semibold tracking-normal tabular-nums">{formattedTime} remaining</span>
     </div>
   );
 };

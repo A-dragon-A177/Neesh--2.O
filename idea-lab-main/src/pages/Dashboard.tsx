@@ -61,6 +61,7 @@ import {
   PartyPopper,
   AlertTriangle,
   SlidersHorizontal,
+  Eye,
   X,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -90,7 +91,7 @@ const getProjectCoverImage = (projectId: string): string | null => {
   // Check the key used by useCoverImage hook (this is the primary storage)
   const coverImageData = localStorage.getItem(`cover-image-${projectId}`);
   if (coverImageData) {
-    return coverImageData;
+    return coverImageData === "__none__" ? null : coverImageData;
   }
   // Fallback: check URL-based storage
   const savedUrl = localStorage.getItem(`cover-image-url-${projectId}`);
@@ -108,6 +109,12 @@ const getProjectCoverImage = (projectId: string): string | null => {
     }
   }
   return null;
+};
+
+// Check if we have already checked/cached the project's cover image status
+const hasCheckedCoverImage = (projectId: string): boolean => {
+  return localStorage.getItem(`cover-image-${projectId}`) !== null ||
+         localStorage.getItem(`cover-image-url-${projectId}`) !== null;
 };
 
 const Dashboard = () => {
@@ -135,13 +142,12 @@ const Dashboard = () => {
   // Cover images fetched from backend (for projects without localStorage images)
   const [coverImages, setCoverImages] = useState<Record<string, string>>({});
 
-  // Fetch cover images from backend for projects that don't have them in localStorage
+  // Fetch cover images from backend for projects that haven't been checked yet
   useEffect(() => {
     if (!projects?.length) return;
 
     const fetchMissingCoverImages = async () => {
-
-      const missingProjects = projects.filter(p => !getProjectCoverImage(p.id));
+      const missingProjects = projects.filter(p => !hasCheckedCoverImage(p.id));
       
       if (missingProjects.length === 0) return;
 
@@ -161,9 +167,9 @@ const Dashboard = () => {
 
         const updates: Record<string, string> = {};
         results.forEach(result => {
+          localStorage.setItem(`cover-image-${result.id}`, result.url || "__none__");
           if (result.url) {
             updates[result.id] = result.url;
-            localStorage.setItem(`cover-image-${result.id}`, result.url);
           }
         });
 
@@ -171,7 +177,7 @@ const Dashboard = () => {
           setCoverImages(prev => ({ ...prev, ...updates }));
         }
       } catch (error) {
-
+        console.error("[Dashboard] Error fetching cover images:", error);
       }
     };
 
@@ -604,6 +610,12 @@ const Dashboard = () => {
                         />
                       </div>
 
+                      {/* Audience Views badge on bottom-left of cover image */}
+                      <div className="absolute bottom-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-background/80 backdrop-blur-md text-foreground border border-border/50 shadow-sm z-10 font-sans">
+                        <Eye className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+                        <span>{project.audience_view_count ?? 0} Audience Views</span>
+                      </div>
+
                       {/* Status badge and copy link overlay on top-right */}
                       <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
                         <Tooltip>
@@ -641,12 +653,17 @@ const Dashboard = () => {
                         {project.one_line_summary || "No description"}
                       </p>
 
-                      {/* Updated date and arrow */}
+                      {/* Updated date, audience count and arrow */}
                       <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                        <div>
+                        <div className="flex items-center gap-2">
                           <p className="text-xs text-muted-foreground">
                             Updated {new Date(project.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                           </p>
+                          <span className="text-muted-foreground/40">•</span>
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-600 dark:text-cyan-400">
+                            <Eye className="w-3.5 h-3.5" />
+                            {project.audience_view_count ?? 0}
+                          </span>
                         </div>
                         <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
                           <ArrowRight className="w-5 h-5" />

@@ -528,7 +528,7 @@ const ProjectOverview = ({
   }, [projectData.earlyAccessPrice]);
 
   // Validated buyers for Stage 2
-  const { data: buyersData, loading: buyersLoading, togglePilotCohort } = useValidatedBuyers(projectId);
+  const { data: buyersData, loading: buyersLoading, togglePilotCohort, refetch: refetchBuyers } = useValidatedBuyers(projectId);
   const [pilotModalOpen, setPilotModalOpen] = useState(false);
 
   const pilotCohortMembers = useMemo(
@@ -546,19 +546,32 @@ const ProjectOverview = ({
   } | null>(null);
 
   useEffect(() => {
-    if (!stagesOpen.stage2 || !projectId) return;
-    apiClient.get<{
-      pitchViews: number;
-      spotlightOpens: number;
-      chatbotInteractions: number;
-      interestClicks: number;
-      feedbackSubmissions: number;
-    }>(`/api/projects/${projectId}/spotlight-analytics`)
-      .then(res => {
-        if (res) setSpotlightAnalytics(res);
-      })
-      .catch(err => console.warn("[SpotlightAnalytics] fetch error:", err));
-  }, [stagesOpen.stage2, projectId]);
+    if (!projectId) return;
+
+    const fetchAnalytics = () => {
+      apiClient.get<{
+        pitchViews: number;
+        spotlightOpens: number;
+        chatbotInteractions: number;
+        interestClicks: number;
+        feedbackSubmissions: number;
+      }>(`/api/projects/${projectId}/spotlight-analytics`)
+        .then(res => {
+          if (res) setSpotlightAnalytics(res);
+        })
+        .catch(err => console.warn("[SpotlightAnalytics] fetch error:", err));
+    };
+
+    fetchAnalytics();
+    const interval = setInterval(() => {
+      fetchAnalytics();
+      if (stagesOpen.stage2) {
+        refetchBuyers({ silent: true });
+      }
+    }, 8000);
+
+    return () => clearInterval(interval);
+  }, [projectId, stagesOpen.stage2, refetchBuyers]);
 
   // ===== Compute all analytics locally from real data =====
 
@@ -942,7 +955,7 @@ const ProjectOverview = ({
               transition={{ duration: 0.3 }}
               className="border-t border-gray-100/50 p-6 bg-slate-50/30 font-sans"
             >
-              {buyersLoading ? (
+              {buyersLoading && !buyersData ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="w-5 h-5 animate-spin text-cyan-600" />
                   <span className="ml-2 text-sm text-gray-500 font-sans">Loading validation data...</span>

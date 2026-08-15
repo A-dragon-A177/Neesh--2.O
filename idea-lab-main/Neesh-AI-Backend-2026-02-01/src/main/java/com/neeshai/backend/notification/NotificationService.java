@@ -41,63 +41,168 @@ public class NotificationService {
         this.emailService = emailService;
     }
 
+    private static final java.util.regex.Pattern GREETING_PATTERN = java.util.regex.Pattern.compile(
+            "^(hi|hello|hey|howdy|greetings|good\\s*(morning|afternoon|evening)|what'?s?\\s*up|sup|yo|hola|namaste|ok|okay|k|thanks|thank\\s*you|thx|ty|cool|great|nice|awesome|got\\s*it|understood|bye|goodbye|see\\s*ya|test|testing)[\\s!?.,]*$",
+            java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    public static boolean isGreetingOrFiller(String text) {
+        if (text == null || text.trim().isBlank()) {
+            return true;
+        }
+        String clean = text.trim();
+        if (clean.length() <= 2 && !clean.equalsIgnoreCase("ai") && !clean.equalsIgnoreCase("ui")) {
+            return true;
+        }
+        return GREETING_PATTERN.matcher(clean).matches();
+    }
+
     // ===== Question Intake =====
 
     @Transactional
     public QuestionCluster ingestQuestion(UUID projectId, String questionText,
             String userName, String userEmail,
             String persona, String source) {
-        log.info("Ingesting question for project {}: '{}'", projectId, questionText);
+        return ingestQuestion(projectId, questionText, null, false, userName, userEmail, persona, source);
+    }
+
+    @Transactional
+    public QuestionCluster ingestQuestion(UUID projectId, String questionText,
+            String answerText, boolean isAnswered,
+            String userName, String userEmail,
+            String persona, String source) {
+        if (questionText == null || questionText.isBlank() || isGreetingOrFiller(questionText)) {
+            log.info("Skipping question cluster ingestion for greeting/filler/empty: '{}'", questionText);
+            return null;
+        }
+
+        log.info("Ingesting question for project {}: '{}' (answered={})", projectId, questionText, isAnswered);
 
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new RuntimeException("Project not found: " + projectId));
 
         String normalized = normalize(questionText);
 
-        // Try exact normalized match first
-        QuestionCluster cluster = clusterRepository.findByProjectIdAndNormalizedQuestion(projectId, normalized);
+        // Synchronize on projectId to prevent concurrent thread race conditions creating duplicate clusters
+        synchronized (projectId.toString().intern()) {
+            // Try exact normalized match first
+            QuestionCluster cluster = clusterRepository.findByProjectIdAndNormalizedQuestion(projectId, normalized);
 
-        // If no exact match, try fuzzy matching against existing clusters
-        if (cluster == null) {
-            List<QuestionCluster> existingClusters = clusterRepository
-                    .findByProjectIdOrderByPriorityScoreDesc(projectId);
-            cluster = findSimilarCluster(normalized, existingClusters);
-        }
-
-        if (cluster == null) {
-            // Create new cluster
-            cluster = new QuestionCluster(project, questionText, normalized);
-            cluster.setTotalAskCount(1);
-            cluster.setFirstAskedAt(Instant.now());
-            cluster.setLastAskedAt(Instant.now());
-            cluster = clusterRepository.save(cluster);
-            log.info("Created new cluster: {}", cluster.getId());
-        } else {
-            // Update existing cluster
-            cluster.setTotalAskCount(cluster.getTotalAskCount() + 1);
-            cluster.setLastAskedAt(Instant.now());
-            // If cluster was previously answered, mark as partially answered (new user
-            // asking)
-            if ("ANSWERED".equals(cluster.getStatus()) || "RESOLVED".equals(cluster.getStatus())) {
-                cluster.setStatus("PARTIALLY_ANSWERED");
+            // If no exact match, try fuzzy matching against existing clusters
+            if (cluster == null) {
+                List<QuestionCluster> existingClusters = clusterRepository
+                        .findByProjectIdOrderByPriorityScoreDesc(projectId);
+                cluster = findSimilarCluster(normalized, existingClusters);
             }
-            cluster = clusterRepository.save(cluster);
-            log.info("Added to existing cluster: {} (now {} asks)", cluster.getId(), cluster.getTotalAskCount());
+
+            if (cluster == null) {
+                // Create new cluster
+                cluster = new QuestionCluster(project, questionText, normalized);
+                cluster.setTotalAskCount(1);
+                cluster.setStatus(isAnswered ? "ANSWERED" : "UNANSWERED");
+                cluster.setFirstAskedAt(Instant.now());
+                cluster.setLastAskedAt(Instant.now());
+                cluster = clusterRepository.save(cluster);
+                log.info("Created new cluster: {}", cluster.getId());
+            } else {
+                // Update existing cluster
+                cluster.setTotalAskCount(cluster.getTotalAskCount() + 1);
+                cluster.setLastAskedAt(Instant.now());
+                cluster = clusterRepository.save(cluster);
+                log.info("Added to existing cluster: {} (now {} asks)", cluster.getId(), cluster.getTotalAskCount());
+            }
+
+            // Create instance
+            ClusterInstance instance = new ClusterInstance(cluster, questionText, source,
+                    userName, userEmail, persona);
+            if (isAnswered && answerText != null && !answerText.isBlank()) {
+                instance.setStatus("ANSWERED");
+                instance.setAnswerContent(answerText.trim());
+                instance.setAnsweredAt(Instant.now());
+            } else {
+                instance.setStatus("UNANSWERED");
+            }
+            instanceRepository.save(instance);
+
+            // Recompute cluster status based on instances
+            long totalInstances = instanceRepository.countByClusterId(cluster.getId());
+            long answeredInstances = instanceRepository.countAnsweredByClusterId(cluster.getId());
+            if (answeredInstances >= totalInstances && totalInstances > 0) {
+                cluster.setStatus("ANSWERED");
+            } else if (answeredInstances > 0) {
+                cluster.setStatus("PARTIALLY_ANSWERED");
+            } else {
+                cluster.setStatus("UNANSWERED");
+            }
+            clusterRepository.save(cluster);
+
+            // Recompute priority and persona summary
+            recomputeClusterMetadata(cluster);
+
+            return cluster;
         }
-
-        // Create instance
-        ClusterInstance instance = new ClusterInstance(cluster, questionText, source,
-                userName, userEmail, persona);
-        instanceRepository.save(instance);
-
-        // Recompute priority and persona summary
-        recomputeClusterMetadata(cluster);
-
-        return cluster;
     }
 
     // ===== Cluster Listing =====
 
+    @Transactional
+    public void deduplicateAndCleanupClusters(UUID projectId) {
+        try {
+            List<QuestionCluster> allClusters = clusterRepository.findByProjectIdOrderByPriorityScoreDesc(projectId);
+            if (allClusters == null || allClusters.isEmpty()) {
+                return;
+            }
+
+            // 1. Resolve greeting clusters so they don't clutter the inbox
+            for (QuestionCluster c : allClusters) {
+                if (isGreetingOrFiller(c.getCanonicalQuestion()) || isGreetingOrFiller(c.getNormalizedQuestion())) {
+                    c.setStatus("RESOLVED");
+                    clusterRepository.save(c);
+                }
+            }
+
+            // 2. Deduplicate identical normalized questions
+            Map<String, List<QuestionCluster>> grouped = allClusters.stream()
+                    .filter(c -> !isGreetingOrFiller(c.getCanonicalQuestion()))
+                    .collect(Collectors.groupingBy(QuestionCluster::getNormalizedQuestion));
+
+            for (Map.Entry<String, List<QuestionCluster>> entry : grouped.entrySet()) {
+                List<QuestionCluster> duplicates = entry.getValue();
+                if (duplicates.size() > 1) {
+                    QuestionCluster primary = duplicates.get(0);
+                    for (int i = 1; i < duplicates.size(); i++) {
+                        QuestionCluster dup = duplicates.get(i);
+                        List<ClusterInstance> dupInstances = instanceRepository.findByClusterIdOrderByAskedAtDesc(dup.getId());
+                        for (ClusterInstance inst : dupInstances) {
+                            inst.setCluster(primary);
+                            instanceRepository.save(inst);
+                        }
+                        List<ClusterReply> dupReplies = replyRepository.findByClusterIdOrderBySentAtDesc(dup.getId());
+                        for (ClusterReply rep : dupReplies) {
+                            rep.setCluster(primary);
+                            replyRepository.save(rep);
+                        }
+                        clusterRepository.delete(dup);
+                        log.info("Merged duplicate cluster {} into primary {}", dup.getId(), primary.getId());
+                    }
+                    long total = instanceRepository.countByClusterId(primary.getId());
+                    primary.setTotalAskCount((int) total);
+                    long answered = instanceRepository.countAnsweredByClusterId(primary.getId());
+                    if (answered >= total && total > 0) {
+                        primary.setStatus("ANSWERED");
+                    } else if (answered > 0) {
+                        primary.setStatus("PARTIALLY_ANSWERED");
+                    } else {
+                        primary.setStatus("UNANSWERED");
+                    }
+                    recomputeClusterMetadata(primary);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Cluster deduplication cleanup warning: {}", e.getMessage());
+        }
+    }
+
+    @Transactional
     public NotificationDTOs.ClusterListResponse getClusters(UUID projectId, UUID userId, String status,
             String sort, String search) {
         Project project = projectRepository.findById(projectId)
@@ -105,6 +210,9 @@ public class NotificationService {
                 .filter(p -> p.getOwnerId().equals(userId))
                 .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
                         org.springframework.http.HttpStatus.NOT_FOUND, "Project not found or unauthorized"));
+
+        // Auto-heal duplicate clusters and greeting clusters
+        deduplicateAndCleanupClusters(projectId);
 
         List<QuestionCluster> clusters;
         if (status != null && !status.isEmpty() && !"all".equalsIgnoreCase(status)) {

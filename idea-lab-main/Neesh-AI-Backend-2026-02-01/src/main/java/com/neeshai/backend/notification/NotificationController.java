@@ -89,14 +89,20 @@ public class NotificationController {
             @PathVariable UUID projectId,
             @RequestBody IngestRequest request) {
         log.info("POST /public/projects/{}/notifications/ingest: '{}'", projectId, request.question());
+        boolean answered = Boolean.TRUE.equals(request.isAnswered()) || (request.answer() != null && !request.answer().isBlank());
         QuestionCluster cluster = notificationService.ingestQuestion(
-                projectId, request.question(), request.userName(),
+                projectId, request.question(), request.answer(), answered, request.userName(),
                 request.userEmail(), request.persona(), request.source());
+        if (cluster == null) {
+            return ResponseEntity.noContent().build();
+        }
         return ResponseEntity.ok(NotificationDTOs.ClusterSummaryResponse.fromEntity(cluster));
     }
 
     public record IngestRequest(
             String question,
+            String answer,
+            Boolean isAnswered,
             String userName,
             String userEmail,
             String persona,
