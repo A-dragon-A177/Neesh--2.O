@@ -11,6 +11,7 @@ import CinematicVFXCanvas from '@/components/ecosystem/CinematicVFXCanvas';
 import OpportunityNetworkSimulator from '@/components/ecosystem/OpportunityNetworkSimulator';
 import OrbitalJourneyTimeline from '@/components/ecosystem/OrbitalJourneyTimeline';
 import LiveOpportunityCollision from '@/components/ecosystem/LiveOpportunityCollision';
+import PixelatedCursor from '@/components/ui/PixelatedCursor';
 
 export const InnovationEcosystem: React.FC = () => {
   const navigate = useNavigate();
@@ -19,6 +20,11 @@ export const InnovationEcosystem: React.FC = () => {
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-[#09daed] selection:text-black relative overflow-hidden">
       {/* Official White Brand Navbar (Same as Home Page & Site-Wide) */}
       <Navbar />
+
+      {/* Inkbleed Pixelated Cursor movement across Battlefield page */}
+      <div className="fixed inset-0 pointer-events-none z-50">
+        <PixelatedCursor label={false} />
+      </div>
 
       {/* Real-time Movie Canvas VFX Engine — hidden on mobile for perf */}
       <div className="hidden sm:block">
