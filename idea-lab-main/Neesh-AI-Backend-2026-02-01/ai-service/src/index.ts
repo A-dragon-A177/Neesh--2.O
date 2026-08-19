@@ -187,16 +187,22 @@ app.delete('/api/projects/:projectId/links/:linkId', (req, res) => {
     res.json({ success: true });
 });
 
-// Promotions stub routes
-app.get('/api/promotions', (req, res) => {
-    res.json([]);
-});
-app.post('/api/promotions', (req, res) => {
-    res.status(501).json({ error: 'Not implemented' });
-});
-app.delete('/api/promotions/:promotionId', (req, res) => {
-    res.json({ success: true });
-});
+// Promotion API routes
+import { PromotionController } from './controllers/PromotionController';
+
+const promotionController = new PromotionController();
+
+app.get('/api/promotions', (req, res) =>
+    promotionController.getPromotions(req, res)
+);
+
+app.post('/api/promotions', (req, res) =>
+    promotionController.createPromotion(req, res)
+);
+
+app.delete('/api/promotions/:promotionId', (req, res) =>
+    promotionController.removePromotion(req, res)
+);
 
 // Blog branding stub route
 app.get('/api/public/blog-branding/:projectId', (req, res) => {
