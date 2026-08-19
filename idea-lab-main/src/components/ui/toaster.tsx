@@ -1,7 +1,6 @@
 import { useToast } from "@/hooks/use-toast";
 import { ToastProvider, ToastViewport } from "@/components/ui/toast";
-import newLogo from "@/assets/new-logo.png";
-import { X, Info, AlertTriangle } from "lucide-react";
+import { X } from "lucide-react";
 import * as ToastPrimitives from "@radix-ui/react-toast";
 
 export function Toaster() {
@@ -27,43 +26,35 @@ export function Toaster() {
           }
         }
 
-        const isError = variant === "destructive";
-
         return (
           <ToastPrimitives.Root
             key={id}
             open={open}
             onOpenChange={onOpenChange}
-            className="relative bg-white border-[2.5px] border-[#09daed] shadow-[0_14px_40px_rgba(9,218,237,0.22)] rounded-2xl px-5 sm:px-6 py-4 sm:py-5 flex items-center justify-between gap-4 sm:gap-5 min-w-[280px] max-w-[90vw] sm:max-w-[660px] w-auto overflow-hidden font-sans my-2 pointer-events-auto text-left min-h-[76px] sm:min-h-[88px] h-auto"
+            className="relative bg-white border-2 border-[#09daed] shadow-[0_8px_25px_rgba(9,218,237,0.2)] rounded-xl px-4 py-3 flex items-start justify-between gap-3 max-w-[90vw] sm:max-w-md w-fit overflow-hidden font-sans my-1.5 pointer-events-auto text-left"
           >
-            {/* Bottom Accent Pill */}
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-32 h-[3.5px] bg-[#09daed] rounded-full" />
+            {/* Bottom Accent Bar matching content width */}
+            <div className="absolute bottom-0 inset-x-3 h-[2.5px] bg-[#09daed] rounded-full" />
 
-            {/* Top Right Close Button */}
-            <button
-              onClick={() => dismiss(id)}
-              className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-full hover:bg-slate-100 z-10"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            {/* Left: Neesh AI Logo + Divider */}
-            <div className="flex items-center gap-4 shrink-0">
-              <img src={newLogo} alt="NEESH AI" className="h-10 w-auto object-contain" />
-              <div className="w-[1px] h-10 bg-slate-200/80" />
-            </div>
-
-            {/* Middle: Title & Description */}
-            <div className="flex-1 min-w-0 pr-7 sm:pr-8">
-              <h4 className="font-bold text-[16px] sm:text-[18px] text-slate-900 leading-snug tracking-tight whitespace-normal break-words">
+            {/* Middle: Title & Description (No Logo) */}
+            <div className="flex-1 min-w-0 pr-5">
+              <h4 className="font-bold text-sm text-slate-900 leading-snug tracking-tight">
                 {displayTitle}
               </h4>
               {displayDesc && (
-                <p className="text-[13px] text-slate-500 mt-1 leading-normal whitespace-normal break-words">
+                <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
                   {displayDesc}
                 </p>
               )}
             </div>
+
+            {/* Close Button */}
+            <button
+              onClick={() => dismiss(id)}
+              className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-md hover:bg-slate-100 shrink-0 self-start -mr-1 -mt-0.5"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </ToastPrimitives.Root>
         );
       })}

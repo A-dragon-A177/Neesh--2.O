@@ -66,7 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setLoading(false);
             return;
           }
-        } catch (e) {}
+        } catch (e) { }
       }
 
       const { data: { session: initialSession } } = await supabase.auth.getSession();
@@ -74,8 +74,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(initialSession?.user ?? null);
       if (initialSession?.user) {
         currentUserIdRef.current = initialSession.user.id;
+        handlePostLoginRedirect();
       }
       setLoading(false);
+    };
+
+    const handlePostLoginRedirect = () => {
+      try {
+        const redirectUrl = sessionStorage.getItem('post_login_redirect');
+        if (redirectUrl) {
+          sessionStorage.removeItem('post_login_redirect');
+          const currentClean = window.location.href.split('#')[0].split('?')[0];
+          const targetClean = redirectUrl.split('#')[0].split('?')[0];
+          if (currentClean !== targetClean) {
+            console.log('[AuthContext] Restoring post-login redirect to:', redirectUrl);
+            setTimeout(() => {
+              window.location.href = redirectUrl;
+            }, 100);
+          }
+        }
+      } catch (e) {
+        console.error('[AuthContext] Error restoring post-login redirect:', e);
+      }
     };
 
     initSession();
@@ -89,9 +109,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setSession(newSession);
       setUser(newSession?.user ?? null);
-      
+
       if (newSession?.user) {
         currentUserIdRef.current = newSession.user.id;
+        handlePostLoginRedirect();
       } else {
         currentUserIdRef.current = null;
       }
@@ -113,7 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signIn = async (email: string, password: string) => {
-    const isMockAuthEnabled = import.meta.env.VITE_ENABLE_MOCK_AUTH === "true";
+    const isMockAuthEnabled = import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOCK_AUTH === "true";
     if (isMockAuthEnabled && email.toLowerCase() === "test@example.com" && password === "test1234") {
       console.log('[AuthContext] Bypassing login with mock credentials');
       const mockUser: User = {
@@ -148,16 +169,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInWithGoogle = async (redirectTo?: string) => {
+    const targetUrl = redirectTo || `${window.location.origin}/dashboard`;
+    try {
+      sessionStorage.setItem('post_login_redirect', targetUrl);
+    } catch {}
     return await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: redirectTo || `${window.location.origin}/dashboard` },
+      options: { redirectTo: targetUrl },
     });
   };
 
   const signInWithGithub = async (redirectTo?: string) => {
+    const targetUrl = redirectTo || `${window.location.origin}/dashboard`;
+    try {
+      sessionStorage.setItem('post_login_redirect', targetUrl);
+    } catch {}
     return await supabase.auth.signInWithOAuth({
       provider: 'github',
-      options: { redirectTo: redirectTo || `${window.location.origin}/dashboard` },
+      options: { redirectTo: targetUrl },
     });
   };
 
@@ -182,16 +211,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      session, 
-      loading, 
-      signOut, 
-      signUp, 
-      signIn, 
-      signInWithGoogle, 
-      signInWithGithub, 
-      syncWithBackend 
+    <AuthContext.Provider value={{
+      user,
+      session,
+      loading,
+      signOut,
+      signUp,
+      signIn,
+      signInWithGoogle,
+      signInWithGithub,
+      syncWithBackend
     }}>
       {children}
     </AuthContext.Provider>

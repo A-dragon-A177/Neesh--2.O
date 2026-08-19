@@ -61,6 +61,7 @@ import {
   PartyPopper,
   AlertTriangle,
   SlidersHorizontal,
+  Eye,
   X,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -75,13 +76,14 @@ import { BetaBadge } from "@/components/BetaBadge";
 import { generateShareableUrl } from "@/lib/slugify";
 import apiClient from "@/lib/api";
 import { useBlogs } from "@/hooks/useBlogs";
+import { ProjectTimer } from "@/components/project/ProjectTimer";
 
 // Status styles mapping
-
 const statusStyles = {
   draft: "status-draft",
   active: "status-active",
   published: "status-published",
+  locked: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 font-bold",
 };
 
 // Helper function to get cover image URL from localStorage
@@ -89,7 +91,7 @@ const getProjectCoverImage = (projectId: string): string | null => {
   // Check the key used by useCoverImage hook (this is the primary storage)
   const coverImageData = localStorage.getItem(`cover-image-${projectId}`);
   if (coverImageData) {
-    return coverImageData;
+    return coverImageData === "__none__" ? null : coverImageData;
   }
   // Fallback: check URL-based storage
   const savedUrl = localStorage.getItem(`cover-image-url-${projectId}`);
@@ -107,6 +109,12 @@ const getProjectCoverImage = (projectId: string): string | null => {
     }
   }
   return null;
+};
+
+// Check if we have already checked/cached the project's cover image status
+const hasCheckedCoverImage = (projectId: string): boolean => {
+  return localStorage.getItem(`cover-image-${projectId}`) !== null ||
+         localStorage.getItem(`cover-image-url-${projectId}`) !== null;
 };
 
 const Dashboard = () => {
@@ -134,13 +142,12 @@ const Dashboard = () => {
   // Cover images fetched from backend (for projects without localStorage images)
   const [coverImages, setCoverImages] = useState<Record<string, string>>({});
 
-  // Fetch cover images from backend for projects that don't have them in localStorage
+  // Fetch cover images from backend for projects that haven't been checked yet
   useEffect(() => {
     if (!projects?.length) return;
 
     const fetchMissingCoverImages = async () => {
-
-      const missingProjects = projects.filter(p => !getProjectCoverImage(p.id));
+      const missingProjects = projects.filter(p => !hasCheckedCoverImage(p.id));
       
       if (missingProjects.length === 0) return;
 
@@ -160,9 +167,9 @@ const Dashboard = () => {
 
         const updates: Record<string, string> = {};
         results.forEach(result => {
+          localStorage.setItem(`cover-image-${result.id}`, result.url || "__none__");
           if (result.url) {
             updates[result.id] = result.url;
-            localStorage.setItem(`cover-image-${result.id}`, result.url);
           }
         });
 
@@ -170,7 +177,7 @@ const Dashboard = () => {
           setCoverImages(prev => ({ ...prev, ...updates }));
         }
       } catch (error) {
-
+        console.error("[Dashboard] Error fetching cover images:", error);
       }
     };
 
@@ -279,7 +286,7 @@ const Dashboard = () => {
               <NeeshLogo size="md" />
               <BetaBadge variant="glow" type="beta" className="hidden sm:flex" />
               <span className="text-sm text-muted-foreground hidden md:block">
-                AI-powered content & niche projects
+                Welcome to Niche Ecosystem
               </span>
             </div>
 
@@ -300,13 +307,13 @@ const Dashboard = () => {
                   </DialogHeader>
                   <div className="space-y-4 mt-4">
                     {[
-                      { icon: Sparkles, title: "1. Overview", desc: "Get a bird's-eye view of your project: idea health score, validation stage, gap detection, persona engagement, and AI-generated summary — all computed from real audience data." },
-                      { icon: FileEdit, title: "2. Blog Editor", desc: "Write and format your blog using the rich-text editor. Add text, images, video, and feedback forms. Preview your blog and share the public link with your audience." },
-                      { icon: Database, title: "3. Train your ChatBot", desc: "Upload documents (PDF, DOCX, TXT) that train the AI chatbot. The chatbot uses this knowledge to answer visitor questions accurately." },
-                      { icon: MessageSquare, title: "4. Response", desc: "View all feedback form submissions and chatbot interactions. See answered and unanswered questions, filter by occupation, and understand what your audience is asking." },
-                      { icon: BellIcon, title: "5. Notification", desc: "See clustered question patterns from chatbot interactions. Identify recurring themes and gaps in your content so you can train your chatbot further." },
-                      { icon: Bot, title: "6. Chatbot", desc: "Test your AI chatbot as visitors will see it. The chatbot answers questions using your uploaded documents." },
-                      { icon: BarChart3, title: "7. Audience Insights", desc: "AI-powered persona detection categorizes your audience (developers, marketers, investors, etc.). View confusion points, common questions, and content suggestions per persona." },
+                      { icon: Sparkles, title: "1. Overview", desc: "Your startup's command center — validation score, market signals, gap detection, persona breakdown, and AI-generated summary all computed from real audience interactions." },
+                      { icon: FileEdit, title: "2. Spotlight Editor", desc: "Build your high-converting product spotlight page. Add text, images, video, interest buttons, and feedback forms. Share the public link to capture real audience intent." },
+                      { icon: Megaphone, title: "3. Elevator Pitch", desc: "Create a crisp 30-second pitch reel. Record, upload, or generate your elevator pitch to hook visitors within seconds and drive engagement." },
+                      { icon: Database, title: "4. Train your ChatBot", desc: "Upload product docs (PDF, DOCX, TXT) to power your AI chatbot. It learns from your knowledge base to answer visitor questions 24/7 with accurate, context-aware responses." },
+                      { icon: MessageSquare, title: "5. Audience Inbox", desc: "Your unified engagement hub — view feedback submissions, chatbot questions, validated buyer signals (Gold/Silver/Bronze), and respond directly to individual audience members. Track unanswered questions and notification clusters." },
+                      { icon: Bot, title: "6. Chatbot", desc: "Preview and test your AI chatbot exactly as visitors experience it. Powered by your uploaded documents and trained knowledge base." },
+                      { icon: BarChart3, title: "7. Audience Insights", desc: "AI-powered persona detection categorizes your audience (developers, marketers, investors, etc.). Discover confusion points, trending questions, and AI-suggested content improvements." },
                     ].map((step) => (
                       <div key={step.title} className="flex gap-3 p-3 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors">
                         <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
@@ -320,7 +327,7 @@ const Dashboard = () => {
                     ))}
                     <div className="pt-2 border-t border-border/50">
                       <p className="text-xs text-muted-foreground text-center">
-                        Share your blog → Visitors ask questions & give feedback → AI detects personas → You iterate on your idea
+                        Build your spotlight → Visitors engage & ask questions → AI validates demand → You iterate with real signals
                       </p>
                     </div>
                   </div>
@@ -403,11 +410,11 @@ const Dashboard = () => {
               <div className="flex items-center gap-2 mb-2">
                 <BetaBadge variant="glow" type="beta" />
                 <p className="text-sm text-foreground font-medium">
-                  Free during Beta!
+                  Free during 2.0 Beta!
                 </p>
               </div>
               <p className="text-xs text-muted-foreground">
-                Since Neesh AI is in Beta, all Pro features are completely free. Upgrade now to unlock:
+                Since Neesh AI is in 2.0 Beta, all Pro features are completely free. Upgrade now to unlock:
               </p>
               <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                 <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Unlimited projects</li>
@@ -441,7 +448,7 @@ const Dashboard = () => {
             </h2>
             <BetaBadge variant="glow" type="beta" className="mb-3" />
             <p className="text-sm text-muted-foreground leading-relaxed max-w-sm">
-              Since Neesh AI is currently in <strong className="text-foreground">Beta</strong>, the Pro plan is free for you! Enjoy unlimited projects, custom branding, cross-promotion, and all premium features.
+              Since Neesh AI is currently in <strong className="text-foreground">2.0 Beta</strong>, the Pro plan is free for you! Enjoy unlimited projects, custom branding, cross-promotion, and all premium features.
             </p>
             <Button
               onClick={() => setBetaUpgradeSuccess(false)}
@@ -593,8 +600,24 @@ const Dashboard = () => {
                         </div>
                       )}
 
-                      {/* Status badge and copy link overlay */}
-                      <div className="absolute top-3 right-3 flex items-center gap-2">
+                      {/* Project Timer countdown badge on top-left */}
+                      <div className="absolute top-3 left-3 flex items-center gap-1.5 z-10">
+                        <ProjectTimer
+                          deadline={project.timer_deadline}
+                          createdAt={project.created_at}
+                          status={project.status}
+                          variant="compact"
+                        />
+                      </div>
+
+                      {/* Audience Views badge on bottom-left of cover image */}
+                      <div className="absolute bottom-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-background/80 backdrop-blur-md text-foreground border border-border/50 shadow-sm z-10 font-sans">
+                        <Eye className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+                        <span>{project.audience_view_count ?? 0} Audience Views</span>
+                      </div>
+
+                      {/* Status badge and copy link overlay on top-right */}
+                      <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <button
@@ -630,12 +653,17 @@ const Dashboard = () => {
                         {project.one_line_summary || "No description"}
                       </p>
 
-                      {/* Updated date and arrow */}
+                      {/* Updated date, audience count and arrow */}
                       <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                        <div>
+                        <div className="flex items-center gap-2">
                           <p className="text-xs text-muted-foreground">
                             Updated {new Date(project.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                           </p>
+                          <span className="text-muted-foreground/40">•</span>
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-600 dark:text-cyan-400">
+                            <Eye className="w-3.5 h-3.5" />
+                            {project.audience_view_count ?? 0}
+                          </span>
                         </div>
                         <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
                           <ArrowRight className="w-5 h-5" />
@@ -679,153 +707,115 @@ const Dashboard = () => {
                   <h2 className="font-display text-xl font-bold text-foreground">
                     Cross-Promotion Engine
                   </h2>
-                  {isPro && (
-                    <span className="px-2 py-0.5 rounded-full bg-[#09daed]/10 text-[#09daed] text-[10px] font-bold border border-[#09daed]/20">PRO</span>
-                  )}
                 </div>
                 <div className="flex flex-col">
                   <p className="text-sm text-muted-foreground">
                     Promote your blogs in other users' "More Like This" sections
                   </p>
-                  {isPro && daysRemaining !== null && (
-                    <span className={`text-[10px] font-medium mt-0.5 ${daysRemaining <= 5 ? 'text-red-500' : 'text-[#09daed]'}`}>
-                      ⏳ {daysRemaining > 0 ? `PRO status expires in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}` : 'Subscription expired'}
-                    </span>
-                  )}
                 </div>
               </div>
             </div>
-            {isPro && (
-              <Button onClick={() => setPromoteOpen(true)} className="gap-1.5 shadow-sm w-full sm:w-auto h-10">
-                <Plus className="w-4 h-4" />
-                Add Project
-              </Button>
-            )}
+            <Button onClick={() => setPromoteOpen(true)} className="gap-1.5 shadow-sm w-full sm:w-auto h-10">
+              <Plus className="w-4 h-4" />
+              Add Project
+            </Button>
           </div>
 
-          {isPro ? (
-            // ── Pro users: show managed promotions ──
-            <div>
-              {promotions.filter(p => p.status === 'ACTIVE').length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {promotions.filter(p => p.status === 'ACTIVE').map((promo) => {
-                    const project = projects.find(p => p.id === promo.projectId);
-                    const coverImg = project ? (getProjectCoverImage(project.id) || coverImages[project.id]) : promo.coverImageUrl;
-                    return (
-                      <div
-                        key={promo.id}
-                        className="relative bg-card rounded-xl border border-blue-500/20 overflow-hidden group hover:shadow-lg transition-all"
-                      >
-                        {/* Cover */}
-                        <div className="relative h-32 overflow-hidden bg-gradient-to-br from-blue-600/10 via-indigo-600/10 to-muted">
-                          {coverImg ? (
-                            <img src={coverImg} alt={promo.blogTitle} className="w-full h-full object-cover" loading="lazy" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Megaphone className="w-8 h-8 text-muted-foreground/30" />
-                            </div>
-                          )}
-                          <div className="absolute inset-0 bg-gradient-to-t from-card/80 to-transparent" />
-                        </div>
-
-                        {/* Content */}
-                        <div className="p-4">
-                          <h4 className="font-semibold text-sm mb-2 line-clamp-1">{promo.blogTitle}</h4>
-
-                          {/* Tags display removed */}
-
-                          {/* Status + Remove */}
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 uppercase">
-                              {promo.status === 'ACTIVE' ? '● Live' : promo.status}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={async (e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                if (!window.confirm(`Are you sure you want to remove this promotion?\nTitle: ${promo.blogTitle}`)) {
-                                  return;
-                                }
-                                const ok = await removePromotion(promo.id);
-                                if (ok) {
-                                  toast.success("Promotion removed.");
-                                } else {
-                                  toast.error("Failed to remove promotion.");
-                                }
-                              }}
-                              className="p-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm border border-red-100 flex items-center gap-1.5"
-                              title="Remove promotion"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              <span className="text-[10px] font-bold">Remove</span>
-                            </button>
+          <div>
+            {promotions.filter(p => p.status?.toUpperCase() === 'ACTIVE').length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {promotions.filter(p => p.status?.toUpperCase() === 'ACTIVE').map((promo) => {
+                  const project = projects.find(p => p.id === promo.projectId);
+                  const coverImg = (project ? (getProjectCoverImage(project.id) || coverImages[project.id]) : null) || promo.coverImageUrl || project?.elevator_pitch_thumbnail;
+                  const displayTitle = (promo.blogTitle && promo.blogTitle !== "Untitled") ? promo.blogTitle : (project?.title || "Startup Project");
+                  return (
+                    <div
+                      key={promo.id}
+                      className="relative bg-card rounded-xl border border-blue-500/20 overflow-hidden group hover:shadow-lg transition-all"
+                    >
+                      {/* Cover */}
+                      <div className="relative h-32 overflow-hidden bg-gradient-to-br from-blue-600/10 via-indigo-600/10 to-muted">
+                        {coverImg ? (
+                          <img src={coverImg} alt={displayTitle} className="w-full h-full object-cover" loading="lazy" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Megaphone className="w-8 h-8 text-muted-foreground/30" />
                           </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-card/80 to-transparent" />
+                      </div>
+
+                      {/* Content */}
+                      <div className="p-4">
+                        <h4 className="font-semibold text-sm mb-2 line-clamp-1">{displayTitle}</h4>
+
+                        {/* Status + Remove */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 uppercase">
+                            {promo.status?.toUpperCase() === 'ACTIVE' ? '● Live' : promo.status}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (!window.confirm(`Are you sure you want to remove this promotion?\nTitle: ${promo.blogTitle}`)) {
+                                return;
+                              }
+                              const ok = await removePromotion(promo.id);
+                              if (ok) {
+                                toast.success("Promotion removed.");
+                              } else {
+                                toast.error("Failed to remove promotion.");
+                              }
+                            }}
+                            className="p-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm border border-red-100 flex items-center gap-1.5"
+                            title="Remove promotion"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span className="text-[10px] font-bold">Remove</span>
+                          </button>
                         </div>
                       </div>
-                    );
-                  })}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-card rounded-xl border border-dashed border-blue-500/30">
+                <div className="w-14 h-14 rounded-2xl bg-blue-600/10 flex items-center justify-center mx-auto mb-4">
+                  <Megaphone className="w-7 h-7 text-blue-500" />
                 </div>
-              ) : (
-                <div className="text-center py-12 bg-card rounded-xl border border-dashed border-blue-500/30">
-                  <div className="w-14 h-14 rounded-2xl bg-blue-600/10 flex items-center justify-center mx-auto mb-4">
-                    <Megaphone className="w-7 h-7 text-blue-500" />
-                  </div>
-                  <h3 className="font-semibold text-foreground mb-1">No promoted projects yet</h3>
-                  <p className="text-sm text-muted-foreground mb-4 max-w-sm mx-auto">
-                    Add your projects here to promote them in other users' blogs under "More Like This" sections.
-                  </p>
-                  <Button onClick={() => setPromoteOpen(true)} className="gap-1.5 shadow-sm">
-                    <Plus className="w-4 h-4" />
-                    Promote Your First Project
-                  </Button>
-                </div>
-              )}
-            </div>
-          ) : (
-            // ── Free users: locked section with upgrade CTA ──
-            <div className="relative rounded-xl border border-border/50 bg-card overflow-hidden">
-              {/* Blurred overlay */}
-              <div className="absolute inset-0 bg-background/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
-                <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-4">
-                  <Lock className="w-7 h-7 text-muted-foreground" />
-                </div>
-                <h3 className="font-semibold text-lg text-foreground mb-1">Pro Feature</h3>
-                <BetaBadge variant="glow" type="beta" className="mb-2" />
-                <p className="text-sm text-muted-foreground mb-4 max-w-sm text-center">
-                  Free during Beta! Upgrade to Pro to promote your blogs across the Neesh AI network.
+                <h3 className="font-semibold text-foreground mb-1">No promoted projects yet</h3>
+                <p className="text-sm text-muted-foreground mb-4 max-w-sm mx-auto">
+                  Add your projects here to promote them in other users' blogs under "More Like This" sections.
                 </p>
-                <Button onClick={() => setUpgradeOpen(true)} disabled={isUpgrading} className="gap-1.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white">
-                  {isUpgrading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                  Upgrade Free ⚡
+                <Button onClick={() => setPromoteOpen(true)} className="gap-1.5 shadow-sm">
+                  <Plus className="w-4 h-4" />
+                  Promote Your First Project
                 </Button>
               </div>
-
-              {/* Placeholder cards (decorative, behind blur) */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 opacity-40 select-none pointer-events-none">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="bg-muted rounded-xl h-48 animate-pulse" />
-                ))}
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </section>
       </main>
 
       {/* Mobile Floating Action Button (FAB) */}
-      <button
-        onClick={() => {
-          if (!canCreateProject) {
-            setUpgradeOpen(true);
-          } else {
-            setIsCreateOpen(true);
-          }
-        }}
-        className="mobile-fab fixed bottom-6 right-6 flex items-center justify-center md:hidden shadow-lg border-0"
-        aria-label="New Project"
-      >
-        <Plus className="w-6 h-6" />
-      </button>
+      {!isCreateOpen && (
+        <button
+          onClick={() => {
+            if (!canCreateProject) {
+              setUpgradeOpen(true);
+            } else {
+              setIsCreateOpen(true);
+            }
+          }}
+          className="mobile-fab fixed bottom-6 right-6 flex items-center justify-center md:hidden shadow-lg border-0"
+          aria-label="New Project"
+        >
+          <Plus className="w-6 h-6" />
+        </button>
+      )}
 
       {/* Mobile Sort/Filter Bottom Sheet */}
       {isFilterSheetOpen && (

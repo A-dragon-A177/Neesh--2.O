@@ -35,6 +35,7 @@ import { useValidatedBuyers } from "@/hooks/useValidatedBuyers";
 import ValidatedBuyersList from "./ValidatedBuyersList";
 import ValidationReportView from "./ValidationReportView";
 import PilotCohortModal from "./PilotCohortModal";
+import { ProjectTimer } from "./ProjectTimer";
 
 type ValidationStage = "early" | "gathering" | "detecting" | "refining" | "validated";
 type PersonaType = "developer" | "marketer" | "investor" | "designer" | "entrepreneur" | "researcher" | "other";
@@ -49,7 +50,10 @@ interface ProjectOverviewProps {
     onboardingCompleted?: boolean;
     elevatorPitchUrl?: string | null;
     earlyAccessPrice?: number | null;
+    timerDeadline?: string | null;
+    createdAt?: string | null;
   };
+  validationAnswers?: string | null;
   validationReport?: string | null;
   onResumeOnboarding?: () => void;
   questionsData: Array<{
@@ -462,6 +466,7 @@ function generateDynamicProjectReport(projectId: string, projectTitle: string) {
 const ProjectOverview = ({
   projectId,
   projectData,
+  validationAnswers,
   validationReport,
   onResumeOnboarding,
   questionsData,
@@ -523,7 +528,7 @@ const ProjectOverview = ({
   }, [projectData.earlyAccessPrice]);
 
   // Validated buyers for Stage 2
-  const { data: buyersData, loading: buyersLoading, togglePilotCohort } = useValidatedBuyers(projectId);
+  const { data: buyersData, loading: buyersLoading, togglePilotCohort, refetch: refetchBuyers } = useValidatedBuyers(projectId);
   const [pilotModalOpen, setPilotModalOpen] = useState(false);
 
   const pilotCohortMembers = useMemo(
@@ -541,19 +546,32 @@ const ProjectOverview = ({
   } | null>(null);
 
   useEffect(() => {
-    if (!stagesOpen.stage2 || !projectId) return;
-    apiClient.get<{
-      pitchViews: number;
-      spotlightOpens: number;
-      chatbotInteractions: number;
-      interestClicks: number;
-      feedbackSubmissions: number;
-    }>(`/api/projects/${projectId}/spotlight-analytics`)
-      .then(res => {
-        if (res) setSpotlightAnalytics(res);
-      })
-      .catch(err => console.warn("[SpotlightAnalytics] fetch error:", err));
-  }, [stagesOpen.stage2, projectId]);
+    if (!projectId) return;
+
+    const fetchAnalytics = () => {
+      apiClient.get<{
+        pitchViews: number;
+        spotlightOpens: number;
+        chatbotInteractions: number;
+        interestClicks: number;
+        feedbackSubmissions: number;
+      }>(`/api/projects/${projectId}/spotlight-analytics`)
+        .then(res => {
+          if (res) setSpotlightAnalytics(res);
+        })
+        .catch(err => console.warn("[SpotlightAnalytics] fetch error:", err));
+    };
+
+    fetchAnalytics();
+    const interval = setInterval(() => {
+      fetchAnalytics();
+      if (stagesOpen.stage2) {
+        refetchBuyers({ silent: true });
+      }
+    }, 8000);
+
+    return () => clearInterval(interval);
+  }, [projectId, stagesOpen.stage2, refetchBuyers]);
 
   // ===== Compute all analytics locally from real data =====
 
@@ -668,7 +686,25 @@ const ProjectOverview = ({
   );
 
   const resumeUrl = `${window.location.origin}/project/${projectId}?resume=true`;
-  const isValidationComplete = projectData.onboardingCompleted !== false;
+  const isValidationComplete = useMemo(() => {
+    if (projectData.onboardingCompleted === true) return true;
+    if (validationReport && validationReport !== "{}" && validationReport !== "null" && validationReport.trim().length > 20) {
+      return true;
+    }
+    if (validationAnswers) {
+      try {
+        const parsed = JSON.parse(validationAnswers);
+        if (
+          (parsed["problem_story"] || parsed["cvp_input_a"]) &&
+          (parsed["our_solution"] || parsed["market_input_a"]) &&
+          (parsed["target_customer"] || parsed["acq_trust_card"] || parsed["acq_input_a"])
+        ) {
+          return true;
+        }
+      } catch (e) {}
+    }
+    return projectData.onboardingCompleted !== false;
+  }, [projectData.onboardingCompleted, validationReport, validationAnswers]);
 
   // Extract effective report JSON (dynamic per project if report missing)
   const effectiveReportJson = useMemo(() => {
@@ -919,7 +955,7 @@ const ProjectOverview = ({
               transition={{ duration: 0.3 }}
               className="border-t border-gray-100/50 p-6 bg-slate-50/30 font-sans"
             >
-              {buyersLoading ? (
+              {buyersLoading && !buyersData ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="w-5 h-5 animate-spin text-cyan-600" />
                   <span className="ml-2 text-sm text-gray-500 font-sans">Loading validation data...</span>
@@ -1018,6 +1054,89 @@ const ProjectOverview = ({
                         ? "🎉 Goal reached! Your idea is validated."
                         : "🔥 Keep sharing your Spotlight link to gather more validated buyer signals."}
                     </p>
+                  </div>
+
+                  {/* 5-Day Validation Sprint & Stage 3 Qualification Card */}
+                  <div className="bg-gradient-to-br from-indigo-50/80 via-white to-cyan-50/60 border-2 border-indigo-200/80 rounded-2xl p-5 shadow-sm space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h4 className="font-bold text-gray-900 text-sm font-display flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
+                          5-Day Stage 2 Sprint & Stage 3 Qualification
+                        </h4>
+                        <p className="text-xs text-slate-500 font-sans mt-0.5">
+                          Acquire <strong>5 Gold + 10 Silver + 15 Bronze</strong> verified audience members within 5 days to auto-qualify for Stage 3 Pilot MVP.
+                        </p>
+                      </div>
+                      <div className="shrink-0">
+                        <ProjectTimer
+                          deadline={projectData.timerDeadline}
+                          createdAt={projectData.createdAt}
+                          status={projectData.status}
+                          goldCount={buyersData?.goldCount || 0}
+                          silverCount={buyersData?.silverCount || 0}
+                          bronzeCount={buyersData?.bronzeCount || 0}
+                          variant="header"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Progress indicators for 3 tiers */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                      {/* Gold Target */}
+                      <div className={`p-3 rounded-xl border transition-all ${
+                        (buyersData?.goldCount || 0) >= 5
+                          ? "bg-amber-500/10 border-amber-400 text-amber-900"
+                          : "bg-white/80 border-slate-200 text-slate-700"
+                      }`}>
+                        <div className="flex items-center justify-between text-xs font-bold font-display">
+                          <span>🥇 Gold Goal</span>
+                          <span className="font-mono">{buyersData?.goldCount || 0} / 5</span>
+                        </div>
+                        <div className="w-full h-2 bg-slate-100 rounded-full mt-2 overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(100, ((buyersData?.goldCount || 0) / 5) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Silver Target */}
+                      <div className={`p-3 rounded-xl border transition-all ${
+                        (buyersData?.silverCount || 0) >= 10
+                          ? "bg-slate-200/50 border-slate-400 text-slate-900"
+                          : "bg-white/80 border-slate-200 text-slate-700"
+                      }`}>
+                        <div className="flex items-center justify-between text-xs font-bold font-display">
+                          <span>🥈 Silver Goal</span>
+                          <span className="font-mono">{buyersData?.silverCount || 0} / 10</span>
+                        </div>
+                        <div className="w-full h-2 bg-slate-100 rounded-full mt-2 overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-slate-400 to-slate-600 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(100, ((buyersData?.silverCount || 0) / 10) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Bronze Target */}
+                      <div className={`p-3 rounded-xl border transition-all ${
+                        (buyersData?.bronzeCount || 0) >= 15
+                          ? "bg-orange-500/10 border-orange-400 text-orange-900"
+                          : "bg-white/80 border-slate-200 text-slate-700"
+                      }`}>
+                        <div className="flex items-center justify-between text-xs font-bold font-display">
+                          <span>🥉 Bronze Goal</span>
+                          <span className="font-mono">{buyersData?.bronzeCount || 0} / 15</span>
+                        </div>
+                        <div className="w-full h-2 bg-slate-100 rounded-full mt-2 overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-orange-400 to-amber-600 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(100, ((buyersData?.bronzeCount || 0) / 15) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Tier Breakdown */}

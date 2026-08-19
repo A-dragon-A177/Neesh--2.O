@@ -28,6 +28,10 @@ public class AudienceDTOs {
                                 summary = summary.substring(0, 100) + "...";
                         }
                         int qCount = m.getQuestions() != null ? m.getQuestions().size() : 0;
+                        if ((summary == null || summary.isBlank()) && m.getQuestions() != null && !m.getQuestions().isEmpty()) {
+                                String lastQ = m.getQuestions().get(m.getQuestions().size() - 1).getQuestionText();
+                                summary = "Asked: " + (lastQ.length() > 80 ? lastQ.substring(0, 80) + "..." : lastQ);
+                        }
                         return new AudienceMemberSummary(
                                         m.getId(), m.getName(), m.getEmail(), m.getOccupation(),
                                         m.getPersonaType(), m.getConfidenceScore(), m.getEngagementScore(),
@@ -103,7 +107,8 @@ public class AudienceDTOs {
                         String name,
                         String email,
                         String occupation,
-                        String feedbackText) {
+                        String feedbackText,
+                        String feedbackSource) {
         }
 
         public record PublicFeedbackResponse(
@@ -117,7 +122,11 @@ public class AudienceDTOs {
                         String query,
                         String answer,
                         String userName,
-                        String userEmail) {
+                        String userEmail,
+                        String sessionId) {
+                public ChatInteractionRequest(String query, String answer, String userName, String userEmail) {
+                        this(query, answer, userName, userEmail, null);
+                }
         }
 
         // ===== Interest Intent DTOs =====
@@ -158,7 +167,7 @@ public class AudienceDTOs {
                         return new ValidatedBuyerSummary(
                                         m.getId(), m.getName(), m.getEmail(), m.getOccupation(),
                                         computeValidationTier(m),
-                                        m.getEngagementScore(),
+                                        calculateDynamicEngagementScore(m),
                                         m.getHasExplicitIntent() != null ? m.getHasExplicitIntent() : false,
                                         m.getInterestTagLabel(),
                                         m.getInterestTagPriority(),
@@ -182,7 +191,30 @@ public class AudienceDTOs {
                         int totalValidated) {
         }
 
-        // ===== Shared Tier Computation =====
+        // ===== Shared Dynamic Scoring & Tier Computation =====
+
+        public static double calculateDynamicEngagementScore(AudienceMember m) {
+                double score = 0.0;
+                // 1. Explicit purchase intent / clicked "I'm Interested": +20 pts
+                if (m.getInterestedAt() != null || (m.getHasExplicitIntent() != null && m.getHasExplicitIntent())) {
+                        score += 20.0;
+                }
+                // 2. Submitted written feedback / form comments: +20 pts
+                if (m.getFeedbackText() != null && !m.getFeedbackText().isBlank()) {
+                        score += 20.0;
+                }
+                // 3. Provided occupation: +10 pts
+                if (m.getOccupation() != null && !m.getOccupation().isBlank()) {
+                        score += 10.0;
+                }
+                // 4. Asked chatbot questions: 1st Q (+10 pts), 2nd Q (+10 pts), 3rd+ Q (+5 pts) -> max 25 pts
+                int qCount = m.getQuestions() != null ? m.getQuestions().size() : 0;
+                if (qCount >= 1) score += 10.0;
+                if (qCount >= 2) score += 10.0;
+                if (qCount >= 3) score += 5.0;
+
+                return Math.min(100.0, score);
+        }
 
         public static String computeValidationTier(AudienceMember m) {
                 boolean hasInterest = m.getInterestTagLabel() != null 
@@ -192,29 +224,42 @@ public class AudienceDTOs {
                 if (!hasInterest) return "NONE";
 
                 Integer priority = m.getInterestTagPriority();
-                double engagement = m.getEngagementScore() != null ? m.getEngagementScore() : 0.0;
+                double engagement = calculateDynamicEngagementScore(m);
                 boolean hasFeedback = m.getFeedbackText() != null && !m.getFeedbackText().isBlank();
                 int qCount = m.getQuestions() != null ? m.getQuestions().size() : 0;
+                boolean hasExplicitIntent = m.getInterestedAt() != null || (m.getHasExplicitIntent() != null && m.getHasExplicitIntent());
 
-                // 1. GOLD TIER:
-                // Requires high interest eligibility (Priority 1 or 2) AND active engagement (feedback, questions, or engagement >= 35)
-                if (engagement >= 45) {
+                boolean isHighPriority = priority != null && priority <= 2;
+                boolean isMediumPriority = priority != null && priority <= 3;
+
+                // 1. STRICT GOLD TIER:
+                // High-priority tag AND explicit intent AND (written feedback + chatbot questions OR 2+ questions)
+                // OR ultra-high multi-signal engagement (score >= 75.0)
+                if (isHighPriority && hasExplicitIntent && ((hasFeedback && qCount >= 1) || qCount >= 2)) {
                         return "GOLD";
                 }
-                if ((priority == null || priority <= 2) && (hasFeedback || qCount > 0 || engagement >= 35)) {
+                if (hasExplicitIntent && hasFeedback && qCount >= 2) {
+                        return "GOLD";
+                }
+                if (engagement >= 75.0) {
                         return "GOLD";
                 }
 
                 // 2. SILVER TIER:
-                // Moderate priority or active interaction without full Gold criteria
-                if (priority != null && priority <= 3) {
+                // High or Medium priority tag (1, 2, or 3) with written feedback or chatbot questions
+                // OR Moderate multi-signal engagement (score >= 50.0)
+                if (isHighPriority && (hasFeedback || qCount > 0)) {
                         return "SILVER";
                 }
-                if (engagement >= 20 || hasFeedback || qCount > 0) {
+                if (isMediumPriority && (hasFeedback || qCount > 0)) {
+                        return "SILVER";
+                }
+                if (engagement >= 50.0) {
                         return "SILVER";
                 }
 
-                // 3. BRONZE TIER: Minimal interaction fallback
+                // 3. BRONZE TIER:
+                // Basic interest click or simple chatbot questions without high intent/feedback
                 return "BRONZE";
         }
 

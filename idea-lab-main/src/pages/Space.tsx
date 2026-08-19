@@ -35,9 +35,10 @@ export default function Space() {
   // Filter and sort pitches
   const filteredAndSortedPitches = useMemo(() => {
     let result = pitches.filter((pitch) => {
-      const titleMatch = pitch.title.toLowerCase().includes(searchQuery.toLowerCase());
-      const summaryMatch = pitch.oneLineSummary?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false;
-      const authorMatch = pitch.authorName.toLowerCase().includes(searchQuery.toLowerCase());
+      const q = searchQuery.toLowerCase();
+      const titleMatch = pitch.title ? pitch.title.toLowerCase().includes(q) : false;
+      const summaryMatch = pitch.oneLineSummary ? pitch.oneLineSummary.toLowerCase().includes(q) : false;
+      const authorMatch = pitch.authorName ? pitch.authorName.toLowerCase().includes(q) : false;
       return titleMatch || summaryMatch || authorMatch;
     });
 
@@ -185,7 +186,17 @@ export default function Space() {
         </div>
 
         {/* ── White Space Grid of Pitch Capsules (Sharp Borders) ── */}
-        {filteredAndSortedPitches.length > 0 ? (
+        {loading && pitches.length === 0 ? (
+          <div className="text-center py-20 bg-white border border-gray-200 rounded-sm max-w-md mx-auto shadow-sm">
+            <div className="w-16 h-16 bg-[#09daed]/10 border border-[#09daed]/30 flex items-center justify-center rounded-sm mx-auto mb-4 text-[#09daed]">
+              <Loader2 className="w-8 h-8 animate-spin" />
+            </div>
+            <h3 className="text-gray-950 font-bold text-lg mb-2">Scanning Startup Cosmos...</h3>
+            <p className="text-slate-500 text-sm max-w-[280px] mx-auto leading-relaxed">
+              Fetching pitch reels and startup stars. Please wait a moment.
+            </p>
+          </div>
+        ) : filteredAndSortedPitches.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredAndSortedPitches.map((pitch) => {
               const publicUrl = pitch.slug
@@ -290,7 +301,7 @@ export default function Space() {
           /* Empty / Searching State */
           <div className="text-center py-20 bg-white border border-gray-200 rounded-sm max-w-md mx-auto shadow-sm">
             <div className="w-16 h-16 bg-[#09daed]/5 border border-[#09daed]/20 flex items-center justify-center rounded-sm mx-auto mb-4 text-[#09daed]">
-              <Star className="w-8 h-8 animate-spin" style={{ animationDuration: '10s' }} />
+              <Star className="w-8 h-8" />
             </div>
             <h3 className="text-gray-950 font-bold text-lg mb-2">No Pitch Stars Found</h3>
             <p className="text-slate-500 text-sm max-w-[280px] mx-auto leading-relaxed">

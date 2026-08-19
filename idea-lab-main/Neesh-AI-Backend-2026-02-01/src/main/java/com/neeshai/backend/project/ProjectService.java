@@ -22,13 +22,19 @@ public class ProjectService {
     private final ProjectLinkService projectLinkService;
     private final UserRepository userRepository;
     private final ValidationEngine validationEngine;
+    private final com.neeshai.backend.service.SupabaseStorageService supabaseStorageService;
+    private final com.neeshai.backend.audience.AudienceMemberRepository audienceMemberRepository;
 
     public ProjectService(ProjectRepository projectRepository, ProjectLinkService projectLinkService,
-                          UserRepository userRepository, ValidationEngine validationEngine) {
+                          UserRepository userRepository, ValidationEngine validationEngine,
+                          com.neeshai.backend.service.SupabaseStorageService supabaseStorageService,
+                          com.neeshai.backend.audience.AudienceMemberRepository audienceMemberRepository) {
         this.projectRepository = projectRepository;
         this.projectLinkService = projectLinkService;
         this.userRepository = userRepository;
         this.validationEngine = validationEngine;
+        this.supabaseStorageService = supabaseStorageService;
+        this.audienceMemberRepository = audienceMemberRepository;
     }
 
     @Transactional
@@ -67,6 +73,12 @@ public class ProjectService {
         return projectRepository.save(project);
     }
 
+    public ProjectDTOs.PrivateProjectDTO toPrivateDTO(Project project) {
+        if (project == null) return null;
+        int audienceCount = (int) audienceMemberRepository.countByProjectId(project.getId());
+        return ProjectDTOs.PrivateProjectDTO.fromEntity(project, audienceCount);
+    }
+
     public List<Project> getMyProjects(UUID ownerId) {
         // Repository filters deleted=false via @Where/@SQLRestriction
         return projectRepository.findByOwnerId(ownerId);
@@ -74,7 +86,7 @@ public class ProjectService {
 
     public com.neeshai.backend.util.PageResponse<ProjectDTOs.PrivateProjectDTO> getMyProjects(UUID ownerId, org.springframework.data.domain.Pageable pageable) {
         org.springframework.data.domain.Page<Project> page = projectRepository.findByOwnerId(ownerId, pageable);
-        return com.neeshai.backend.util.PageResponse.from(page.map(ProjectDTOs.PrivateProjectDTO::fromEntity));
+        return com.neeshai.backend.util.PageResponse.from(page.map(this::toPrivateDTO));
     }
 
     public Optional<Project> getProject(UUID id, UUID ownerId) {
@@ -121,8 +133,11 @@ public class ProjectService {
                         project.setValidationReport(validationEngine.generateReport(request.validationAnswers()));
                     }
 
-                    if (request.onboardingCompleted() != null)
+                    if (request.onboardingCompleted() != null) {
                         project.setOnboardingCompleted(request.onboardingCompleted());
+                    } else if (project.getValidationReport() != null && !project.getValidationReport().equals("{}") && !project.getValidationReport().isBlank()) {
+                        project.setOnboardingCompleted(true);
+                    }
 
                     if (request.elevatorPitchUrl() != null)
                         project.setElevatorPitchUrl(request.elevatorPitchUrl());
@@ -137,17 +152,81 @@ public class ProjectService {
                     if (request.status() != null) {
                         String statusUpper = request.status().toUpperCase();
                         // Simple validation
-                        if ("DRAFT".equals(statusUpper) || "PUBLISHED".equals(statusUpper)) {
+                        if ("DRAFT".equals(statusUpper) || "PUBLISHED".equals(statusUpper) || "LOCKED".equals(statusUpper)) {
                             project.setStatus(statusUpper);
                         } else {
-                            // Ignore invalid status or throw? Let's ignore to be safe/lenient or throw 400?
-                            // Prompt says "Disallow invalid status values".
                             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status");
                         }
                     }
 
                     return projectRepository.save(project);
                 });
+    }
+
+    @Transactional
+    public Optional<Project> unlockProject(UUID id, UUID ownerId) {
+        return projectRepository.findById(id)
+                .filter(p -> p.getOwnerId().equals(ownerId))
+                .map(project -> {
+                    project.setStatus("DRAFT");
+                    // Grant a new 5-day cycle upon unlock
+                    project.setTimerDeadline(java.time.ZonedDateTime.now().plusDays(5));
+                    return projectRepository.save(project);
+                });
+    }
+
+    @Transactional
+    public ProjectDTOs.ProjectTimerStatusDTO getTimerStatus(UUID id, UUID ownerId) {
+        Project project = projectRepository.findById(id)
+                .filter(p -> p.getOwnerId().equals(ownerId))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
+
+        java.time.ZonedDateTime now = java.time.ZonedDateTime.now();
+        java.time.ZonedDateTime deadline = project.getTimerDeadline();
+        if (deadline == null) {
+            deadline = (project.getCreatedAt() != null ? project.getCreatedAt() : now).plusDays(5);
+            project.setTimerDeadline(deadline);
+            projectRepository.save(project);
+        }
+
+        List<com.neeshai.backend.audience.AudienceMember> members = audienceMemberRepository.findRealAudienceByProjectId(id);
+        int gold = 0;
+        int silver = 0;
+        int bronze = 0;
+        for (com.neeshai.backend.audience.AudienceMember m : members) {
+            String tier = com.neeshai.backend.audience.AudienceDTOs.computeValidationTier(m);
+            if ("GOLD".equalsIgnoreCase(tier)) gold++;
+            else if ("SILVER".equalsIgnoreCase(tier)) silver++;
+            else if ("BRONZE".equalsIgnoreCase(tier)) bronze++;
+        }
+
+        boolean meetsRequirements = (gold >= 5 && silver >= 10 && bronze >= 15);
+        boolean isExpired = now.isAfter(deadline);
+
+        // Auto-lock project if timer expired and validation requirements not met
+        if (isExpired && !meetsRequirements && !"LOCKED".equalsIgnoreCase(project.getStatus())) {
+            project.setStatus("LOCKED");
+            projectRepository.save(project);
+        }
+
+        long secondsRemaining = Math.max(0, java.time.Duration.between(now, deadline).getSeconds());
+
+        return new ProjectDTOs.ProjectTimerStatusDTO(
+                project.getId(),
+                project.getStatus(),
+                project.getCreatedAt(),
+                deadline,
+                secondsRemaining,
+                isExpired,
+                "LOCKED".equalsIgnoreCase(project.getStatus()),
+                meetsRequirements,
+                gold,
+                5,
+                silver,
+                10,
+                bronze,
+                15
+        );
     }
 
     @Transactional
@@ -178,11 +257,17 @@ public class ProjectService {
      */
     @Transactional
     public void incrementPitchViewCount(UUID projectId) {
-        projectRepository.findById(projectId).ifPresent(project -> {
-            int current = project.getPitchViewCount() != null ? project.getPitchViewCount() : 0;
-            project.setPitchViewCount(current + 1);
-            projectRepository.save(project);
-        });
+        projectRepository.incrementPitchViewCount(projectId);
+    }
+
+    @Transactional
+    public String uploadPitchVideo(UUID projectId, org.springframework.web.multipart.MultipartFile file) {
+        String ext = "mp4";
+        if (file.getOriginalFilename() != null && file.getOriginalFilename().contains(".")) {
+            ext = file.getOriginalFilename().substring(file.getOriginalFilename().lastIndexOf(".") + 1);
+        }
+        String destinationPath = projectId + "/pitch-" + System.currentTimeMillis() + "." + ext;
+        return supabaseStorageService.uploadFileToBucket(file, destinationPath, "pitch-videos");
     }
 
     // Deterministic Slug Resolution

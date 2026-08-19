@@ -1,13 +1,14 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import dotenv from 'dotenv';
+import compression from 'compression';
 import { RagController } from './controllers/RagController';
-
-dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+app.use(compression());
 
 const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:8080,http://localhost:7000')
     .split(',')

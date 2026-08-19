@@ -146,6 +146,7 @@ const AudienceInboxTab = ({ projectId, earlyAccessPrice }: AudienceInboxTabProps
 
         {/* Toggle Pills */}
         <div className="flex overflow-x-auto whitespace-nowrap no-scrollbar gap-1 bg-muted/40 p-1 rounded-xl w-full md:w-fit">
+          {/* SECURITY: Static CSS only — never pass dynamic/user inputs into __html */}
           <style dangerouslySetInnerHTML={{__html: `
             .no-scrollbar::-webkit-scrollbar {
               display: none;
@@ -380,68 +381,79 @@ const AudienceInboxTab = ({ projectId, earlyAccessPrice }: AudienceInboxTabProps
 
       {/* ──── Compose Message Modal ──── */}
       {composeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="relative w-full max-w-lg bg-white rounded-3xl border border-slate-100 shadow-2xl p-6 overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md">
+          <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-7 overflow-hidden text-slate-900 dark:text-slate-100">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 mb-4">
               <div className="flex items-center gap-2">
-                <Mail className="w-5 h-5 text-indigo-600" />
-                <h3 className="text-base font-bold text-slate-900">Compose Cohort Message</h3>
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center border border-indigo-200 dark:border-indigo-800">
+                  <Mail className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Compose Cohort Message</h3>
               </div>
               <button
                 onClick={() => setComposeModalOpen(false)}
-                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-100 transition-colors"
+                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors"
               >
-                <X className="w-4 h-4 text-slate-500" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Form */}
             <div className="space-y-4">
               <div>
-                <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Recipients ({activeRecipients.length})</label>
-                <div className="max-h-20 overflow-y-auto p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-xs font-medium text-slate-600 space-y-0.5">
+                <label className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
+                  Recipients ({activeRecipients.length})
+                </label>
+                <div className="max-h-24 overflow-y-auto p-3 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 space-y-1">
                   {activeRecipients.map((r) => (
-                    <div key={r.id}>{r.name} &lt;{r.email}&gt;</div>
+                    <div key={r.id} className="flex items-center gap-1.5">
+                      <span className="font-bold text-slate-900 dark:text-slate-100">{r.name}</span>
+                      <span className="text-slate-500 dark:text-slate-400 font-mono text-[11px]">&lt;{r.email}&gt;</span>
+                    </div>
                   ))}
                 </div>
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Subject</label>
+                <label className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
+                  Subject
+                </label>
                 <input
                   type="text"
                   value={emailSubject}
                   onChange={(e) => setEmailSubject(e.target.value)}
                   placeholder="Enter email subject..."
-                  className="w-full px-4 py-2.5 bg-slate-50 rounded-xl border border-slate-150 text-sm focus:outline-none focus:border-indigo-500"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Message Body</label>
+                <label className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
+                  Message Body
+                </label>
                 <textarea
                   value={emailBody}
                   onChange={(e) => setEmailBody(e.target.value)}
                   placeholder="Type your cohort message..."
                   rows={6}
-                  className="w-full px-4 py-2.5 bg-slate-50 rounded-xl border border-slate-150 text-sm focus:outline-none focus:border-indigo-500 resize-none"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 placeholder:text-slate-400 dark:placeholder:text-slate-500 resize-none leading-relaxed"
                 />
               </div>
             </div>
 
             {/* Actions */}
-            <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-slate-200 dark:border-slate-800">
               <Button
                 variant="outline"
                 onClick={() => setComposeModalOpen(false)}
-                className="rounded-xl"
+                className="rounded-xl text-xs font-semibold px-4 h-10 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleSendEmail}
-                className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
+                className="rounded-xl text-xs font-bold px-5 h-10 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 shadow-md shadow-indigo-500/20"
               >
                 <Send className="w-3.5 h-3.5" />
                 Open in Mail App

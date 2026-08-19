@@ -56,9 +56,9 @@ const ValidatedBuyersList = ({ buyers, earlyAccessPrice, compact = false }: Vali
     );
   }
 
-  // Sort by tier priority: Gold -> Bronze -> Silver
+  // Sort by tier priority: Gold -> Silver -> Bronze
   const sorted = [...buyers].sort((a, b) => {
-    const order = { GOLD: 0, BRONZE: 1, SILVER: 2 };
+    const order = { GOLD: 0, SILVER: 1, BRONZE: 2 };
     return (order[a.validationTier] ?? 3) - (order[b.validationTier] ?? 3);
   });
 

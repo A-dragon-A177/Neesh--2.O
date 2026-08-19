@@ -17,7 +17,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: "stage1_overview",
     tab: "overview",
-    title: "Step 1: Reality Check & Validation Core",
+    title: "Reality Check & Validation Core",
     subtitle: "Stage 1 — Reality Check",
     description: "Track your startup's core validation score, market potential, and interest signals at a glance.",
     badgeText: "Step 1",
@@ -26,7 +26,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: "stage2_spotlight",
     tab: "blog",
-    title: "Step 2: Spotlight Engine & Landing Page",
+    title: "Spotlight Engine & Landing Page",
     subtitle: "Stage 2 — High-Converting Pitch",
     description: "Build an interactive, high-converting product spotlight page to capture customer intent and interest signals.",
     badgeText: "Step 2",
@@ -35,7 +35,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: "stage2_knowledge",
     tab: "knowledge",
-    title: "Step 3: AI Knowledge Base",
+    title: "AI Knowledge Base",
     subtitle: "Stage 2 — Customer Q&A Context",
     description: "Upload product specs, FAQs, and docs so the AI chatbot accurately answers visitor questions 24/7.",
     badgeText: "Step 3",
@@ -44,7 +44,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: "stage3_inbox",
     tab: "inbox",
-    title: "Step 4: Buyer Inbox & Engagement",
+    title: "Buyer Inbox & Engagement",
     subtitle: "Stage 3 — Audience Signals",
     description: "View visitor questions, respond directly, and qualify potential buyers expressing high interest.",
     badgeText: "Step 4",
@@ -53,7 +53,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: "stage3_pilot",
     tab: "audience",
-    title: "Step 5: Pilot Cohort & Validated Buyers",
+    title: "Pilot Cohort & Validated Buyers",
     subtitle: "Stage 3 — Path to 40 Buyers",
     description: "Manage your pilot cohort, track engagement scores (Gold, Silver, Bronze), and convert interest into buyers.",
     badgeText: "Step 5",
@@ -62,7 +62,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: "stage3_insights",
     tab: "audience",
-    title: "Step 6: AI Insights & Confusion Points",
+    title: "AI Insights & Confusion Points",
     subtitle: "Stage 3 — Data-Driven Iteration",
     description: "Analyze buyer personas, top confusion points, and AI-suggested pitch improvements based on real feedback.",
     badgeText: "Step 6",
@@ -133,114 +133,95 @@ export default function GuidedProductTour({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed bottom-3 inset-x-3 sm:inset-x-auto sm:bottom-6 sm:right-6 md:right-8 z-50 sm:max-w-md pointer-events-none">
+        <div className="fixed bottom-3 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 z-50 pointer-events-none max-w-[285px] xs:max-w-[300px] sm:max-w-[320px] w-auto sm:w-full mx-auto sm:mx-0">
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 25 }}
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 25 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className="pointer-events-auto relative bg-white/95 backdrop-blur-2xl rounded-3xl p-4 sm:p-6 shadow-[0_20px_50px_rgba(8,145,178,0.2)] border-2 border-[hsl(190,85%,38%)]/60 overflow-hidden"
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            className="pointer-events-auto relative bg-white/95 backdrop-blur-2xl rounded-2xl p-3 sm:p-4 border-2 border-cyan-400/70 shadow-[0_10px_35px_rgba(8,145,178,0.18)] text-slate-900 overflow-hidden"
           >
-            {/* Ambient Background Glow */}
-            <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-cyan-400/15 via-blue-500/10 to-transparent rounded-full blur-2xl pointer-events-none" />
+            {/* Top Cyan Laser Accent Line */}
+            <div className="absolute top-0 inset-x-0 h-[2.5px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
 
-            {/* Integrated Top Focus Target Banner (Cleanly aligned inside card) */}
-            <div className="flex items-center justify-between gap-2 bg-gradient-to-r from-[hsl(190,85%,38%)]/10 to-cyan-500/10 border border-[hsl(190,85%,38%)]/20 px-3 py-1.5 rounded-2xl mb-3">
-              <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-[hsl(190,85%,38%)] truncate">
-                <span className="relative flex h-2 w-2 shrink-0">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[hsl(190,85%,38%)]"></span>
+            {/* Subtle Ambient Corner Glow */}
+            <div className="absolute -top-10 -right-10 w-24 h-24 bg-cyan-400/10 rounded-full blur-2xl pointer-events-none" />
+
+            {/* Header: Step Badge & Close */}
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono text-[9.5px] sm:text-[10px] font-extrabold tracking-wider text-[hsl(190,85%,35%)] bg-cyan-50/90 px-2 sm:px-2.5 py-0.5 rounded-full border border-cyan-200/80 flex items-center gap-1.5 shadow-sm">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[hsl(190,85%,38%)]"></span>
+                  </span>
+                  STEP {currentStepIndex + 1} OF {TOUR_STEPS.length}
                 </span>
-                <MoveUpLeft className="w-3.5 h-3.5 shrink-0 animate-bounce text-[hsl(190,85%,38%)]" />
-                <span className="truncate">Focus: {step.targetLabel}</span>
               </div>
-              <span className="text-[10px] font-bold text-slate-400 shrink-0">
-                Step {currentStepIndex + 1} of {TOUR_STEPS.length}
-              </span>
-            </div>
-
-            {/* Header Controls: Stage Badge & Close/Skip */}
-            <div className="flex items-center justify-between gap-2 border-b border-cyan-100/60 pb-3 mb-3">
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-cyan-50 border border-cyan-200/60 text-[hsl(190,85%,38%)] text-[11px] font-bold">
-                <Compass className="w-3 h-3 text-[hsl(190,85%,38%)]" />
-                {step.badgeText}
-              </span>
 
               <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onClose}
-                  className="h-7 px-2 text-[11px] text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl"
-                  title="Skip Tour"
-                >
-                  Skip
-                </Button>
                 <button
                   onClick={onClose}
-                  className="w-7 h-7 rounded-xl bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-slate-200 flex items-center justify-center transition-colors"
-                  title="Close Tour"
+                  className="text-[11px] font-medium text-slate-400 hover:text-slate-700 px-1.5 py-0.5 rounded transition-colors active:scale-95"
+                  title="Skip tour"
+                >
+                  Skip
+                </button>
+                <button
+                  onClick={onClose}
+                  className="w-6 h-6 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 hover:bg-slate-200 flex items-center justify-center transition-all border border-slate-200/80 active:scale-95"
+                  title="Close"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
 
-            {/* Step Body Content */}
-            <div className="space-y-2.5">
-              <div className="space-y-0.5">
-                <h3 className="text-base font-bold text-slate-900 leading-snug">{step.title}</h3>
-                <p className="text-[11px] font-bold text-[hsl(190,85%,38%)]">{step.subtitle}</p>
-              </div>
-
-              <div className="bg-cyan-50/40 border border-cyan-100/60 rounded-2xl p-3 sm:p-3.5">
-                <p className="text-xs text-slate-600 leading-relaxed font-medium">{step.description}</p>
-              </div>
+            {/* Main Content: Heading & Description */}
+            <div className="space-y-1 my-1">
+              <h4 className="text-xs sm:text-sm font-bold text-slate-900 tracking-tight leading-snug flex items-center gap-1">
+                <span className="text-[hsl(190,85%,38%)] font-mono font-normal">//</span> {step.title}
+              </h4>
+              <p className="text-[11px] sm:text-xs text-slate-600 leading-relaxed font-normal">
+                {step.description}
+              </p>
             </div>
 
-            {/* Step Indicators dots */}
-            <div className="flex items-center justify-center gap-1.5 my-3.5">
-              {TOUR_STEPS.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setCurrentStepIndex(idx)}
-                  className={`h-1.5 rounded-full transition-all ${
-                    idx === currentStepIndex
-                      ? "w-6 bg-[hsl(190,85%,38%)]"
-                      : "w-1.5 bg-slate-200 hover:bg-slate-300"
-                  }`}
-                />
-              ))}
+            {/* Progress Line */}
+            <div className="w-full bg-cyan-50 h-1 rounded-full overflow-hidden my-2 border border-cyan-100">
+              <motion.div
+                className="h-full bg-gradient-to-r from-[hsl(190,85%,38%)] to-cyan-400 rounded-full shadow-[0_0_8px_rgba(8,145,178,0.3)]"
+                initial={{ width: 0 }}
+                animate={{ width: `${((currentStepIndex + 1) / TOUR_STEPS.length) * 100}%` }}
+                transition={{ duration: 0.3 }}
+              />
             </div>
 
-            {/* Tour Controls Footer */}
-            <div className="flex items-center justify-between gap-2 border-t border-cyan-100/60 pt-3">
-              <Button
-                variant="outline"
-                size="sm"
+            {/* Footer Navigation Controls */}
+            <div className="flex items-center justify-between pt-1">
+              <button
                 onClick={handlePrev}
                 disabled={isFirstStep}
-                className="rounded-xl text-xs gap-1 border-slate-200 h-8 text-slate-700"
+                className="h-8 sm:h-8.5 px-3 text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 disabled:opacity-30 !rounded-md rounded-md transition-colors flex items-center gap-1 active:scale-95"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
                 Back
-              </Button>
+              </button>
 
-              <Button
-                size="sm"
+              <button
                 onClick={handleNext}
-                className="rounded-xl text-xs font-semibold bg-gradient-to-r from-[hsl(190,85%,38%)] to-[hsl(186,93%,48%)] text-white hover:opacity-95 shadow-md shadow-cyan-500/20 gap-1 px-4 h-8"
+                className="h-8.5 sm:h-9 px-5 text-xs sm:text-[13px] font-bold bg-gradient-to-r from-[hsl(190,90%,40%)] to-cyan-500 text-white hover:opacity-95 shadow-[0_4px_14px_rgba(6,182,212,0.35)] !rounded-md rounded-md transition-all border border-cyan-300/40 flex items-center justify-center gap-1.5 active:scale-95 shrink-0"
               >
                 {isLastStep ? (
                   <>
-                    Finish Tour <Check className="w-3.5 h-3.5" />
+                    Finish <Check className="w-4 h-4" />
                   </>
                 ) : (
                   <>
-                    Next Step <ChevronRight className="w-3.5 h-3.5" />
+                    Next <ChevronRight className="w-4 h-4" />
                   </>
                 )}
-              </Button>
+              </button>
             </div>
           </motion.div>
         </div>
@@ -248,3 +229,4 @@ export default function GuidedProductTour({
     </AnimatePresence>
   );
 }
+

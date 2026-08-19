@@ -161,7 +161,7 @@ const NotificationCenter = () => {
       {/* ─── Notification Panel ─── */}
       <div
         ref={panelRef}
-        className={`fixed bottom-24 right-4 sm:right-6 z-[9999] w-[calc(100vw-2rem)] sm:w-[400px] max-h-[600px] 
+        className={`fixed bottom-24 left-3 right-3 sm:left-auto sm:right-6 z-[9999] w-auto sm:w-[400px] max-h-[80vh] sm:max-h-[600px] 
           flex flex-col overflow-hidden
           bg-white dark:bg-[#0d1b2a] 
           border border-gray-200/60 dark:border-cyan-900/30

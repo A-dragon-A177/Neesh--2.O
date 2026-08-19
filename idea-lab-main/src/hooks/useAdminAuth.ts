@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 
+// SECURITY NOTE: Admin tokens are currently stored in localStorage for SPA convenience.
+// Because localStorage is accessible to JavaScript, ensure strict XSS prevention across the app.
+// For higher security environments, consider migrating to httpOnly, Secure, SameSite=Strict cookies.
 const ADMIN_TOKEN_KEY = 'neesh_admin_token';
 const ADMIN_NAME_KEY = 'neesh_admin_name';
 

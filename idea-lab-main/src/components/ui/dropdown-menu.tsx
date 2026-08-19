@@ -79,7 +79,7 @@ const DropdownMenuItem = React.forwardRef<
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-50 focus:bg-accent focus:text-accent-foreground",
+      "relative flex cursor-pointer select-none items-center rounded-lg px-2.5 py-2 text-sm text-gray-800 dark:text-gray-200 outline-none transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-50 focus:bg-cyan-50 focus:text-cyan-950 dark:focus:bg-cyan-950/40 dark:focus:text-cyan-100 font-medium",
       inset && "pl-8",
       className,
     )}
@@ -95,15 +95,15 @@ const DropdownMenuCheckboxItem = React.forwardRef<
   <DropdownMenuPrimitive.CheckboxItem
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-50 focus:bg-accent focus:text-accent-foreground",
+      "relative flex cursor-pointer select-none items-center rounded-lg py-2 pl-8 pr-2.5 text-sm text-gray-800 dark:text-gray-200 outline-none transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-50 focus:bg-cyan-50 focus:text-cyan-950 dark:focus:bg-cyan-950/40 dark:focus:text-cyan-100 font-medium",
       className,
     )}
     checked={checked}
     {...props}
   >
-    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+    <span className="absolute left-2.5 flex h-3.5 w-3.5 items-center justify-center text-cyan-600">
       <DropdownMenuPrimitive.ItemIndicator>
-        <Check className="h-4 w-4" />
+        <Check className="h-4 w-4 stroke-[2.5]" />
       </DropdownMenuPrimitive.ItemIndicator>
     </span>
     {children}
@@ -118,12 +118,12 @@ const DropdownMenuRadioItem = React.forwardRef<
   <DropdownMenuPrimitive.RadioItem
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-50 focus:bg-accent focus:text-accent-foreground",
+      "relative flex cursor-pointer select-none items-center rounded-lg py-2 pl-8 pr-2.5 text-sm text-gray-800 dark:text-gray-200 outline-none transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-50 focus:bg-cyan-50 focus:text-cyan-950 dark:focus:bg-cyan-950/40 dark:focus:text-cyan-100 font-medium",
       className,
     )}
     {...props}
   >
-    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+    <span className="absolute left-2.5 flex h-3.5 w-3.5 items-center justify-center text-cyan-600">
       <DropdownMenuPrimitive.ItemIndicator>
         <Circle className="h-2 w-2 fill-current" />
       </DropdownMenuPrimitive.ItemIndicator>

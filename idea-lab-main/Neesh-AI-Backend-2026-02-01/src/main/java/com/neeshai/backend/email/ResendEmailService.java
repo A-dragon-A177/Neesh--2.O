@@ -44,13 +44,30 @@ public class ResendEmailService implements EmailService {
                     .from(fromEmail)
                     .to(to)
                     .subject(subject)
-                    .html(body.replace("\n", "<br>")) // Simple HTML conversion
+                    .html(body)
                     .build();
 
             CreateEmailResponse response = resend.emails().send(params);
-            log.info("Email sent to '{}' (ID: {})", to, response.getId());
+            log.info("Email successfully delivered to '{}' via Resend (ID: {})", to, response.getId());
         } catch (ResendException e) {
-            log.error("Failed to send email to '{}': {}", to, e.getMessage());
+            log.warn("Resend API rejected email to '{}': {}", to, e.getMessage());
+            // If using onboarding@resend.dev, Resend restricts recipients to account owner email (neesh.niche.ai@gmail.com)
+            if (fromEmail.contains("onboarding@resend.dev") && !to.equalsIgnoreCase("neesh.niche.ai@gmail.com")) {
+                log.info("Attempting test mode fallback sending to registered account owner 'neesh.niche.ai@gmail.com'...");
+                try {
+                    String fallbackSubject = "[TEST MODE -> intended for: " + to + "] " + subject;
+                    CreateEmailOptions fallbackParams = CreateEmailOptions.builder()
+                            .from(fromEmail)
+                            .to("neesh.niche.ai@gmail.com")
+                            .subject(fallbackSubject)
+                            .html("<p><strong>[Resend Test Mode] Intended recipient: " + to + "</strong></p><hr>" + body)
+                            .build();
+                    CreateEmailResponse fbResponse = resend.emails().send(fallbackParams);
+                    log.info("Fallback email successfully delivered to account owner 'neesh.niche.ai@gmail.com' (ID: {})", fbResponse.getId());
+                } catch (Exception ex) {
+                    log.error("Fallback email dispatch failed: {}", ex.getMessage());
+                }
+            }
         } catch (Exception e) {
             log.error("Unexpected error sending email to '{}'", to, e);
         }

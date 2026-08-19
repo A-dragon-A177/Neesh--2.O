@@ -66,7 +66,16 @@ export const usePromotions = () => {
   const submitPromotion = async (projectId: string): Promise<Promotion | null> => {
     try {
       const result = await apiClient.post<Promotion>('/api/promotions', { projectId, tags: [] });
-      await fetchPromotions();
+      if (result) {
+        setPromotions(prev => {
+          const exists = prev.some(p => p.id === result.id || p.projectId === projectId);
+          if (exists) {
+            return prev.map(p => (p.id === result.id || p.projectId === projectId) ? result : p);
+          }
+          return [result, ...prev];
+        });
+      }
+      await fetchPromotions(true);
       return result;
     } catch (err) {
       console.error("[usePromotions] Error submitting promotion:", err);
@@ -84,6 +93,7 @@ export const usePromotions = () => {
         console.log(`[usePromotions] Local state updated. Count: ${prev.length} -> ${next.length}`);
         return next;
       });
+      await fetchPromotions(true);
       return true;
     } catch (err) {
       console.error("[usePromotions] Error removing promotion:", err);

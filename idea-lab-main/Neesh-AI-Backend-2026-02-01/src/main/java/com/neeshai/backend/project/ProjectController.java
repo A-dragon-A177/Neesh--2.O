@@ -65,7 +65,7 @@ public class ProjectController {
 
         Project project = projectService.createProject(ownerId, processedRequest);
         log.info("Project created successfully with ID: {}", project.getId());
-        return ResponseEntity.ok(ProjectDTOs.PrivateProjectDTO.fromEntity(project));
+        return ResponseEntity.ok(projectService.toPrivateDTO(project));
     }
 
     @GetMapping
@@ -83,7 +83,7 @@ public class ProjectController {
         }
         List<ProjectDTOs.PrivateProjectDTO> projects = projectService.getMyProjects(ownerId)
                 .stream()
-                .map(ProjectDTOs.PrivateProjectDTO::fromEntity)
+                .map(projectService::toPrivateDTO)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(projects);
     }
@@ -93,7 +93,7 @@ public class ProjectController {
             @AuthenticationPrincipal Jwt jwt) {
         UUID ownerId = getUserIdFromJwt(jwt);
         return projectService.getProject(id, ownerId)
-                .map(ProjectDTOs.PrivateProjectDTO::fromEntity)
+                .map(projectService::toPrivateDTO)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -105,7 +105,7 @@ public class ProjectController {
             @AuthenticationPrincipal Jwt jwt) {
         UUID ownerId = getUserIdFromJwt(jwt);
         return projectService.updateProject(id, ownerId, request)
-                .map(ProjectDTOs.PrivateProjectDTO::fromEntity)
+                .map(projectService::toPrivateDTO)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -119,6 +119,19 @@ public class ProjectController {
         } else {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    @PostMapping(value = "/{id}/pitch-video", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<java.util.Map<String, String>> uploadPitchVideo(
+            @PathVariable UUID id,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID ownerId = getUserIdFromJwt(jwt);
+        if (projectService.getProject(id, ownerId).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        String publicUrl = projectService.uploadPitchVideo(id, file);
+        return ResponseEntity.ok(java.util.Map.of("publicUrl", publicUrl));
     }
 
     // Blog Endpoints
@@ -173,6 +186,27 @@ public class ProjectController {
         UUID ownerId = getUserIdFromJwt(jwt);
         return projectService.getProject(projectId, ownerId)
                 .map(project -> ResponseEntity.ok(audienceService.updatePilotCohortStatus(projectId, request.memberIds(), request.enroll())))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    // 5-Day Validation Timer Status Endpoint
+    @GetMapping("/{id}/timer-status")
+    public ResponseEntity<ProjectDTOs.ProjectTimerStatusDTO> getProjectTimerStatus(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID ownerId = getUserIdFromJwt(jwt);
+        return ResponseEntity.ok(projectService.getTimerStatus(id, ownerId));
+    }
+
+    // Unlock Project Endpoint (Allows unlocking locked project via Pro)
+    @PostMapping("/{id}/unlock")
+    public ResponseEntity<ProjectDTOs.PrivateProjectDTO> unlockProject(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID ownerId = getUserIdFromJwt(jwt);
+        return projectService.unlockProject(id, ownerId)
+                .map(ProjectDTOs.PrivateProjectDTO::fromEntity)
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 }

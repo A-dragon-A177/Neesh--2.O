@@ -53,6 +53,7 @@ public class PromotionDTOs {
             String elevatorPitchThumbnail,
             Integer elevatorPitchDuration,
             String coverImageUrl,
-            String authorName
+            String authorName,
+            String authorProfileImageUrl
     ) {}
 }

@@ -76,6 +76,7 @@ export default function ClusterDetailModal({
     const [answerText, setAnswerText] = useState("");
     const [emailSubject, setEmailSubject] = useState(`Re: ${cluster.canonicalQuestion.slice(0, 60)}`);
     const [showReplyHistory, setShowReplyHistory] = useState(false);
+    const [sendingType, setSendingType] = useState<'selected' | 'all' | null>(null);
 
     const instances = detail?.instances || [];
     const replyHistory = detail?.replyHistory || [];
@@ -95,11 +96,15 @@ export default function ClusterDetailModal({
     const toggleSelect = (id: string) => {
         setSelectedIds((prev) => {
             const next = new Set(prev);
-            if (next.has(id)) next.delete(id);
-            else next.add(id);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
             return next;
         });
     };
+    const handleToggleSelect = toggleSelect;
 
     const toggleSelectAll = () => {
         if (allUnansweredSelected) {
@@ -108,6 +113,7 @@ export default function ClusterDetailModal({
             setSelectedIds(new Set(unansweredInstances.map((i) => i.id)));
         }
     };
+    const handleToggleSelectAll = toggleSelectAll;
 
     const handleSendToSelected = async () => {
         if (selectedIds.size === 0) {
@@ -118,17 +124,22 @@ export default function ClusterDetailModal({
             toast.error("Please write an answer");
             return;
         }
-        const result = await onSendReply(
-            cluster.id,
-            Array.from(selectedIds),
-            answerText,
-            emailSubject,
-            false
-        );
-        if (result) {
-            toast.success(`Reply sent to ${result.answeredCount} users`);
-            setAnswerText("");
-            setSelectedIds(new Set());
+        setSendingType('selected');
+        try {
+            const result = await onSendReply(
+                cluster.id,
+                Array.from(selectedIds),
+                answerText,
+                emailSubject,
+                false
+            );
+            if (result) {
+                toast.success(`Reply sent to ${result.answeredCount} users`);
+                setAnswerText("");
+                setSelectedIds(new Set());
+            }
+        } finally {
+            setSendingType(null);
         }
     };
 
@@ -137,11 +148,16 @@ export default function ClusterDetailModal({
             toast.error("Please write an answer");
             return;
         }
-        const result = await onSendReply(cluster.id, [], answerText, emailSubject, true);
-        if (result) {
-            toast.success(`Reply sent to ${result.answeredCount} users`);
-            setAnswerText("");
-            setSelectedIds(new Set());
+        setSendingType('all');
+        try {
+            const result = await onSendReply(cluster.id, [], answerText, emailSubject, true);
+            if (result) {
+                toast.success(`Reply sent to ${result.answeredCount} users`);
+                setAnswerText("");
+                setSelectedIds(new Set());
+            }
+        } finally {
+            setSendingType(null);
         }
     };
 
@@ -295,11 +311,11 @@ export default function ClusterDetailModal({
                         <div className="space-y-2">
                             <Button
                                 onClick={handleSendToSelected}
-                                disabled={sendingReply || selectedIds.size === 0 || !answerText.trim()}
+                                disabled={sendingReply || sendingType !== null || selectedIds.size === 0 || !answerText.trim()}
                                 className="w-full gap-2"
                                 size="sm"
                             >
-                                {sendingReply ? (
+                                {sendingType === 'selected' || (sendingReply && sendingType === null) ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
                                 ) : (
                                     <Send className="w-4 h-4" />
@@ -308,12 +324,12 @@ export default function ClusterDetailModal({
                             </Button>
                             <Button
                                 onClick={handleSendToAll}
-                                disabled={sendingReply || unansweredInstances.length === 0 || !answerText.trim()}
+                                disabled={sendingReply || sendingType !== null || unansweredInstances.length === 0 || !answerText.trim()}
                                 variant="outline"
                                 className="w-full gap-2"
                                 size="sm"
                             >
-                                {sendingReply ? (
+                                {sendingType === 'all' ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
                                 ) : (
                                     <Send className="w-4 h-4" />

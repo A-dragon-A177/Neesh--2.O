@@ -50,9 +50,17 @@ public class ProjectDTOs {
             String elevatorPitchThumbnail,
             Integer elevatorPitchDuration,
             Double earlyAccessPrice,
+            ZonedDateTime timerDeadline,
             ZonedDateTime createdAt,
-            ZonedDateTime updatedAt) {
+            ZonedDateTime updatedAt,
+            Integer audienceViewCount) {
         public static PrivateProjectDTO fromEntity(Project project) {
+            return fromEntity(project, 0);
+        }
+
+        public static PrivateProjectDTO fromEntity(Project project, int audienceCount) {
+            int pitchViews = project.getPitchViewCount() != null ? project.getPitchViewCount() : 0;
+            int totalAudienceViews = Math.max(pitchViews, audienceCount);
             return new PrivateProjectDTO(
                     project.getId(),
                     project.getTitle(),
@@ -70,9 +78,30 @@ public class ProjectDTOs {
                     project.getElevatorPitchThumbnail(),
                     project.getElevatorPitchDuration(),
                     project.getEarlyAccessPrice(),
+                    project.getTimerDeadline() != null ? project.getTimerDeadline() : (project.getCreatedAt() != null ? project.getCreatedAt().plusDays(5) : null),
                     project.getCreatedAt(),
-                    project.getUpdatedAt());
+                    project.getUpdatedAt(),
+                    totalAudienceViews);
         }
+    }
+
+    // PROJECT TIMER & AUDIENCE SPRINT STATUS DTO
+    public record ProjectTimerStatusDTO(
+            UUID projectId,
+            String status,
+            ZonedDateTime createdAt,
+            ZonedDateTime timerDeadline,
+            long secondsRemaining,
+            boolean isExpired,
+            boolean isLocked,
+            boolean meetsRequirements,
+            int goldCount,
+            int goldTarget,
+            int silverCount,
+            int silverTarget,
+            int bronzeCount,
+            int bronzeTarget
+    ) {
     }
 
     // PUBLIC DTO (Public access - Restricted fields)

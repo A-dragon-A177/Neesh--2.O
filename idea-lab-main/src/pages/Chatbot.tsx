@@ -896,8 +896,8 @@ const Chatbot = () => {
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (!file) return;
-                              if (file.size > 10 * 1024 * 1024) {
-                                alert('File too large. Max 10MB.');
+                              if (file.size > 200 * 1024 * 1024) {
+                                alert('File too large. Max 200MB.');
                                 return;
                               }
                               const reader = new FileReader();

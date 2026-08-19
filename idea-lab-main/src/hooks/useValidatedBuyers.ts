@@ -30,13 +30,15 @@ export const useValidatedBuyers = (projectId: string | undefined) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (opts?: { silent?: boolean }) => {
     if (!projectId) {
       setLoading(false);
       return;
     }
 
-    setLoading(true);
+    if (!opts?.silent) {
+      setLoading(true);
+    }
     setError(null);
 
     try {
@@ -46,7 +48,7 @@ export const useValidatedBuyers = (projectId: string | undefined) => {
       setData(response);
     } catch (err) {
       console.error("[useValidatedBuyers] Error:", err);
-      setData({ buyers: [], goldCount: 0, silverCount: 0, bronzeCount: 0, totalValidated: 0 });
+      setData((prev) => prev || { buyers: [], goldCount: 0, silverCount: 0, bronzeCount: 0, totalValidated: 0 });
       setError(err instanceof Error ? err.message : "Failed to fetch validated buyers");
     } finally {
       setLoading(false);

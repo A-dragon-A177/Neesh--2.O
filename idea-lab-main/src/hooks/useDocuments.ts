@@ -59,10 +59,11 @@ export const useDocuments = (projectId: string | undefined) => {
 
     try {
       setUploading(true);
+      toast.info(`Uploading "${file.name}" to knowledge base...`);
       const newDoc = await apiClient.uploadFile<Document>(`/api/documents/project/${projectId}`, file);
 
       setDocuments(prev => [newDoc, ...prev]);
-      toast.success("Document uploaded successfully!");
+      toast.success(`"${file.name}" uploaded & trained successfully!`);
       return newDoc;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to upload document";

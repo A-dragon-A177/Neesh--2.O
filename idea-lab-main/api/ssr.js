@@ -236,10 +236,16 @@ async function fetchProjectData(projectId, slugWithId, backendUrl, siteUrl) {
       `Explore ${title} on Neesh AI — the startup idea validation platform.`;
     const description = truncate(rawDescription, 200);
 
-    const imageUrl =
-      project.elevatorPitchThumbnail ||
+    // Helper to check valid HTTP/HTTPS URL for OG tag
+    const isValidPublicUrl = (url) => typeof url === "string" && (url.startsWith("http://") || url.startsWith("https://"));
+
+    const rawImageUrl =
       blog?.coverImageUrl ||
-      fallbackImage;
+      project?.coverImageUrl ||
+      project?.elevatorPitchThumbnail ||
+      null;
+
+    const imageUrl = isValidPublicUrl(rawImageUrl) ? rawImageUrl : fallbackImage;
 
     const videoUrl = project.elevatorPitchUrl || null;
 

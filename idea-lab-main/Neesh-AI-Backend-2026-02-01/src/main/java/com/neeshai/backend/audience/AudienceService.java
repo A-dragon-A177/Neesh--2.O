@@ -1,6 +1,10 @@
 package com.neeshai.backend.audience;
 
 import com.neeshai.backend.email.EmailService;
+import com.neeshai.backend.notification.ClusterInstance;
+import com.neeshai.backend.notification.ClusterInstanceRepository;
+import com.neeshai.backend.notification.QuestionCluster;
+import com.neeshai.backend.notification.QuestionClusterRepository;
 import com.neeshai.backend.project.ProjectRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,15 +26,24 @@ public class AudienceService {
     private final AudienceQuestionRepository questionRepository;
     private final ProjectRepository projectRepository;
     private final EmailService emailService;
+    private final com.neeshai.backend.notification.NotificationService notificationService;
+    private final ClusterInstanceRepository clusterInstanceRepository;
+    private final QuestionClusterRepository questionClusterRepository;
 
     public AudienceService(AudienceMemberRepository memberRepository,
             AudienceQuestionRepository questionRepository,
             ProjectRepository projectRepository,
-            EmailService emailService) {
+            EmailService emailService,
+            com.neeshai.backend.notification.NotificationService notificationService,
+            ClusterInstanceRepository clusterInstanceRepository,
+            QuestionClusterRepository questionClusterRepository) {
         this.memberRepository = memberRepository;
         this.questionRepository = questionRepository;
         this.projectRepository = projectRepository;
         this.emailService = emailService;
+        this.notificationService = notificationService;
+        this.clusterInstanceRepository = clusterInstanceRepository;
+        this.questionClusterRepository = questionClusterRepository;
     }
 
     /**
@@ -125,6 +138,42 @@ public class AudienceService {
         member.setLastInteractionAt(now);
         memberRepository.save(member);
 
+        // Sync with ClusterInstances in Notification Service
+        if (member != null && member.getProject() != null && clusterInstanceRepository != null) {
+            try {
+                UUID projId = member.getProject().getId();
+                List<ClusterInstance> instances = clusterInstanceRepository.findByClusterProjectId(projId);
+                if (instances != null && !instances.isEmpty()) {
+                    for (ClusterInstance instance : instances) {
+                        boolean emailMatch = instance.getUserEmail() != null && instance.getUserEmail().equalsIgnoreCase(member.getEmail());
+                        boolean textMatch = instance.getOriginalQuestion() != null && question.getQuestionText() != null &&
+                                (instance.getOriginalQuestion().equalsIgnoreCase(question.getQuestionText()) || instance.getOriginalQuestion().contains(question.getQuestionText()) || question.getQuestionText().contains(instance.getOriginalQuestion()));
+                        if (emailMatch || textMatch) {
+                            instance.setStatus("ANSWERED");
+                            instance.setAnsweredAt(now);
+                            instance.setAnswerContent(answerText.trim());
+                            instance.setAnsweredBy(ownerId);
+                            clusterInstanceRepository.save(instance);
+
+                            if (instance.getCluster() != null) {
+                                QuestionCluster qc = instance.getCluster();
+                                long total = clusterInstanceRepository.countByClusterId(qc.getId());
+                                long answered = clusterInstanceRepository.countAnsweredByClusterId(qc.getId());
+                                if (answered >= total) {
+                                    qc.setStatus("ANSWERED");
+                                } else if (answered > 0) {
+                                    qc.setStatus("PARTIALLY_ANSWERED");
+                                }
+                                questionClusterRepository.save(qc);
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Failed to sync answer with cluster instances: {}", e.getMessage());
+            }
+        }
+
         // Email notification stub
         sendEmailNotification(member, question, answerText);
 
@@ -165,9 +214,19 @@ public class AudienceService {
             member.setOccupation(request.occupation());
         }
         if (request.feedbackText() != null && !request.feedbackText().isBlank()) {
-            member.setFeedbackText(request.feedbackText());
+            String newText = request.feedbackText().trim();
+            if (member.getFeedbackText() != null && !member.getFeedbackText().isBlank()) {
+                if (!member.getFeedbackText().contains(newText)) {
+                    member.setFeedbackText(member.getFeedbackText() + "\n" + newText);
+                }
+            } else {
+                member.setFeedbackText(newText);
+            }
         }
-        member.setFeedbackSource("Blog");
+        String source = (request.feedbackSource() != null && !request.feedbackSource().isBlank())
+                ? request.feedbackSource()
+                : "Form";
+        member.setFeedbackSource(source);
         member.setFeedbackSubmittedAt(Instant.now());
         member.setLastInteractionAt(Instant.now());
 
@@ -177,19 +236,20 @@ public class AudienceService {
         computeAndSetScores(member);
         memberRepository.save(member);
 
-        log.info("Public feedback submitted for project {} by {}", projectId, request.email());
+        log.info("Public feedback submitted for project {} by {} (source: {})", projectId, request.email(), source);
 
         return new AudienceDTOs.PublicFeedbackResponse(member.getId(), "Feedback submitted successfully!");
     }
 
     /**
-     * Get public comments for a project (feedback submitted by viewers).
+     * Get public comments for a project (specifically submitted via comment section).
      */
     @Transactional(readOnly = true)
     public List<java.util.Map<String, Object>> getPublicComments(UUID projectId) {
         List<AudienceMember> members = memberRepository.findRealAudienceByProjectId(projectId);
         return members.stream()
                 .filter(m -> m.getFeedbackText() != null && !m.getFeedbackText().isBlank())
+                .filter(m -> "Comment".equalsIgnoreCase(m.getFeedbackSource()))
                 .map(m -> {
                     java.util.Map<String, Object> map = new java.util.HashMap<>();
                     map.put("id", m.getId().toString());
@@ -203,6 +263,33 @@ public class AudienceService {
                 .collect(java.util.stream.Collectors.toList());
     }
 
+    private static final java.util.regex.Pattern GREETING_PATTERN = java.util.regex.Pattern.compile(
+            "^(hi|hello|hey|howdy|greetings|good\\s*(morning|afternoon|evening)|what'?s?\\s*up|sup|yo|hola|namaste|ok|okay|k|thanks|thank\\s*you|thx|ty|cool|great|nice|awesome|got\\s*it|understood|bye|goodbye|see\\s*ya|test|testing)[\\s!?.,]*$",
+            java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    public static boolean isGreetingOrFiller(String text) {
+        if (text == null || text.trim().isBlank()) {
+            return true;
+        }
+        String clean = text.trim();
+        if (clean.length() <= 2 && !clean.equalsIgnoreCase("ai") && !clean.equalsIgnoreCase("ui")) {
+            return true;
+        }
+        return GREETING_PATTERN.matcher(clean).matches();
+    }
+
+    public static boolean isUnanswerableFallback(String answer) {
+        if (answer == null || answer.isBlank()) {
+            return true;
+        }
+        String lower = answer.toLowerCase().trim();
+        return lower.contains("as of now this needs to be discussed")
+                || lower.contains("couldn't generate a response")
+                || lower.contains("could not generate a response")
+                || lower.contains("something went wrong")
+                || lower.contains("i'm sorry, something went wrong");
+    }
+
     /**
      * Record a chatbot interaction as an audience question.
      */
@@ -214,10 +301,11 @@ public class AudienceService {
 
         String userName = (request.userName() != null && !request.userName().isBlank())
                 ? request.userName()
-                : "Anonymous";
+                : "Spotlight Visitor";
+        String sessionId = request.sessionId() != null && !request.sessionId().isBlank() ? request.sessionId() : "";
         String userEmail = (request.userEmail() != null && !request.userEmail().isBlank())
                 ? request.userEmail()
-                : "anonymous-" + System.currentTimeMillis() + "@chatbot";
+                : (!sessionId.isBlank() ? "visitor-" + sessionId + "@chatbot" : "anonymous-" + System.currentTimeMillis() + "@chatbot");
 
         // Find the project
         com.neeshai.backend.project.Project project = projectRepository.findById(projectId)
@@ -227,34 +315,75 @@ public class AudienceService {
             return;
         }
 
+        // If userEmail is real (not ending in @chatbot) and sessionId is present, merge temporary session visitor questions into the real user
+        if (!userEmail.endsWith("@chatbot") && !sessionId.isBlank()) {
+            String tempSessionEmail = "visitor-" + sessionId + "@chatbot";
+            memberRepository.findByProjectIdAndEmail(projectId, tempSessionEmail).ifPresent(tempMember -> {
+                log.info("Merging temporary session member {} into real member {}", tempSessionEmail, userEmail);
+                AudienceMember realMember = memberRepository.findByProjectIdAndEmail(projectId, userEmail)
+                        .orElseGet(() -> new AudienceMember(project, userName, userEmail));
+                if (realMember.getName() == null || realMember.getName().startsWith("Spotlight") || realMember.getName().equals("Anonymous")) {
+                    realMember.setName(userName);
+                }
+                realMember.setLastInteractionAt(Instant.now());
+                memberRepository.save(realMember);
+
+                List<AudienceQuestion> tempQuestions = tempMember.getQuestions();
+                if (tempQuestions != null) {
+                    for (AudienceQuestion q : tempQuestions) {
+                        q.setAudienceMember(realMember);
+                        questionRepository.save(q);
+                    }
+                }
+                memberRepository.delete(tempMember);
+            });
+        }
+
         // Find or create audience member
         AudienceMember member = memberRepository
                 .findByProjectIdAndEmail(projectId, userEmail)
                 .orElseGet(() -> {
                     AudienceMember newMember = new AudienceMember(project, userName, userEmail);
+                    newMember.setFeedbackSource("Chatbot");
                     return newMember;
                 });
 
-        member.setName(userName);
+        if (userName != null && !userName.equals("Spotlight Visitor") && (member.getName() == null || member.getName().startsWith("Spotlight") || member.getName().equals("Anonymous"))) {
+            member.setName(userName);
+        }
         member.setLastInteractionAt(Instant.now());
         memberRepository.save(member);
+
+        boolean isGreeting = isGreetingOrFiller(request.query());
+        boolean hasValidAnswer = request.answer() != null && !request.answer().isBlank() && !isUnanswerableFallback(request.answer());
+        boolean isAnswered = hasValidAnswer || isGreeting;
 
         // Create the question
         AudienceQuestion question = new AudienceQuestion(member, request.query().trim());
         if (request.answer() != null && !request.answer().isBlank()) {
             question.setChatbotAnswer(request.answer().trim());
-            question.setStatus("answered");
             question.setAnsweredAt(Instant.now());
-        } else {
-            question.setStatus("unanswered");
         }
+        question.setStatus(isAnswered ? "answered" : "unanswered");
         questionRepository.save(question);
+
+        // Ingest into NotificationService for Question Clusters (Notification Tab)
+        // Skip conversational greetings and fillers from creating cluster tickets
+        if (!isGreeting) {
+            try {
+                if (notificationService != null) {
+                    notificationService.ingestQuestion(projectId, request.query().trim(), request.answer(), isAnswered, userName, userEmail, member.getOccupation(), "Spotlight Chatbot");
+                }
+            } catch (Exception e) {
+                log.warn("Failed to ingest question into NotificationService: {}", e.getMessage());
+            }
+        }
 
         // Recompute scores
         computeAndSetScores(member);
         memberRepository.save(member);
 
-        log.info("Chat interaction recorded for project {} by {}", projectId, userEmail);
+        log.info("Chat interaction recorded for project {} by {} (answered={})", projectId, userEmail, isAnswered);
     }
 
     /**
@@ -282,16 +411,13 @@ public class AudienceService {
                     return newMember;
                 });
 
-        // Check if user has already submitted interest — prevent duplicate
-        if (member.getInterestedAt() != null) {
-            String tier = AudienceDTOs.computeValidationTier(member);
-            log.info("Duplicate interest attempt for project {} by {} — already submitted", projectId, request.email());
-            return new AudienceDTOs.InterestSubmitResponse(member.getId(), tier, "You have already expressed interest!", true);
-        }
+        boolean alreadySubmitted = (member.getInterestedAt() != null);
 
         member.setName(request.name());
         member.setHasExplicitIntent(true);
-        member.setExplicitIntentAt(Instant.now());
+        if (member.getExplicitIntentAt() == null) {
+            member.setExplicitIntentAt(Instant.now());
+        }
         member.setInterestTagId(request.tagId());
         member.setInterestTagLabel(request.tagLabel());
         member.setInterestTagPriority(request.tagPriority());
@@ -307,7 +433,12 @@ public class AudienceService {
         String tier = AudienceDTOs.computeValidationTier(member);
         log.info("Interest recorded for project {} by {} — tag: {}, tier: {}", projectId, request.email(), request.tagLabel(), tier);
 
-        return new AudienceDTOs.InterestSubmitResponse(member.getId(), tier, "Interest recorded successfully!", false);
+        return new AudienceDTOs.InterestSubmitResponse(
+                member.getId(), 
+                tier, 
+                alreadySubmitted ? "Interest updated successfully!" : "Interest recorded successfully!", 
+                alreadySubmitted
+        );
     }
 
     /**
@@ -316,10 +447,7 @@ public class AudienceService {
      */
     @Transactional(readOnly = true)
     public int getInterestCount(UUID projectId) {
-        List<AudienceMember> members = memberRepository.findRealAudienceByProjectId(projectId);
-        return (int) members.stream()
-                .filter(m -> m.getInterestedAt() != null)
-                .count();
+        return (int) memberRepository.countInterestedByProjectId(projectId);
     }
 
     /**
@@ -345,11 +473,11 @@ public class AudienceService {
 
         List<AudienceMember> members = memberRepository.findRealAudienceByProjectId(projectId);
 
-        int spotlightOpens = members.size();
+        long questionCount = questionRepository.countByAudienceMemberProjectId(projectId);
 
-        int chatbotInteractions = (int) members.stream()
-                .filter(m -> m.getQuestions() != null && !m.getQuestions().isEmpty())
-                .count();
+        int spotlightOpens = Math.max(pitchViews, Math.max(members.size(), (int) questionCount));
+
+        int chatbotInteractions = (int) questionCount;
 
         int interestClicks = (int) members.stream()
                 .filter(m -> m.getInterestedAt() != null)
@@ -411,18 +539,8 @@ public class AudienceService {
         member.setConfidenceScore(Math.min(1.0, confidence));
 
         // Engagement score
-        double engagement = 0.0;
-        if (member.getInterestedAt() != null || (member.getHasExplicitIntent() != null && member.getHasExplicitIntent())) {
-            engagement += 25; // Expressed explicit buy intent
-        }
-        if (member.getFeedbackText() != null && !member.getFeedbackText().isBlank()) {
-            engagement += 25; // Submitted feedback/comment
-        }
-        engagement += questionCount * 15; // Each chatbot question = 15 pts
-        if (member.getOccupation() != null && !member.getOccupation().isBlank()) {
-            engagement += 10;
-        }
-        member.setEngagementScore(Math.min(100.0, engagement));
+        double engagement = AudienceDTOs.calculateDynamicEngagementScore(member);
+        member.setEngagementScore(engagement);
     }
 
     /**

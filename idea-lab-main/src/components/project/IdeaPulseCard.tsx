@@ -42,39 +42,39 @@ const IdeaPulseCard = ({
 
   return (
     <div className="border border-border bg-card">
-      <div className="p-6 border-b border-border">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-4xl font-semibold text-foreground">{title}</h1>
-              <span className={`text-xs font-medium px-2 py-1 ${stage.bgColor} ${stage.color}`}>
+      <div className="p-4 sm:p-6 border-b border-border">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+              <h1 className="text-2xl sm:text-4xl font-semibold text-foreground break-words">{title}</h1>
+              <span className={`text-xs font-medium px-2 py-1 ${stage.bgColor} ${stage.color} shrink-0`}>
                 {stage.label}
               </span>
             </div>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
               <span className="capitalize">{status}</span>
-              <span className="w-1 h-1 bg-border rounded-full" />
+              <span className="w-1 h-1 bg-border rounded-full hidden sm:inline-block" />
               <span className="flex items-center gap-1">
-                <Activity className="w-3.5 h-3.5" />
+                <Activity className="w-3.5 h-3.5 shrink-0" />
                 Last activity {timeAgo}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={onShare}>
-              <Share2 className="w-4 h-4 mr-1.5" />
+          <div className="flex flex-wrap items-center gap-2 pt-3 sm:pt-0 border-t sm:border-t-0 border-border/50 w-full sm:w-auto">
+            <Button variant="ghost" size="sm" onClick={onShare} className="flex-1 sm:flex-initial h-8 px-2.5 text-xs sm:text-sm">
+              <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 shrink-0" />
               Share
             </Button>
-            <Button variant="outline" size="sm" onClick={onViewBlog}>
-              <ExternalLink className="w-4 h-4 mr-1.5" />
+            <Button variant="outline" size="sm" onClick={onViewBlog} className="flex-1 sm:flex-initial h-8 px-2.5 text-xs sm:text-sm">
+              <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 shrink-0" />
               View Blog
             </Button>
-            <Button size="sm" onClick={onTestChatbot}>
-              <Bot className="w-4 h-4 mr-1.5" />
+            <Button size="sm" onClick={onTestChatbot} className="flex-1 sm:flex-initial h-8 px-2.5 text-xs sm:text-sm">
+              <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 shrink-0" />
               Test Chatbot
             </Button>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={onLinkProject} title="Link a project">
+            <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={onLinkProject} title="Link a project">
               <Plus className="w-4 h-4" />
             </Button>
           </div>
@@ -82,8 +82,8 @@ const IdeaPulseCard = ({
       </div>
 
       {summary && (
-        <div className="p-6">
-          <p className="text-muted-foreground leading-relaxed max-w-3xl">{summary}</p>
+        <div className="p-4 sm:p-6">
+          <p className="text-muted-foreground leading-relaxed max-w-3xl text-xs sm:text-sm">{summary}</p>
         </div>
       )}
     </div>

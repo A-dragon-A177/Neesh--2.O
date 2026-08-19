@@ -22,8 +22,10 @@ export class LlmService {
         this.fallbackModel = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3-8b-instruct:free';
         if (this.fallbackApiKey) {
             console.log(`[LlmService] Initialized with OpenRouter fallback model: ${this.fallbackModel}`);
+        } else if (process.env.OPENAI_API_KEY) {
+            console.log('[LlmService] Initialized with OpenAI fallback key');
         } else {
-            console.log('[LlmService] No fallback OPENROUTER_API_KEY set — user must provide their own key');
+            console.log('[LlmService] No fallback API key set — user must provide their own key');
         }
     }
 
@@ -36,6 +38,9 @@ export class LlmService {
         }
         if (this.fallbackApiKey) {
             return { provider: 'OPENROUTER', apiKey: this.fallbackApiKey };
+        }
+        if (process.env.OPENAI_API_KEY) {
+            return { provider: 'OPENAI', apiKey: process.env.OPENAI_API_KEY };
         }
         throw new Error('No LLM API key configured. Please add your API key in Settings.');
     }

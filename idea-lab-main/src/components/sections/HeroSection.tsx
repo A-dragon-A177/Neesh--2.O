@@ -81,7 +81,7 @@ export default function HeroSection() {
               transition={{ delay: 0.4, duration: 0.6 }}
               className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-gray-200 mb-6 drop-shadow-md"
             >
-              Stop Building in the Dark. Start Validating in Real Time.
+              Find Your <span className="text-[#09daed]">Neesh</span> (Niche) in a Tailor-Made Startup Ecosystem
             </motion.h2>
 
             <motion.p
@@ -90,7 +90,7 @@ export default function HeroSection() {
               transition={{ delay: 0.5, duration: 0.6 }}
               className="text-gray-300 text-lg md:text-xl leading-relaxed mb-10 max-w-3xl mx-auto font-medium"
             >
-              Find your Niche with Neesh AI — turn raw assumptions into validated products with real audience signals and 30s elevator pitch reels.
+              Where founders build, validate, and launch — powered by real audience signals, short-form pitch reels, and community momentum.
             </motion.p>
 
             <motion.div

@@ -12,4 +12,8 @@ public interface AudienceQuestionRepository extends JpaRepository<AudienceQuesti
     List<AudienceQuestion> findByAudienceMemberIdOrderByAskedAtDesc(UUID audienceMemberId);
 
     List<AudienceQuestion> findByAudienceMemberIdAndStatus(UUID audienceMemberId, String status);
+
+    List<AudienceQuestion> findByAudienceMemberProjectId(UUID projectId);
+
+    long countByAudienceMemberProjectId(UUID projectId);
 }

@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
 
 export const EcosystemGravityCore3D: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -228,28 +227,6 @@ export const EcosystemGravityCore3D: React.FC = () => {
     <div ref={containerRef} className="w-full h-[280px] sm:h-[480px] relative flex items-center justify-center overflow-hidden">
       {/* Realistic 3D Sci-Fi Planet Canvas */}
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full z-10" />
-
-      {/* Holographic Planet Core Badge Overlay */}
-      <div className="relative z-20 pointer-events-none flex flex-col items-center justify-center">
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.8 }}
-          className="px-4 sm:px-6 py-2 sm:py-3 rounded-xl sm:rounded-2xl bg-slate-950/85 border border-[#09daed]/60 backdrop-blur-xl shadow-[0_0_35px_rgba(9,218,237,0.4)] flex flex-col items-center text-center space-y-0.5"
-        >
-          {/* "NEESH AI" in official Logo font: Outfit Black */}
-          <span className="font-['Outfit'] font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-[#09daed] via-sky-300 to-white text-xs sm:text-sm md:text-base uppercase drop-shadow-[0_0_12px_rgba(9,218,237,0.8)]">
-            NEESH AI
-          </span>
-
-          {/* "NUCLEUS" in Plus Jakarta Sans font */}
-          <span className="font-['Plus_Jakarta_Sans'] font-extrabold tracking-[0.2em] sm:tracking-[0.25em] text-slate-100 text-[10px] sm:text-xs md:text-sm uppercase drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
-            NUCLEUS
-          </span>
-
-          <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-[#09daed] to-transparent mt-1" />
-        </motion.div>
-      </div>
     </div>
   );
 };

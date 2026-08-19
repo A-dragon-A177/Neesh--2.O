@@ -23,34 +23,40 @@ public class PromotionService {
     private final PromotionTagRepository tagRepository;
     private final BlogRepository blogRepository;
     private final UserRepository userRepository;
+    private final com.neeshai.backend.project.ProjectRepository projectRepository;
 
     public PromotionService(BlogPromotionRepository promotionRepository,
                             PromotionTagRepository tagRepository,
                             BlogRepository blogRepository,
-                            UserRepository userRepository) {
+                            UserRepository userRepository,
+                            com.neeshai.backend.project.ProjectRepository projectRepository) {
         this.promotionRepository = promotionRepository;
         this.tagRepository = tagRepository;
         this.blogRepository = blogRepository;
         this.userRepository = userRepository;
+        this.projectRepository = projectRepository;
     }
 
     /**
-     * Submit a blog for promotion (Pro users only).
+     * Submit a blog for promotion (All users).
      */
     @Transactional
     public PromotionDTOs.PromotionDTO submitForPromotion(UUID userId, UUID projectId, List<String> tags) {
-        // Validate user is Pro
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        String plan = user.getSubscriptionPlan();
-        if (plan == null || "FREE".equalsIgnoreCase(plan)) {
-            throw new IllegalArgumentException("Only Pro or Enterprise users can promote blogs. Please upgrade your plan.");
-        }
-
-        // Find blog for this project
+        // Find blog for this project, or auto-create if missing
         Blog blog = blogRepository.findByProjectId(projectId)
-                .orElseThrow(() -> new IllegalArgumentException("No blog found for this project. Create a blog first."));
+                .orElseGet(() -> {
+                    Project project = projectRepository.findById(projectId)
+                            .orElseThrow(() -> new IllegalArgumentException("Project not found: " + projectId));
+                    Blog newBlog = new Blog();
+                    newBlog.setProject(project);
+                    newBlog.setHeading(project.getTitle());
+                    newBlog.setIntroduction(project.getIntroduction());
+                    newBlog.setContent(project.getDescription());
+                    return blogRepository.save(newBlog);
+                });
 
         List<String> normalizedTags = new ArrayList<>();
         if (tags != null) {
@@ -161,16 +167,25 @@ public class PromotionService {
             similar = Collections.emptyList();
         }
 
-        // Fallback: if no tag matches found, return recent active promotions (excluding current project)
+        // Fallback: if no tag matches found, return all available projects (excluding current project)
         if (similar.isEmpty()) {
-            List<BlogPromotion> allActive = promotionRepository.findActivePromotions();
-            similar = allActive.stream()
-                    .filter(p -> {
-                        Blog b = blogRepository.findById(p.getBlogId()).orElse(null);
-                        if (b == null || b.getProject() == null) return false;
-                        return !b.getProject().getId().equals(projectId);
-                    })
+            List<Project> allProjects = projectRepository.findAll();
+            return allProjects.stream()
+                    .filter(p -> !p.getId().equals(projectId))
                     .limit(limit)
+                    .map(p -> {
+                        Blog b = blogRepository.findByProjectId(p.getId()).orElse(null);
+                        User owner = userRepository.findById(p.getOwnerId()).orElse(null);
+                        return new PromotionDTOs.SimilarBlogDTO(
+                                p.getId(),
+                                b != null && b.getHeading() != null ? b.getHeading() : p.getTitle(),
+                                p.getOneLineSummary() != null ? p.getOneLineSummary() : p.getIntroduction(),
+                                b != null ? b.getCoverImageUrl() : null,
+                                p.getSlug(),
+                                owner != null ? owner.getName() : "Founder",
+                                Collections.emptyList()
+                        );
+                    })
                     .collect(Collectors.toList());
         }
 
@@ -205,36 +220,61 @@ public class PromotionService {
     }
 
     /**
-     * Get pitch feed — all active promotions that have an elevator pitch video.
-     * PUBLIC endpoint, powers the Reels / short-form pitch feed.
+     * Get pitch feed — ONLY active promotions selected in the Cross-Promotional Engine.
+     * PUBLIC endpoint, powers Space page and the Reels / short-form pitch feed.
+     *
+     * Supports personalized feed ordering:
+     * - seed: A per-session random seed (from frontend). When provided, pitches are
+     *         shuffled deterministically so different users see different orders,
+     *         but the same user sees a consistent order within a session.
+     * - exclude: Comma-separated project IDs already loaded by the frontend.
+     *            These are filtered out to prevent repeats when loading more.
+     *
+     * Without seed/exclude (e.g., SSR/sitemap callers), falls back to createdAt DESC.
      */
-    public List<PromotionDTOs.PitchFeedItemDTO> getPitchFeed(int limit, int offset) {
+    public List<PromotionDTOs.PitchFeedItemDTO> getPitchFeed(int limit, int offset,
+                                                              Long seed, Set<UUID> excludeIds) {
         List<BlogPromotion> activePromotions = promotionRepository.findActivePromotions();
+        Set<UUID> seenProjectIds = new HashSet<>();
+        List<PromotionDTOs.PitchFeedItemDTO> items = new ArrayList<>();
 
-        return activePromotions.stream()
-                .map(promo -> {
-                    Blog blog = blogRepository.findById(promo.getBlogId()).orElse(null);
-                    if (blog == null) return null;
+        for (BlogPromotion promo : activePromotions) {
+            Blog blog = blogRepository.findById(promo.getBlogId()).orElse(null);
+            if (blog == null) continue;
 
-                    com.neeshai.backend.project.Project project = blog.getProject();
-                    if (project == null) return null;
+            Project project = blog.getProject();
+            if (project == null || seenProjectIds.contains(project.getId())) continue;
 
-                    User owner = userRepository.findById(promo.getUserId()).orElse(null);
-                    String authorName = owner != null ? owner.getName() : "Unknown";
+            // Skip pitches already loaded by the frontend (deduplication)
+            if (excludeIds != null && excludeIds.contains(project.getId())) continue;
 
-                    return new PromotionDTOs.PitchFeedItemDTO(
-                            project.getId(),
-                            blog.getHeading() != null ? blog.getHeading() : project.getTitle(),
-                            project.getOneLineSummary(),
-                            project.getSlug(),
-                            project.getElevatorPitchUrl(),
-                            project.getElevatorPitchThumbnail(),
-                            project.getElevatorPitchDuration(),
-                            blog.getCoverImageUrl(),
-                            authorName
-                    );
-                })
-                .filter(Objects::nonNull)
+            User owner = userRepository.findById(promo.getUserId()).orElse(null);
+            String authorName = owner != null ? owner.getName() : "Unknown";
+            String authorProfileImageUrl = owner != null ? owner.getProfileImageUrl() : null;
+
+            seenProjectIds.add(project.getId());
+            items.add(new PromotionDTOs.PitchFeedItemDTO(
+                    project.getId(),
+                    blog.getHeading() != null ? blog.getHeading() : project.getTitle(),
+                    project.getOneLineSummary() != null ? project.getOneLineSummary() : project.getIntroduction(),
+                    project.getSlug(),
+                    project.getElevatorPitchUrl(),
+                    project.getElevatorPitchThumbnail(),
+                    project.getElevatorPitchDuration(),
+                    blog.getCoverImageUrl(),
+                    authorName,
+                    authorProfileImageUrl
+            ));
+        }
+
+        // Seeded shuffle: deterministic per-user random ordering
+        // Same seed → same order (consistent within a session)
+        // Different seed → different order (unique per user)
+        if (seed != null) {
+            Collections.shuffle(items, new Random(seed));
+        }
+
+        return items.stream()
                 .skip(offset)
                 .limit(limit)
                 .collect(Collectors.toList());

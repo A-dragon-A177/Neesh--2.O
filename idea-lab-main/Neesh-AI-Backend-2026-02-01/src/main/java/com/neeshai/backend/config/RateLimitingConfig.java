@@ -38,8 +38,8 @@ public class RateLimitingConfig implements WebMvcConfigurer {
         private static final Logger log = LoggerFactory.getLogger(RateLimitInterceptor.class);
 
         // Different rate limits for different endpoint types
-        private static final int CHAT_REQUESTS_PER_MINUTE = 10;
-        private static final int GENERAL_REQUESTS_PER_MINUTE = 30;
+        private static final int CHAT_REQUESTS_PER_MINUTE = 60;
+        private static final int GENERAL_REQUESTS_PER_MINUTE = 300;
 
         private static final int MAX_BUCKETS = 5000;
 
@@ -92,18 +92,22 @@ public class RateLimitingConfig implements WebMvcConfigurer {
         }
 
         private String getClientIpAddress(HttpServletRequest request) {
-            // Check for IP from various headers (for proxy/load balancer scenarios)
+            // SECURITY: Use the direct remote address as the primary source.
+            // X-Forwarded-For can be spoofed by clients. Only trust it if your
+            // reverse proxy (Vercel, Nginx, ALB) strips and re-sets the header.
+            // For now, use the direct connection IP to prevent rate limit bypass.
+            String remoteAddr = request.getRemoteAddr();
+            if (remoteAddr != null && !remoteAddr.isEmpty() && !"unknown".equalsIgnoreCase(remoteAddr)) {
+                return remoteAddr;
+            }
+
+            // Fallback to X-Forwarded-For only if remoteAddr is unavailable
             String xForwardedFor = request.getHeader("X-Forwarded-For");
             if (xForwardedFor != null && !xForwardedFor.isEmpty() && !"unknown".equalsIgnoreCase(xForwardedFor)) {
                 return xForwardedFor.split(",")[0].trim();
             }
 
-            String xRealIp = request.getHeader("X-Real-IP");
-            if (xRealIp != null && !xRealIp.isEmpty() && !"unknown".equalsIgnoreCase(xRealIp)) {
-                return xRealIp;
-            }
-
-            return request.getRemoteAddr();
+            return "unknown";
         }
 
         private void evictStaleBuckets(int maxCapacity) {

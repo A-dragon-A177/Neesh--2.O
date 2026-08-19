@@ -49,7 +49,7 @@ export class AudienceController {
 
             const { data: existing, error: findError } = await supabase
                 .from('audience_members')
-                .select('id')
+                .select('id, feedback_text, occupation')
                 .eq('project_id', projectId)
                 .eq('email', resolvedEmail)
                 .maybeSingle();
@@ -59,12 +59,24 @@ export class AudienceController {
             }
 
             if (existing) {
+                let updatedFeedbackText = feedbackText || null;
+                if (existing.feedback_text && feedbackText) {
+                    const trimmedNew = feedbackText.trim();
+                    if (!existing.feedback_text.includes(trimmedNew)) {
+                        updatedFeedbackText = `${existing.feedback_text}\n${trimmedNew}`;
+                    } else {
+                        updatedFeedbackText = existing.feedback_text;
+                    }
+                } else if (existing.feedback_text) {
+                    updatedFeedbackText = existing.feedback_text;
+                }
+
                 const { error: updateError } = await supabase
                     .from('audience_members')
                     .update({
                         name: resolvedName,
-                        occupation: occupation || null,
-                        feedback_text: feedbackText || null,
+                        occupation: occupation || existing.occupation || null,
+                        feedback_text: updatedFeedbackText,
                         feedback_source: 'Blog',
                         feedback_submitted_at: now,
                         last_interaction_at: now,

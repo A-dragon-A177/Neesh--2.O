@@ -8,10 +8,10 @@ import {
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import CinematicVFXCanvas from '@/components/ecosystem/CinematicVFXCanvas';
-import EcosystemGravityCore3D from '@/components/ecosystem/EcosystemGravityCore3D';
 import OpportunityNetworkSimulator from '@/components/ecosystem/OpportunityNetworkSimulator';
 import OrbitalJourneyTimeline from '@/components/ecosystem/OrbitalJourneyTimeline';
 import LiveOpportunityCollision from '@/components/ecosystem/LiveOpportunityCollision';
+import PixelatedCursor from '@/components/ui/PixelatedCursor';
 
 export const InnovationEcosystem: React.FC = () => {
   const navigate = useNavigate();
@@ -20,6 +20,11 @@ export const InnovationEcosystem: React.FC = () => {
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-[#09daed] selection:text-black relative overflow-hidden">
       {/* Official White Brand Navbar (Same as Home Page & Site-Wide) */}
       <Navbar />
+
+      {/* Inkbleed Pixelated Cursor movement across Battlefield page */}
+      <div className="fixed inset-0 pointer-events-none z-50">
+        <PixelatedCursor label={false} />
+      </div>
 
       {/* Real-time Movie Canvas VFX Engine — hidden on mobile for perf */}
       <div className="hidden sm:block">
@@ -92,10 +97,6 @@ export const InnovationEcosystem: React.FC = () => {
           </motion.div>
         </div>
 
-        {/* Interactive 3D Holographic Gravity Nucleus */}
-        <div className="w-full max-w-5xl mt-8 sm:mt-12 relative z-10">
-          <EcosystemGravityCore3D />
-        </div>
       </section>
 
       {/* Section 2: The 7 Pillars of Ecosystem Gravity */}

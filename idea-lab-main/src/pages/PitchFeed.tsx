@@ -84,19 +84,14 @@ const SignInGate = ({ onSkip, onSignIn }: { onSkip: () => void; onSignIn: (provi
 
 // ─── Single Pitch Card ────────────────────────────────────────────────────────
 
-interface PitchCardProps {
-  pitch: PitchFeedItem;
-  isActive: boolean;
-  onBlogOpen: () => void;
-}
-
 const PitchCard = ({ pitch, isActive, onBlogOpen }: PitchCardProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [copied, setCopied] = useState(false);
   const [neeshCount, setNeeshCount] = useState<number>(0);
+  const [showDetailsSheet, setShowDetailsSheet] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -115,18 +110,29 @@ const PitchCard = ({ pitch, isActive, onBlogOpen }: PitchCardProps) => {
     : `${window.location.origin}/p/${pitch.projectId}`;
 
   useEffect(() => {
-    if (!videoRef.current) return;
-    if (isActive) {
-      videoRef.current.play().then(() => setPlaying(true)).catch(() => {});
-      // Record pitch view (fire-and-forget)
+    const video = videoRef.current;
+    if (!video) return;
+    try {
+      video.playbackRate = 1.0;
+      video.defaultPlaybackRate = 1.0;
+    } catch {}
+
+    if (isActive && !showDetailsSheet) {
+      const p = video.play();
+      if (p !== undefined) {
+        p.then(() => setPlaying(true)).catch(() => setPlaying(false));
+      }
       apiClient.post(`/api/public/projects/${pitch.projectId}/record-pitch-view`, {}, { skipAuth: true }).catch(() => {});
     } else {
-      videoRef.current.pause();
-      videoRef.current.currentTime = 0;
+      video.pause();
       setPlaying(false);
-      setProgress(0);
     }
-  }, [isActive, pitch.projectId]);
+
+    return () => {
+      video.pause();
+      setPlaying(false);
+    };
+  }, [isActive, showDetailsSheet, pitch.projectId]);
 
   const handleTimeUpdate = () => {
     if (!videoRef.current) return;
@@ -134,82 +140,118 @@ const PitchCard = ({ pitch, isActive, onBlogOpen }: PitchCardProps) => {
     setProgress(isNaN(pct) ? 0 : pct);
   };
 
-  const togglePlay = () => {
-    if (!videoRef.current) return;
-    if (videoRef.current.paused) {
-      videoRef.current.play();
-      setPlaying(true);
+  const togglePlay = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (video.paused) {
+      // User clicked play -> enable audio
+      video.muted = false;
+      setMuted(false);
+      const p = video.play();
+      if (p !== undefined) {
+        p.then(() => setPlaying(true)).catch(() => setPlaying(false));
+      }
     } else {
-      videoRef.current.pause();
+      video.pause();
       setPlaying(false);
     }
   };
 
-  const toggleMute = () => {
-    if (videoRef.current) videoRef.current.muted = !muted;
-    setMuted(m => !m);
+  const toggleMute = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (videoRef.current) {
+      const nextMuted = !muted;
+      videoRef.current.muted = nextMuted;
+      setMuted(nextMuted);
+      if (!nextMuted && videoRef.current.paused) {
+        videoRef.current.play().catch(() => {});
+      }
+    }
   };
 
-  const handleShare = async () => {
+  const handleShare = async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     await navigator.clipboard.writeText(publicUrl);
     setCopied(true);
     toast.success("Link copied to clipboard!");
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const formatDuration = (sec: number | null) => {
-    if (!sec) return "";
-    return sec < 60 ? `${sec}s` : `${Math.floor(sec / 60)}m ${sec % 60}s`;
-  };
-
   return (
-    <div className="relative w-full h-full flex items-center justify-center bg-black">
-      {/* Video / Cover Image Fallback */}
+    <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden select-none">
+      {/* 1. Top Header with White round buttons & Black icons */}
+      <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-3 bg-black/50 backdrop-blur-md border-b border-white/20">
+        {/* Left: Back Arrow button (White background, Black icon) */}
+        <Link
+          to="/space"
+          className="w-9 h-9 rounded-full bg-white hover:bg-white/90 text-black border border-white flex items-center justify-center transition-all shadow-md shrink-0"
+          title="Back to Space"
+        >
+          <ArrowLeft className="w-5 h-5 text-black" />
+        </Link>
+
+        {/* Center: Title (Aligned in center, larger & concise) */}
+        <h2 className="text-white font-black text-base sm:text-lg truncate max-w-[200px] sm:max-w-xs text-center mx-auto drop-shadow px-2 tracking-tight">
+          {pitch.title}
+        </h2>
+
+        {/* Right: Mute / Unmute Button (White background, Black icon) */}
+        <button
+          id={`pitch-mute-${pitch.projectId}`}
+          onClick={toggleMute}
+          className="w-9 h-9 rounded-full bg-white hover:bg-white/90 backdrop-blur-md flex items-center justify-center border border-white text-black transition-all shadow-md shrink-0"
+          title={muted ? "Unmute" : "Mute"}
+        >
+          {muted ? <VolumeX className="w-4 h-4 text-black" /> : <Volume2 className="w-4 h-4 text-black" />}
+        </button>
+      </div>
+
+      {/* 2. Full-screen Elevator Pitch Video */}
       {pitch.elevatorPitchUrl ? (
         <video
           ref={videoRef}
           src={pitch.elevatorPitchUrl}
-          poster={pitch.elevatorPitchThumbnail || pitch.coverImageUrl || undefined}
+          poster={pitch.elevatorPitchThumbnail || undefined}
           muted={muted}
           loop
           playsInline
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
           onTimeUpdate={handleTimeUpdate}
           onClick={togglePlay}
-          className="w-full h-full object-cover cursor-pointer"
+          className="w-full h-full object-contain cursor-pointer"
         />
       ) : (
-        <div className="w-full h-full relative flex items-center justify-center bg-zinc-950">
+        <div className="w-full h-full relative flex items-center justify-center bg-black">
           <img
             src={pitch.coverImageUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000"}
             alt={pitch.title}
-            className="absolute inset-0 w-full h-full object-cover opacity-60"
+            className="absolute inset-0 w-full h-full object-cover opacity-40"
           />
-          <div className="absolute inset-0 bg-gradient-to-br from-violet-950/45 to-[#0f0f1a]/95 backdrop-blur-md" />
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
           <div className="relative text-center z-10 p-6 space-y-4 max-w-sm mx-auto">
-            <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center mx-auto border border-white/20 shadow-lg shadow-violet-500/10">
-              <BookOpen className="w-8 h-8 text-violet-400" />
+            <div className="w-14 h-14 rounded-2xl bg-white text-black flex items-center justify-center mx-auto border border-white shadow-lg">
+              <BookOpen className="w-7 h-7 text-black" />
             </div>
-            <h3 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">{pitch.title}</h3>
-            <p className="text-sm text-white/70 leading-relaxed">
-              No pitch video uploaded. Click below or swipe right to read the full startup validation blog.
+            <h3 className="text-xl font-black text-white tracking-tight drop-shadow">{pitch.title}</h3>
+            <p className="text-xs text-white/70 leading-relaxed">
+              No pitch video uploaded. Click below to open Spotlight and read full details.
             </p>
             <Button
               onClick={onBlogOpen}
-              className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white font-semibold rounded-xl py-5 shadow-lg shadow-violet-500/20"
+              className="w-full bg-white text-black font-extrabold hover:bg-white/90 rounded-xl py-3.5 shadow-lg text-sm"
             >
-              Read Full Blog
+              Open Spotlight →
             </Button>
           </div>
         </div>
       )}
 
-      {/* Dark gradient overlays */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-black/50 pointer-events-none" />
-
-      {/* Progress bar (only if video exists) */}
+      {/* Progress bar below header */}
       {pitch.elevatorPitchUrl && (
-        <div className="absolute top-0 left-0 right-0 h-0.5 bg-white/20">
+        <div className="absolute top-[52px] left-0 right-0 h-1 bg-white/20 z-30">
           <div
             className="h-full bg-white transition-all duration-200"
             style={{ width: `${progress}%` }}
@@ -217,132 +259,148 @@ const PitchCard = ({ pitch, isActive, onBlogOpen }: PitchCardProps) => {
         </div>
       )}
 
-      {/* Play/Pause overlay (only if video exists) */}
+      {/* Play/Pause center overlay button (White background, Black icon) */}
       {!playing && isActive && pitch.elevatorPitchUrl && (
         <button
           onClick={togglePlay}
-          className="absolute inset-0 flex items-center justify-center z-10"
+          className="absolute inset-0 flex items-center justify-center z-20"
         >
-          <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
-            <Play className="w-8 h-8 text-white fill-white ml-1" />
+          <div className="w-16 h-16 rounded-full bg-white text-black backdrop-blur-md flex items-center justify-center border border-white shadow-2xl transition-transform hover:scale-105">
+            <Play className="w-8 h-8 text-black fill-black ml-1" />
           </div>
         </button>
       )}
 
-      {/* Duration badge */}
-      {pitch.elevatorPitchDuration && (
-        <div className="absolute top-6 left-4 flex items-center gap-1 bg-black/40 backdrop-blur-sm px-2.5 py-1 rounded-full text-white/80 text-xs border border-white/10">
-          {formatDuration(pitch.elevatorPitchDuration)}
-        </div>
-      )}
-
-      {/* Mute toggle */}
-      <button
-        id={`pitch-mute-${pitch.projectId}`}
-        onClick={toggleMute}
-        className="absolute top-6 right-4 w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors z-20"
-      >
-        {muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-      </button>
-
-      {/* Bottom-left: Author info */}
-      <div className="absolute bottom-8 left-4 right-24 z-20 space-y-2">
-        {/* Author chip */}
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-lg">
-            {pitch.authorName?.[0]?.toUpperCase() || "?"}
-          </div>
-          <div>
-            <p className="text-white font-semibold text-sm leading-none">{pitch.authorName}</p>
-            <p className="text-white/60 text-xs mt-0.5">Founder</p>
-          </div>
-        </div>
-
-        <h3 className="text-white font-bold text-xl leading-tight drop-shadow-lg line-clamp-2">
-          {pitch.title}
-        </h3>
-        {pitch.oneLineSummary && (
-          <p className="text-white/80 text-sm leading-relaxed line-clamp-2 drop-shadow">
-            {pitch.oneLineSummary}
-          </p>
-        )}
-
-        {/* Centered 3D Flame with Neeshed count */}
-        <div className="flex flex-col items-center mb-3">
-          <button
-            onClick={onBlogOpen}
-            className="flex flex-col items-center group cursor-pointer"
-            title="Neeshed It"
-          >
-            <span
-              className="text-4xl group-hover:scale-110 transition-transform"
-              style={{
-                filter: 'drop-shadow(0 0 12px rgba(245,158,11,0.7)) drop-shadow(0 4px 6px rgba(0,0,0,0.3))',
-                animation: 'pulse 2s ease-in-out infinite',
-              }}
-            >
-              🔥
-            </span>
-            <span className="text-white text-sm font-black drop-shadow-lg leading-none mt-0.5">
-              {neeshCount}
-            </span>
-          </button>
-        </div>
-
-        {/* Blog CTA hint */}
+      {/* 3. Right-Side Action Buttons with White background & Black icons */}
+      <div className="absolute bottom-20 right-3 z-30 flex flex-col items-center gap-4">
+        {/* Fire Emoji Button */}
         <button
-          onClick={onBlogOpen}
-          className="flex items-center gap-2 text-violet-300 text-sm font-medium hover:text-violet-200 transition-colors mt-1"
+          onClick={(e) => { e.stopPropagation(); onBlogOpen(); }}
+          className="flex flex-col items-center gap-0.5 group cursor-pointer"
+          title="Express Interest"
         >
-          <BookOpen className="w-4 h-4" />
-          Swipe right to read the blog
-          <ArrowRight className="w-3.5 h-3.5" />
+          <div className="w-10 h-10 rounded-full bg-white hover:bg-white/90 backdrop-blur-md flex items-center justify-center border border-white text-black group-hover:scale-105 transition-all shadow-lg">
+            <span className="text-lg">🔥</span>
+          </div>
+          <span className="text-white text-[10px] font-black drop-shadow">{neeshCount}</span>
         </button>
-      </div>
 
-      {/* Right action buttons (TikTok/Instagram-style) */}
-      <div className="absolute bottom-8 right-3 z-20 flex flex-col items-center gap-5">
-        {/* Share */}
+        {/* Share Button */}
         <button
           id={`pitch-share-${pitch.projectId}`}
           onClick={handleShare}
-          className="flex flex-col items-center gap-1 group"
+          className="flex flex-col items-center gap-0.5 group cursor-pointer"
+          title="Share pitch"
         >
-          <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/10 group-hover:bg-white/20 transition-all">
-            <Share2 className={`w-5 h-5 ${copied ? "text-violet-400" : "text-white"}`} />
+          <div className="w-10 h-10 rounded-full bg-white hover:bg-white/90 backdrop-blur-md flex items-center justify-center border border-white text-black group-hover:scale-105 transition-all shadow-lg">
+            <Share2 className="w-4.5 h-4.5 text-black" />
           </div>
-          <span className="text-white/70 text-[10px] font-medium">{copied ? "Copied!" : "Share"}</span>
+          <span className="text-white text-[9px] font-bold drop-shadow">{copied ? "Copied!" : "Share"}</span>
         </button>
 
-        {/* Read Blog */}
+        {/* Open Spotlight Button */}
         <button
           id={`pitch-blog-${pitch.projectId}`}
-          onClick={onBlogOpen}
-          className="flex flex-col items-center gap-1 group"
+          onClick={(e) => { e.stopPropagation(); onBlogOpen(); }}
+          className="flex flex-col items-center gap-0.5 group cursor-pointer"
+          title="Open Spotlight"
         >
-          <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/10 group-hover:bg-white/20 transition-all">
-            <BookOpen className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-full bg-white hover:bg-white/90 backdrop-blur-md flex items-center justify-center border border-white text-black group-hover:scale-105 transition-all shadow-lg">
+            <BookOpen className="w-4.5 h-4.5 text-black" />
           </div>
-          <span className="text-white/70 text-[10px] font-medium">Blog</span>
+          <span className="text-white text-[9px] font-bold drop-shadow">Spotlight</span>
         </button>
+      </div>
 
-        {/* Chat */}
-        <Link
-          to={`/project/${pitch.projectId}/chatbot`}
-          className="flex flex-col items-center gap-1 group"
-        >
-          <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/10 group-hover:bg-white/20 transition-all">
-            <MessageCircle className="w-5 h-5 text-white" />
+      {/* 4. Transparent Bottom Bar (Increased size footer) */}
+      <div
+        className="absolute bottom-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-3.5 sm:py-4 bg-black/60 backdrop-blur-md border-t border-white/20 cursor-pointer"
+        onClick={() => setShowDetailsSheet(true)}
+      >
+        {/* Founder Profile Avatar + Name */}
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-white text-black font-black text-base flex items-center justify-center border border-white shadow-md shrink-0 aspect-square overflow-hidden">
+            {pitch.authorProfileImageUrl ? (
+              <img
+                src={pitch.authorProfileImageUrl}
+                alt={pitch.authorName}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none';
+                }}
+              />
+            ) : (
+              <span>{pitch.authorName?.[0]?.toUpperCase() || "?"}</span>
+            )}
           </div>
-          <span className="text-white/70 text-[10px] font-medium">Chat</span>
-        </Link>
+          <div className="text-left min-w-0">
+            <p className="text-white font-extrabold text-sm sm:text-base leading-none truncate max-w-[130px] sm:max-w-[170px]">{pitch.authorName}</p>
+            <p className="text-white/70 text-xs font-semibold mt-1">Founder</p>
+          </div>
+        </div>
+
+        {/* White Handle Line in Center */}
+        <div className="flex flex-col items-center gap-1">
+          <div className="w-14 h-1.5 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.9)] animate-pulse" />
+          <span className="text-[9px] text-white/80 font-bold tracking-wide uppercase">Tap for details</span>
+        </div>
+
+        {/* Placeholder for symmetry */}
+        <div className="w-20" />
       </div>
 
-      {/* Swipe hint arrows */}
-      <div className="absolute right-16 top-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-1 opacity-50 pointer-events-none">
-        <ChevronUp className="w-5 h-5 text-white/50 animate-bounce" />
-        <span className="text-white/40 text-[9px] font-medium rotate-90">swipe</span>
-      </div>
+      {/* Expandable Details Drawer */}
+      {showDetailsSheet && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowDetailsSheet(false)}
+          />
+
+          <div className="relative w-full max-w-lg mx-auto bg-black text-white border-t border-white/30 rounded-t-3xl p-6 space-y-4 shadow-2xl z-10 max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom duration-300">
+            <div className="flex items-center justify-between border-b border-white/20 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-white text-black font-extrabold text-sm flex items-center justify-center">
+                  {pitch.authorName?.[0]?.toUpperCase() || "?"}
+                </div>
+                <div>
+                  <p className="text-white text-sm font-bold leading-none">{pitch.authorName}</p>
+                  <p className="text-white/60 text-xs mt-0.5">Founder</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowDetailsSheet(false)}
+                className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center hover:bg-white/90 transition-colors border border-white"
+              >
+                <X className="w-4 h-4 text-black" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="text-xl font-bold text-white tracking-tight">{pitch.title}</h2>
+              {pitch.oneLineSummary && (
+                <p className="text-sm text-white/80 font-medium leading-relaxed">
+                  {pitch.oneLineSummary}
+                </p>
+              )}
+            </div>
+
+            <div className="pt-2">
+              <Button
+                onClick={() => {
+                  setShowDetailsSheet(false);
+                  onBlogOpen();
+                }}
+                className="w-full h-12 bg-white text-black hover:bg-white/90 font-extrabold rounded-2xl text-base shadow-lg flex items-center justify-center gap-2"
+              >
+                <BookOpen className="w-5 h-5 text-black" />
+                <span>Open Spotlight</span>
+                <ArrowRight className="w-4 h-4 text-black" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -583,25 +641,7 @@ const PitchFeed = () => {
         </div>
       )}
 
-      {/* Neesh Pitches watermark and Back to Space button */}
-      {!blogProjectId && (
-        <div className="absolute top-4 left-4 z-20 flex items-center gap-3">
-          <Link
-            to="/space"
-            className="flex items-center gap-2 bg-black/40 backdrop-blur-sm border border-white/10 text-white/80 hover:bg-black/60 hover:text-white transition-all text-xs font-semibold px-4 py-2 rounded-full"
-          >
-            <ArrowLeft className="w-4 h-4 text-cyan-400" />
-            Back to Space
-          </Link>
-          <Link
-            to="/dashboard"
-            className="hidden sm:flex items-center gap-2 text-white/70 hover:text-white transition-colors text-sm font-semibold"
-          >
-            <img src={neeshLogo} alt="Neesh Logo" className="w-6 h-6 object-contain" />
-            <span>Neesh Pitches</span>
-          </Link>
-        </div>
-      )}
+
     </div>
   );
 };

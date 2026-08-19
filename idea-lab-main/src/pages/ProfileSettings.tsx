@@ -40,9 +40,12 @@ const ProfileSettings = () => {
 
     const [isEditing, setIsEditing] = useState(false);
     const profileImageInputRef = useRef<HTMLInputElement>(null);
+    const logoInputRef = useRef<HTMLInputElement>(null);
     const [brandingLogoUrl, setBrandingLogoUrl] = useState("");
     const [brandingText, setBrandingText] = useState("");
     const [savingBranding, setSavingBranding] = useState(false);
+    const [logoDragActive, setLogoDragActive] = useState(false);
+    const [logoUploading, setLogoUploading] = useState(false);
     const [formData, setFormData] = useState<UpdateProfileData>({
         name: "",
         occupation: "",
@@ -131,6 +134,34 @@ const ProfileSettings = () => {
         }
     };
 
+    const handleLogoFileSelect = async (file: File) => {
+        if (!file.type.startsWith("image/")) {
+            toast.error("Please upload a valid image file (PNG, JPG, SVG, WebP).");
+            return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            toast.error("Logo too large. Please upload under 10MB.");
+            return;
+        }
+        setLogoUploading(true);
+        try {
+            const { compressImage } = await import("@/lib/imageUtils");
+            const compressed = await compressImage(file);
+            const base64 = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = () => reject(new Error("Failed to read image"));
+                reader.readAsDataURL(compressed);
+            });
+            setBrandingLogoUrl(base64);
+            toast.success("Logo uploaded! Click 'Save Branding' to apply.");
+        } catch {
+            toast.error("Failed to process logo image.");
+        } finally {
+            setLogoUploading(false);
+        }
+    };
+
     const handleProfileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -139,8 +170,8 @@ const ProfileSettings = () => {
             toast.error("Please upload a valid image file.");
             return;
         }
-        if (file.size > 5 * 1024 * 1024) {
-            toast.error("Image too large. Please upload under 5MB.");
+        if (file.size > 200 * 1024 * 1024) {
+            toast.error("Image too large. Please upload under 200MB.");
             return;
         }
 
@@ -547,17 +578,80 @@ const ProfileSettings = () => {
                                 <div className="space-y-1.5">
                                     <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                                         <ImageIcon className="w-3.5 h-3.5" />
-                                        Custom Logo URL
+                                        Custom Logo
                                     </Label>
-                                    <Input
-                                        value={brandingLogoUrl}
-                                        onChange={(e) => setBrandingLogoUrl(e.target.value)}
-                                        placeholder="https://example.com/your-logo.png"
+                                    <input
+                                        ref={logoInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) handleLogoFileSelect(file);
+                                            e.target.value = "";
+                                        }}
                                     />
-                                    {brandingLogoUrl && (
-                                        <div className="mt-2 p-3 bg-muted/50 rounded-lg">
-                                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Preview</p>
-                                            <img src={brandingLogoUrl} alt="Logo preview" className="h-8 w-auto object-contain" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                                    {brandingLogoUrl ? (
+                                        <div className="relative group">
+                                            <div className="p-4 bg-muted/50 rounded-lg border border-border/50 flex items-center gap-3">
+                                                <img
+                                                    src={brandingLogoUrl}
+                                                    alt="Logo preview"
+                                                    className="h-10 w-auto max-w-[120px] object-contain"
+                                                    onError={(e) => (e.currentTarget.style.display = 'none')}
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs text-muted-foreground truncate">Logo uploaded</p>
+                                                </div>
+                                                <div className="flex gap-1.5">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => logoInputRef.current?.click()}
+                                                        className="text-xs px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                                                    >
+                                                        Replace
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setBrandingLogoUrl("")}
+                                                        className="text-xs px-2 py-1 rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div
+                                            className={`relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all ${
+                                                logoDragActive
+                                                    ? "border-primary bg-primary/5"
+                                                    : "border-border/60 hover:border-primary/50 hover:bg-muted/30"
+                                            }`}
+                                            onClick={() => logoInputRef.current?.click()}
+                                            onDragOver={(e) => { e.preventDefault(); setLogoDragActive(true); }}
+                                            onDragLeave={() => setLogoDragActive(false)}
+                                            onDrop={(e) => {
+                                                e.preventDefault();
+                                                setLogoDragActive(false);
+                                                const file = e.dataTransfer.files?.[0];
+                                                if (file) handleLogoFileSelect(file);
+                                            }}
+                                        >
+                                            {logoUploading ? (
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                                                    <p className="text-xs text-muted-foreground">Processing...</p>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <Upload className="w-6 h-6 text-muted-foreground" />
+                                                    <p className="text-xs text-muted-foreground">
+                                                        <span className="text-primary font-medium">Click to upload</span> or drag and drop
+                                                    </p>
+                                                    <p className="text-[10px] text-muted-foreground/60">PNG, JPG, SVG, WebP (max 10MB)</p>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>

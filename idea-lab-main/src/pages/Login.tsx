@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Eye, EyeOff, ArrowLeft, Check, X, Mail, ShieldCheck, KeyRound, RefreshCw } from "lucide-react";
@@ -98,11 +98,30 @@ const Login = () => {
     lockoutTimerRef.current = setInterval(update, 1000);
   };
 
+  const [searchParams] = useSearchParams();
+  const getTargetRedirect = useCallback(() => {
+    const fromQuery = searchParams.get("returnTo");
+    if (fromQuery) return fromQuery;
+    try {
+      const stored = sessionStorage.getItem("post_login_redirect");
+      if (stored) {
+        sessionStorage.removeItem("post_login_redirect");
+        return stored;
+      }
+    } catch {}
+    return "/dashboard";
+  }, [searchParams]);
+
   useEffect(() => {
     if (!loading && user) {
-      navigate("/dashboard");
+      const target = getTargetRedirect();
+      if (target.startsWith("http://") || target.startsWith("https://")) {
+        window.location.href = target;
+      } else {
+        navigate(target);
+      }
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, getTargetRedirect]);
 
   // ─── Login Handler ───
   const handleSubmit = async (e: React.FormEvent) => {
@@ -171,7 +190,12 @@ const Login = () => {
       loginAttempts.delete(emailLower);
       setLockoutRemaining(0);
       toast.success("Signed in successfully!");
-      navigate("/dashboard");
+      const target = getTargetRedirect();
+      if (target.startsWith("http://") || target.startsWith("https://")) {
+        window.location.href = target;
+      } else {
+        navigate(target);
+      }
     }
   };
 
