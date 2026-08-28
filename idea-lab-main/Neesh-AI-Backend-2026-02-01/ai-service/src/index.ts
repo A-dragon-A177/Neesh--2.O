@@ -107,15 +107,21 @@ app.post('/api/projects/:id/chat', (req, res) => chatController.chatWithProject(
 // Public chat endpoint (no auth required)
 app.post('/api/public/projects/:id/chat', (req, res) => chatController.publicChatWithProject(req, res));
 
+// Public project endpoints (no auth required)
+app.get('/api/public/health', (req, res) => res.json({ status: 'healthy', timestamp: new Date().toISOString() }));
+app.get('/api/public/projects/id/:projectId', (req, res) => projectController.getPublicProjectById(req, res));
+app.get('/api/public/projects/blog/:slug', (req, res) => blogController.getPublicBlog(req, res));
+app.get('/api/public/projects/:projectId/blog', (req, res) => blogController.getPublicBlog(req, res));
+app.get('/api/public/projects/:projectId/early-access-price', (req, res) => projectController.getEarlyAccessPrice(req, res));
+app.get('/api/public/projects/:projectId/comments', (req, res) => projectController.getPublicComments(req, res));
+app.get('/api/public/projects/:slug', (req, res) => projectController.getPublicProject(req, res));
+
 // Blog API routes (authenticated)
 import { BlogController } from './controllers/BlogController';
 const blogController = new BlogController();
 
 app.get('/api/projects/:projectId/blog', (req, res) => blogController.getBlog(req, res));
 app.put('/api/projects/:projectId/blog', (req, res) => blogController.upsertBlog(req, res));
-
-// Public blog endpoint (no auth required)
-app.get('/api/public/projects/:projectId/blog', (req, res) => blogController.getPublicBlog(req, res));
 
 // Audience routes (authenticated)
 import { AudienceController } from './controllers/AudienceController';
@@ -187,21 +193,21 @@ app.delete('/api/projects/:projectId/links/:linkId', (req, res) => {
     res.json({ success: true });
 });
 
-// Promotions stub routes
-app.get('/api/promotions', (req, res) => {
-    res.json([]);
-});
-app.post('/api/promotions', (req, res) => {
-    res.status(501).json({ error: 'Not implemented' });
-});
-app.delete('/api/promotions/:promotionId', (req, res) => {
-    res.json({ success: true });
-});
+// Promotion & Pitches API routes
+import { PromotionController } from './controllers/PromotionController';
+const promotionController = new PromotionController();
 
-// Blog branding stub route
-app.get('/api/public/blog-branding/:projectId', (req, res) => {
-    res.json({ botName: null, botAvatarUrl: null });
-});
+// Public pitch and promotion endpoints (no auth required)
+app.get('/api/public/pitches', (req, res) => promotionController.getPitchFeed(req, res));
+app.get('/api/public/promotions/similar/:projectId', (req, res) => promotionController.getSimilarBlogs(req, res));
+app.get('/api/public/projects/:id/interest-count', (req, res) => promotionController.getInterestCount(req, res));
+app.post('/api/public/projects/:id/record-pitch-view', (req, res) => promotionController.recordPitchView(req, res));
+app.get('/api/public/blog-branding/:projectId', (req, res) => promotionController.getBlogBranding(req, res));
+
+// Authenticated promotions routes
+app.get('/api/promotions', (req, res) => promotionController.getUserPromotions(req, res));
+app.post('/api/promotions', (req, res) => promotionController.submitPromotion(req, res));
+app.delete('/api/promotions/:id', (req, res) => promotionController.removePromotion(req, res));
 
 // Public health check endpoint
 app.get('/', (req, res) => {

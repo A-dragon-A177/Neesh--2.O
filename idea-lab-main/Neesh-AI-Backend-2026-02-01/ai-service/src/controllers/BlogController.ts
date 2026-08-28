@@ -114,7 +114,25 @@ export class BlogController {
 
     async getPublicBlog(req: Request, res: Response) {
         try {
-            const { projectId } = req.params;
+            const idOrSlug = req.params.projectId || req.params.slug;
+            if (!idOrSlug) {
+                return res.status(400).json({ error: 'Missing projectId or slug' });
+            }
+
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
+            let projectId = idOrSlug;
+
+            if (!isUuid) {
+                const { data: project } = await supabase.from('projects').select('id').eq('slug', idOrSlug).single();
+                if (project) {
+                    projectId = project.id;
+                } else {
+                    const uuidMatch = idOrSlug.match(/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
+                    if (uuidMatch) {
+                        projectId = uuidMatch[1];
+                    }
+                }
+            }
 
             const { data: blog, error } = await supabase
                 .from('blogs')
@@ -129,10 +147,10 @@ export class BlogController {
                 });
             }
 
-            res.json(this.transformBlog(blog));
+            return res.json(this.transformBlog(blog));
         } catch (error) {
             console.error('[BlogController] getPublicBlog error:', error);
-            res.status(500).json({ error: 'Internal server error' });
+            return res.status(500).json({ error: 'Internal server error' });
         }
     }
 }
