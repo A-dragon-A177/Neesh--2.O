@@ -33,7 +33,7 @@ public class UserService {
     /**
      * Idempotent sync of user from JWT claims.
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRED)
     public void syncUser(UUID id, String email, String name) {
         try {
             userRepository.upsertUser(id, email, name);

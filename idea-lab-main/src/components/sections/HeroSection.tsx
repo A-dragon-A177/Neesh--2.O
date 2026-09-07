@@ -2,6 +2,8 @@ import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Link } from "react-router-dom";
 
+import Globe from "@/components/ui/Globe";
+
 export default function HeroSection() {
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: containerRef });
@@ -13,16 +15,10 @@ export default function HeroSection() {
       ref={containerRef}
       className="relative min-h-[90vh] bg-gray-950 flex items-center overflow-hidden"
     >
-      {/* ── Background HD Video (Dark Theme - 40% Opacity) ── */}
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none opacity-40"
-      >
-        <source src="/videos/Globe_rotating_full_circle_seamless_202607312227.mp4" type="video/mp4" />
-      </video>
+      {/* ── 3D Globe Background ── */}
+      <div className="absolute inset-0 w-full h-full z-0 flex items-center justify-center">
+        <Globe />
+      </div>
 
       {/* ── Dark gradient overlay for text legibility ── */}
       <div className="absolute inset-0 z-[1] bg-gradient-to-b from-gray-950/70 via-gray-950/40 to-gray-950/80 pointer-events-none" />

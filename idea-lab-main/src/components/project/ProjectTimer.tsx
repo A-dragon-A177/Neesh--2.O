@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Clock, Lock, Sparkles, AlertCircle, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { Clock, Lock, Sparkles, AlertCircle, ShieldAlert, CheckCircle2, Rocket, Archive } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ProjectTimerProps {
   deadline?: string | null;
   createdAt?: string | null;
   status?: string;
+  stage3Deadline?: string | null;
+  isStage3Active?: boolean;
+  isClosed?: boolean;
   variant?: "header" | "compact" | "badge" | "card";
   goldCount?: number;
   silverCount?: number;
@@ -23,17 +26,19 @@ interface TimeRemaining {
   isExpired: boolean;
 }
 
-function calculateTimeRemaining(deadlineStr?: string | null, createdAtStr?: string | null): TimeRemaining {
+function calculateTimeRemaining(
+  deadlineStr?: string | null,
+  createdAtStr?: string | null,
+  defaultHours: number = 20
+): TimeRemaining {
   let targetTime: number;
 
   if (deadlineStr) {
     targetTime = new Date(deadlineStr).getTime();
   } else if (createdAtStr) {
-    // Default to 5 days from createdAt
-    targetTime = new Date(createdAtStr).getTime() + 5 * 24 * 60 * 60 * 1000;
+    targetTime = new Date(createdAtStr).getTime() + defaultHours * 60 * 60 * 1000;
   } else {
-    // Fallback: 5 days from now
-    targetTime = Date.now() + 5 * 24 * 60 * 60 * 1000;
+    targetTime = Date.now() + defaultHours * 60 * 60 * 1000;
   }
 
   const now = Date.now();
@@ -69,6 +74,9 @@ export const ProjectTimer: React.FC<ProjectTimerProps> = ({
   deadline,
   createdAt,
   status,
+  stage3Deadline,
+  isStage3Active,
+  isClosed,
   variant = "badge",
   goldCount = 0,
   silverCount = 0,
@@ -76,13 +84,21 @@ export const ProjectTimer: React.FC<ProjectTimerProps> = ({
   className = "",
   onTimerExpired,
 }) => {
+  const isProjectClosed = isClosed || status?.toUpperCase() === "CLOSED";
+  const isStage3 = isStage3Active || status?.toUpperCase() === "STAGE3_ACTIVE";
+  const isLocked = status?.toUpperCase() === "LOCKED";
+  const meetsRequirements = goldCount >= 5 && silverCount >= 10 && bronzeCount >= 15;
+
+  // Choose appropriate deadline: stage3Deadline for Stage 3, otherwise regular Stage 2 deadline
+  const activeDeadline = isStage3 ? stage3Deadline : deadline;
+  const defaultHours = isStage3 ? 200 : 20;
+
   const [timeLeft, setTimeLeft] = useState<TimeRemaining>(() =>
-    calculateTimeRemaining(deadline, createdAt)
+    calculateTimeRemaining(activeDeadline, createdAt, defaultHours)
   );
 
   useEffect(() => {
-    // Initial calculate
-    const current = calculateTimeRemaining(deadline, createdAt);
+    const current = calculateTimeRemaining(activeDeadline, createdAt, defaultHours);
     setTimeLeft(current);
 
     if (current.isExpired && onTimerExpired) {
@@ -90,7 +106,7 @@ export const ProjectTimer: React.FC<ProjectTimerProps> = ({
     }
 
     const interval = setInterval(() => {
-      const remaining = calculateTimeRemaining(deadline, createdAt);
+      const remaining = calculateTimeRemaining(activeDeadline, createdAt, defaultHours);
       setTimeLeft(remaining);
       if (remaining.isExpired && onTimerExpired) {
         onTimerExpired();
@@ -98,17 +114,67 @@ export const ProjectTimer: React.FC<ProjectTimerProps> = ({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [deadline, createdAt]);
+  }, [activeDeadline, createdAt, isStage3, defaultHours]);
 
-  const isLocked = status?.toUpperCase() === "LOCKED";
-  const meetsRequirements = goldCount >= 5 && silverCount >= 10 && bronzeCount >= 15;
+  // Urgency thresholds
+  // For Stage 3 (200 hours): Urgent < 24h, Warning < 72h
+  // For Stage 2 (20 hours): Urgent < 4h, Warning < 10h
+  const isUrgent = isStage3
+    ? !timeLeft.isExpired && timeLeft.totalSeconds < 24 * 3600
+    : !timeLeft.isExpired && timeLeft.totalSeconds < 4 * 3600;
 
-  // Determine urgency tier
-  const isUrgent = !timeLeft.isExpired && timeLeft.days < 1;
-  const isWarning = !timeLeft.isExpired && timeLeft.days >= 1 && timeLeft.days < 3;
-  const isSafe = !timeLeft.isExpired && timeLeft.days >= 3;
+  const isWarning = isStage3
+    ? !timeLeft.isExpired && timeLeft.totalSeconds >= 24 * 3600 && timeLeft.totalSeconds < 72 * 3600
+    : !timeLeft.isExpired && timeLeft.totalSeconds >= 4 * 3600 && timeLeft.totalSeconds < 10 * 3600;
 
-  // Render for Locked state
+  // Format string: display days if > 0, otherwise hours & minutes
+  const formattedTime = timeLeft.days > 0
+    ? `${timeLeft.days}d ${timeLeft.hours}h ${timeLeft.minutes}m`
+    : `${timeLeft.hours}h ${timeLeft.minutes}m`;
+
+  // ==========================================
+  // 1. Render for CLOSED State (Permanent Archive)
+  // ==========================================
+  if (isProjectClosed) {
+    if (variant === "header" || variant === "compact") {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className={`cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 text-slate-200 dark:bg-slate-800 dark:text-slate-200 border border-slate-700 shadow-sm transition-all hover:scale-105 select-none font-sans ${className}`}
+            >
+              <Archive className="w-3.5 h-3.5 text-slate-400" />
+              <span>Project Archived</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="end" className="bg-popover/95 backdrop-blur-md border border-border/60 shadow-xl p-3 max-w-xs text-xs">
+            <div className="space-y-1.5">
+              <p className="font-bold text-foreground flex items-center gap-1.5">
+                <Archive className="w-3.5 h-3.5 text-slate-400" />
+                Permanent Lifecycle Conclusion
+              </p>
+              <p className="text-muted-foreground text-[11px] leading-relaxed">
+                The 200-hour Stage 3 Pilot MVP sprint has concluded. This project has completed its lifecycle and is permanently preserved in read-only archive mode.
+              </p>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return (
+      <div
+        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-900 text-slate-200 border border-slate-700 shadow-sm ${className}`}
+      >
+        <Archive className="w-3.5 h-3.5 text-slate-400" />
+        <span>Project Archived</span>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // 2. Render for LOCKED State
+  // ==========================================
   if (isLocked) {
     return (
       <div
@@ -120,7 +186,105 @@ export const ProjectTimer: React.FC<ProjectTimerProps> = ({
     );
   }
 
-  // Render for Expired state (but maybe meeting requirements)
+  // ==========================================
+  // 3. Render for STAGE 3 (200-Hour Pilot MVP Sprint)
+  // ==========================================
+  if (isStage3) {
+    let colorClasses = "bg-purple-50/90 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800/60 shadow-[0_0_12px_rgba(168,85,247,0.15)]";
+    let dotClasses = "bg-purple-500";
+
+    if (isUrgent) {
+      colorClasses = "bg-rose-50/90 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-800/60 shadow-[0_0_12px_rgba(244,63,94,0.2)] animate-pulse";
+      dotClasses = "bg-rose-500";
+    } else if (isWarning) {
+      colorClasses = "bg-amber-50/90 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800/60";
+      dotClasses = "bg-amber-500";
+    }
+
+    const stage3TooltipContent = (
+      <div className="space-y-2 p-1 text-xs max-w-xs">
+        <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
+          <span className="font-semibold text-foreground flex items-center gap-1.5">
+            <Rocket className="w-3.5 h-3.5 text-purple-600" />
+            Stage 3: Pilot MVP Sprint (200h)
+          </span>
+          <span className="text-purple-600 dark:text-purple-400 font-bold font-mono">{formattedTime}</span>
+        </div>
+        <p className="text-muted-foreground text-[11px] leading-relaxed">
+          Stage 2 validated! You have a <strong>200-hour window</strong> to engage your pilot cohort and deploy MVP prototypes.
+        </p>
+        <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-[11px] space-y-1">
+          <div className="flex items-center justify-between font-semibold text-purple-700 dark:text-purple-300">
+            <span>Stage 2 Result</span>
+            <span>✅ Passed</span>
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            Gold: {goldCount}/5 · Silver: {silverCount}/10 · Bronze: {bronzeCount}/15
+          </p>
+        </div>
+        {isUrgent && (
+          <p className="text-[10px] text-rose-500 font-semibold pt-1 flex items-center gap-1">
+            <ShieldAlert className="w-3 h-3 shrink-0" />
+            Less than 24 hours remaining until project concludes!
+          </p>
+        )}
+      </div>
+    );
+
+    if (variant === "header") {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className={`cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all hover:scale-105 select-none font-sans ${colorClasses} ${className}`}
+            >
+              <span className="relative flex h-2 w-2">
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${dotClasses}`} />
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${dotClasses}`} />
+              </span>
+              <Rocket className="w-3.5 h-3.5 shrink-0 text-current" />
+              <span className="font-sans font-semibold tracking-normal tabular-nums text-xs">{formattedTime}</span>
+              <span className="hidden sm:inline text-[11px] font-medium opacity-80">Stage 3</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="end" className="bg-popover/95 backdrop-blur-md border border-border/60 shadow-xl p-3">
+            {stage3TooltipContent}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    if (variant === "compact") {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border backdrop-blur-sm font-sans ${colorClasses} ${className}`}
+            >
+              <Rocket className="w-3.5 h-3.5 text-current" />
+              <span className="font-sans font-semibold tracking-normal tabular-nums">{formattedTime}</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="bg-popover/95 backdrop-blur-md border border-border/60 shadow-xl p-3">
+            {stage3TooltipContent}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return (
+      <div
+        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border font-sans ${colorClasses} ${className}`}
+      >
+        <Rocket className="w-3.5 h-3.5 text-current" />
+        <span className="font-sans font-semibold tracking-normal tabular-nums">{formattedTime} (Stage 3)</span>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // 4. Render for Expired State in Stage 2
+  // ==========================================
   if (timeLeft.isExpired) {
     if (meetsRequirements) {
       return (
@@ -128,7 +292,7 @@ export const ProjectTimer: React.FC<ProjectTimerProps> = ({
           className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-sm ${className}`}
         >
           <CheckCircle2 className="w-3.5 h-3.5" />
-          <span>Sprint Passed (5d)</span>
+          <span>Sprint Passed (20h)</span>
         </div>
       );
     }
@@ -142,15 +306,15 @@ export const ProjectTimer: React.FC<ProjectTimerProps> = ({
     );
   }
 
-  // Format string
-  const formattedTime = `${timeLeft.days}d ${timeLeft.hours}h ${timeLeft.minutes}m`;
-
+  // ==========================================
+  // 5. Default: Stage 2 20-Hour Sprint
+  // ==========================================
   const tooltipContent = (
     <div className="space-y-2 p-1 text-xs max-w-xs">
       <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
         <span className="font-semibold text-foreground flex items-center gap-1.5">
           <Clock className="w-3.5 h-3.5 text-primary" />
-          5-Day Validation Sprint
+          20-Hour Validation Sprint
         </span>
         <span className="text-primary font-bold">{formattedTime}</span>
       </div>
@@ -174,13 +338,12 @@ export const ProjectTimer: React.FC<ProjectTimerProps> = ({
       {isUrgent && (
         <p className="text-[10px] text-rose-500 font-semibold pt-1 flex items-center gap-1">
           <ShieldAlert className="w-3 h-3 shrink-0" />
-          Less than 24 hours remaining!
+          Less than 4 hours remaining!
         </p>
       )}
     </div>
   );
 
-  // Variant: Header (sleek glowing pill with icon)
   if (variant === "header") {
     let colorClasses = "bg-emerald-50/90 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60";
     let dotClasses = "bg-emerald-500";
@@ -215,7 +378,6 @@ export const ProjectTimer: React.FC<ProjectTimerProps> = ({
     );
   }
 
-  // Variant: Compact (for dashboard grid cards)
   if (variant === "compact") {
     let bgClasses = "bg-emerald-50/90 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60";
     if (isUrgent) {

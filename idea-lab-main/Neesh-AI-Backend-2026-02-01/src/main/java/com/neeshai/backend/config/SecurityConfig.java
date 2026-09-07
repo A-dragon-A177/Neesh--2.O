@@ -31,7 +31,7 @@ public class SecurityConfig {
     private final String jwtSecret;
     private final Environment environment;
 
-    @Value("${cors.allowed-origins:http://localhost:3000,http://localhost:8080}")
+    @Value("${cors.allowed-origins:http://localhost:3000,http://localhost:8080,http://localhost:7000,http://localhost:7001}")
     private String allowedOrigins;
 
     @Value("${app.mock-auth.enabled:false}")
@@ -56,6 +56,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/api/payments/public/**").permitAll()
                         .requestMatchers("/api/admin/login").permitAll()

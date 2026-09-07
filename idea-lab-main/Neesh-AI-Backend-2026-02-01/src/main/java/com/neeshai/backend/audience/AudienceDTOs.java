@@ -228,38 +228,37 @@ public class AudienceDTOs {
                 boolean hasFeedback = m.getFeedbackText() != null && !m.getFeedbackText().isBlank();
                 int qCount = m.getQuestions() != null ? m.getQuestions().size() : 0;
                 boolean hasExplicitIntent = m.getInterestedAt() != null || (m.getHasExplicitIntent() != null && m.getHasExplicitIntent());
+                boolean hasOccupation = m.getOccupation() != null && !m.getOccupation().isBlank();
 
                 boolean isHighPriority = priority != null && priority <= 2;
                 boolean isMediumPriority = priority != null && priority <= 3;
 
-                // 1. STRICT GOLD TIER:
-                // High-priority tag AND explicit intent AND (written feedback + chatbot questions OR 2+ questions)
-                // OR ultra-high multi-signal engagement (score >= 75.0)
-                if (isHighPriority && hasExplicitIntent && ((hasFeedback && qCount >= 1) || qCount >= 2)) {
+                // ===== 1. GOLD TIER (Hardest — No score-only shortcut) =====
+                // Path A: High-priority tag (1 or 2) + explicit intent + written feedback + 3+ chatbot questions
+                if (isHighPriority && hasExplicitIntent && hasFeedback && qCount >= 3) {
                         return "GOLD";
                 }
-                if (hasExplicitIntent && hasFeedback && qCount >= 2) {
-                        return "GOLD";
-                }
-                if (engagement >= 75.0) {
+                // Path B: Any priority + explicit intent + written feedback + 3+ chatbot questions + occupation
+                if (hasExplicitIntent && hasFeedback && qCount >= 3 && hasOccupation) {
                         return "GOLD";
                 }
 
-                // 2. SILVER TIER:
-                // High or Medium priority tag (1, 2, or 3) with written feedback or chatbot questions
-                // OR Moderate multi-signal engagement (score >= 50.0)
-                if (isHighPriority && (hasFeedback || qCount > 0)) {
+                // ===== 2. SILVER TIER (Requires explicit intent in all paths) =====
+                // Path A: High priority (1 or 2) + explicit intent + (written feedback OR 2+ chatbot questions)
+                if (isHighPriority && hasExplicitIntent && (hasFeedback || qCount >= 2)) {
                         return "SILVER";
                 }
-                if (isMediumPriority && (hasFeedback || qCount > 0)) {
+                // Path B: Medium priority (1, 2, or 3) + explicit intent + written feedback + 1+ chatbot questions
+                if (isMediumPriority && hasExplicitIntent && hasFeedback && qCount >= 1) {
                         return "SILVER";
                 }
-                if (engagement >= 50.0) {
+                // Path C: Engagement score >= 65 (requires 4+ distinct signals)
+                if (engagement >= 65.0) {
                         return "SILVER";
                 }
 
-                // 3. BRONZE TIER:
-                // Basic interest click or simple chatbot questions without high intent/feedback
+                // ===== 3. BRONZE TIER (Easy catch-all) =====
+                // Any audience member who expressed interest but doesn't meet Silver criteria
                 return "BRONZE";
         }
 

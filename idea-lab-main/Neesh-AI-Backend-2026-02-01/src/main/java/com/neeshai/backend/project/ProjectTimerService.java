@@ -27,15 +27,14 @@ public class ProjectTimerService {
 
     /**
      * Scheduled background job running every 5 minutes.
-     * Checks all non-locked projects whose 5-day timer has expired.
+     * Checks non-locked projects whose 20-hour timer has expired.
      * Evaluates audience qualification:
      * - Gold >= 5
      * - Silver >= 10
      * - Bronze >= 15
-     * If requirements are not met within the 5 days, the project is locked.
+     * If requirements are not met within the 20 hours, the project is locked.
      */
     @Scheduled(fixedDelay = 300000, initialDelay = 15000)
-    @Transactional
     public void evaluateExpiredProjectTimers() {
         try {
             ZonedDateTime now = ZonedDateTime.now();
@@ -45,35 +44,92 @@ public class ProjectTimerService {
                 return;
             }
 
-            log.info("ProjectTimerService: Evaluating {} expired project(s) for validation requirements...", expiredProjects.size());
+            // Process in bounded batches (max 50 per run) to prevent connection pool exhaustion
+            List<Project> batch = expiredProjects.stream().limit(50).toList();
+            log.info("ProjectTimerService: Evaluating batch of {} expired project(s) (total pending: {})...",
+                    batch.size(), expiredProjects.size());
 
-            for (Project project : expiredProjects) {
-                List<AudienceMember> members = audienceMemberRepository.findRealAudienceByProjectId(project.getId());
-                int gold = 0;
-                int silver = 0;
-                int bronze = 0;
-
-                for (AudienceMember m : members) {
-                    String tier = AudienceDTOs.computeValidationTier(m);
-                    if ("GOLD".equalsIgnoreCase(tier)) gold++;
-                    else if ("SILVER".equalsIgnoreCase(tier)) silver++;
-                    else if ("BRONZE".equalsIgnoreCase(tier)) bronze++;
-                }
-
-                boolean meetsRequirements = (gold >= 5 && silver >= 10 && bronze >= 15);
-
-                if (!meetsRequirements) {
-                    log.warn("Project {} ('{}') failed 5-day sprint goals (Gold: {}/5, Silver: {}/10, Bronze: {}/15). Locking project.",
-                            project.getId(), project.getTitle(), gold, silver, bronze);
-                    project.setStatus("LOCKED");
-                    projectRepository.save(project);
-                } else {
-                    log.info("Project {} ('{}') successfully met all sprint requirements (Gold: {}, Silver: {}, Bronze: {})!",
-                            project.getId(), project.getTitle(), gold, silver, bronze);
+            for (Project project : batch) {
+                try {
+                    processExpiredProject(project, now);
+                } catch (Exception ex) {
+                    log.error("Failed to evaluate project timer for {}: {}", project.getId(), ex.getMessage(), ex);
                 }
             }
         } catch (Exception e) {
             log.error("Error in ProjectTimerService evaluation: {}", e.getMessage(), e);
         }
+    }
+
+    @Transactional
+    public void processExpiredProject(Project project, ZonedDateTime now) {
+        List<AudienceMember> members = audienceMemberRepository.findRealAudienceByProjectId(project.getId());
+        int gold = 0;
+        int silver = 0;
+        int bronze = 0;
+
+        for (AudienceMember m : members) {
+            String tier = AudienceDTOs.computeValidationTier(m);
+            if ("GOLD".equalsIgnoreCase(tier)) gold++;
+            else if ("SILVER".equalsIgnoreCase(tier)) silver++;
+            else if ("BRONZE".equalsIgnoreCase(tier)) bronze++;
+        }
+
+        boolean meetsRequirements = (gold >= 5 && silver >= 10 && bronze >= 15);
+
+        if (!meetsRequirements) {
+            log.warn("Project {} ('{}') failed 20-hour sprint goals (Gold: {}/5, Silver: {}/10, Bronze: {}/15). Locking project.",
+                    project.getId(), project.getTitle(), gold, silver, bronze);
+            project.setStatus("LOCKED");
+            projectRepository.save(project);
+        } else {
+            log.info("Project {} ('{}') successfully met all sprint requirements (Gold: {}, Silver: {}, Bronze: {})! Auto-promoting to Stage 3 Pilot MVP.",
+                    project.getId(), project.getTitle(), gold, silver, bronze);
+            project.setStatus("STAGE3_ACTIVE");
+            if (project.getStage3Deadline() == null) {
+                project.setStage3Deadline(now.plusHours(200));
+            }
+            projectRepository.save(project);
+        }
+    }
+
+    /**
+     * Scheduled background job running every 5 minutes.
+     * Checks STAGE3_ACTIVE projects whose 200-hour Pilot MVP timer has expired.
+     * When expired, permanently closes the project (terminal state, can never be reopened).
+     */
+    @Scheduled(fixedDelay = 300000, initialDelay = 30000)
+    public void evaluateStage3Timers() {
+        try {
+            ZonedDateTime now = ZonedDateTime.now();
+            List<Project> expiredStage3Projects = projectRepository.findExpiredStage3Projects(now);
+
+            if (expiredStage3Projects.isEmpty()) {
+                return;
+            }
+
+            // Process in bounded batches (max 50 per run)
+            List<Project> batch = expiredStage3Projects.stream().limit(50).toList();
+            log.info("ProjectTimerService: Evaluating batch of {} expired Stage 3 project(s) for permanent closure...",
+                    batch.size());
+
+            for (Project project : batch) {
+                try {
+                    closeStage3Project(project);
+                } catch (Exception ex) {
+                    log.error("Failed to close Stage 3 project {}: {}", project.getId(), ex.getMessage(), ex);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error in ProjectTimerService Stage 3 evaluation: {}", e.getMessage(), e);
+        }
+    }
+
+    @Transactional
+    public void closeStage3Project(Project project) {
+        log.warn("Project {} ('{}') Stage 3 200-hour Pilot MVP timer expired. Permanently CLOSING project.",
+                project.getId(), project.getTitle());
+        project.setStatus("CLOSED");
+        projectRepository.save(project);
     }
 }

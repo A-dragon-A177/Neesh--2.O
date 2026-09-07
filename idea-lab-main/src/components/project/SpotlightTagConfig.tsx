@@ -69,7 +69,7 @@ export default function SpotlightTagConfig({
               #1
             </span>
             <span>
-              <strong className="text-amber-500 font-medium">Gold Tier:</strong> Target signal
+              <strong className="text-amber-500 font-medium">Gold Tier:</strong> Intent + feedback + 3+ questions
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -77,7 +77,7 @@ export default function SpotlightTagConfig({
               #2
             </span>
             <span>
-              <strong className="text-slate-400 font-medium">Silver Tier:</strong> Mid priority
+              <strong className="text-slate-400 font-medium">Silver Tier:</strong> Intent + feedback or questions
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -85,7 +85,7 @@ export default function SpotlightTagConfig({
               #3+
             </span>
             <span>
-              <strong className="text-amber-800 font-medium">Bronze Tier:</strong> Lower priority
+              <strong className="text-amber-800 font-medium">Bronze Tier:</strong> Basic interest signal
             </span>
           </div>
         </div>
@@ -182,7 +182,7 @@ export default function SpotlightTagConfig({
                           {tag.label}
                         </span>
                         <span className="text-[11px] text-muted-foreground shrink-0 hidden sm:inline">
-                          ({isGold ? "Highest Priority → Gold Validation Eligible" : isSilver ? "Mid Priority → Silver Validation Eligible" : "Lower Priority → Bronze Validation Eligible"})
+                          ({isGold ? "Highest Priority → Gold: Intent + Feedback + 3+ Questions" : isSilver ? "Mid Priority → Silver: Intent + Feedback or Questions" : "Lower Priority → Bronze: Basic Interest"})
                         </span>
                       </div>
                     )}

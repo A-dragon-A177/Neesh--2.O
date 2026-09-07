@@ -8,7 +8,11 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "audience_members")
+@Table(name = "audience_members", indexes = {
+        @Index(name = "idx_aud_project_id", columnList = "project_id"),
+        @Index(name = "idx_aud_project_last_interaction", columnList = "project_id, last_interaction_at"),
+        @Index(name = "idx_aud_project_email", columnList = "project_id, email")
+})
 public class AudienceMember {
 
     @Id

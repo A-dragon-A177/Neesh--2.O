@@ -26,6 +26,7 @@ interface BackendProject {
   elevatorPitchDuration: number | null;
   earlyAccessPrice: number | null;
   timerDeadline: string | null;
+  stage3Deadline?: string | null;
   audienceViewCount?: number | null;
   createdAt: string;
   updatedAt: string;
@@ -55,6 +56,7 @@ export interface Project {
   elevator_pitch_duration: number | null;
   early_access_price: number | null;
   timer_deadline: string | null;
+  stage3_deadline: string | null;
   audience_view_count?: number;
   deleted: boolean;
   created_at: string;
@@ -76,6 +78,10 @@ export interface ProjectTimerStatus {
   silverTarget: number;
   bronzeCount: number;
   bronzeTarget: number;
+  stage3Deadline?: string | null;
+  stage3SecondsRemaining?: number;
+  isStage3Active?: boolean;
+  isClosed?: boolean;
 }
 
 export interface CreateProjectInput {
@@ -137,6 +143,7 @@ const transformProject = (backendProject: BackendProject): Project => ({
   elevator_pitch_duration: backendProject.elevatorPitchDuration,
   early_access_price: backendProject.earlyAccessPrice,
   timer_deadline: backendProject.timerDeadline || null,
+  stage3_deadline: backendProject.stage3Deadline || null,
   audience_view_count: backendProject.audienceViewCount ?? 0,
   deleted: false,
   created_at: backendProject.createdAt,

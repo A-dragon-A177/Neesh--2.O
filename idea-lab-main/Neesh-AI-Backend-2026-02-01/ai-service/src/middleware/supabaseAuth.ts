@@ -34,9 +34,19 @@ export const supabaseAuth = async (req: Request, res: Response, next: NextFuncti
         let userEmail: string | undefined;
 
         if (jwtSecret) {
-            const decoded = jwt.verify(token, jwtSecret) as any;
-            userId = decoded.sub;
-            userEmail = decoded.email || decoded.user_metadata?.email || '';
+            try {
+                const decoded = jwt.verify(token, jwtSecret) as any;
+                userId = decoded.sub;
+                userEmail = decoded.email || decoded.user_metadata?.email || '';
+            } catch (jwtErr) {
+                // If local HS256 verify fails (e.g. project upgraded to ES256 / JWKS), fallback to Supabase getUser
+                const { data: { user }, error } = await supabase.auth.getUser(token);
+                if (error || !user) {
+                    return res.status(401).json({ error: 'Invalid or expired token' });
+                }
+                userId = user.id;
+                userEmail = user.email || '';
+            }
         } else {
             // Verify token via Supabase Auth API
             const { data: { user }, error } = await supabase.auth.getUser(token);

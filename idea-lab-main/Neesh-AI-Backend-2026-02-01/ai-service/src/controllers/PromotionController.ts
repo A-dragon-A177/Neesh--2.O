@@ -77,13 +77,16 @@ export class PromotionController {
             const seenProjectIds = new Set<string>();
             let feedItems: PitchFeedItem[] = [];
 
-            // Add items from active promotions first
+            // ONLY include projects that have an explicit ACTIVE promotion in blog_promotions
             for (const promo of (promotions || [])) {
                 const blog = blogMap.get(promo.blog_id);
                 if (!blog) continue;
 
                 const project = projectMap.get(blog.project_id);
                 if (!project || seenProjectIds.has(project.id) || excludeSet.has(project.id)) continue;
+
+                // Ensure the project has an elevator pitch video
+                if (!project.elevator_pitch_url || !project.elevator_pitch_url.trim()) continue;
 
                 seenProjectIds.add(project.id);
                 const user = userMap.get(promo.user_id) || (project.owner_id ? userMap.get(project.owner_id) : undefined);
@@ -93,35 +96,13 @@ export class PromotionController {
                     title: blog.heading || project.title || 'Untitled Pitch',
                     oneLineSummary: project.one_line_summary || project.introduction || null,
                     slug: project.slug || project.id,
-                    elevatorPitchUrl: project.elevator_pitch_url || '',
+                    elevatorPitchUrl: project.elevator_pitch_url,
                     elevatorPitchThumbnail: project.elevator_pitch_thumbnail || null,
                     elevatorPitchDuration: project.elevator_pitch_duration ? Number(project.elevator_pitch_duration) : null,
                     coverImageUrl: blog.cover_image_url || null,
                     authorName: user?.name || 'Founder',
                     authorProfileImageUrl: user?.profile_image_url || null,
                 });
-            }
-
-            // Fallback: If promotions list is small, also include any other projects that have elevator pitches
-            for (const project of (projects || [])) {
-                if (project.elevator_pitch_url && !seenProjectIds.has(project.id) && !excludeSet.has(project.id)) {
-                    seenProjectIds.add(project.id);
-                    const user = userMap.get(project.owner_id);
-                    const blog = (blogs || []).find(b => b.project_id === project.id);
-
-                    feedItems.push({
-                        projectId: project.id,
-                        title: blog?.heading || project.title || 'Untitled Pitch',
-                        oneLineSummary: project.one_line_summary || project.introduction || null,
-                        slug: project.slug || project.id,
-                        elevatorPitchUrl: project.elevator_pitch_url,
-                        elevatorPitchThumbnail: project.elevator_pitch_thumbnail || null,
-                        elevatorPitchDuration: project.elevator_pitch_duration ? Number(project.elevator_pitch_duration) : null,
-                        coverImageUrl: blog?.cover_image_url || null,
-                        authorName: user?.name || 'Founder',
-                        authorProfileImageUrl: user?.profile_image_url || null,
-                    });
-                }
             }
 
             // Seeded deterministic shuffle
@@ -138,36 +119,75 @@ export class PromotionController {
     }
 
     /**
-     * Similar blogs for "More Like This"
+     * Similar blogs for "More Like This" (Strictly active promotions only)
      */
     async getSimilarBlogs(req: Request, res: Response) {
         try {
             const { projectId } = req.params;
             const limit = parseInt(req.query.limit as string) || 6;
 
+            // 1. Fetch only ACTIVE promotions
+            const { data: promotions, error: promoErr } = await supabase
+                .from('blog_promotions')
+                .select('*')
+                .eq('status', 'ACTIVE')
+                .order('created_at', { ascending: false });
+
+            if (promoErr || !promotions || promotions.length === 0) {
+                return res.json([]);
+            }
+
             const { data: blogs } = await supabase.from('blogs').select('*');
             const { data: projects } = await supabase.from('projects').select('*');
             const { data: users } = await supabase.from('users').select('*');
+            const { data: tagsData } = await supabase.from('promotion_tags').select('*');
+
+            const blogMap = new Map((blogs || []).map(b => [b.id, b]));
+            const projectMap = new Map((projects || []).map(p => [p.id, p]));
             const userMap = new Map((users || []).map(u => [u.id, u]));
 
-            const blogMap = new Map((blogs || []).map(b => [b.project_id, b]));
+            // Group tags by promotion_id
+            const tagsByPromo = new Map<string, string[]>();
+            (tagsData || []).forEach(t => {
+                const arr = tagsByPromo.get(t.promotion_id) || [];
+                arr.push(t.tag);
+                tagsByPromo.set(t.promotion_id, arr);
+            });
 
-            const similar = (projects || [])
-                .filter(p => p.id !== projectId)
-                .slice(0, limit)
-                .map(p => {
-                    const b = blogMap.get(p.id);
-                    const u = userMap.get(p.owner_id);
-                    return {
-                        projectId: p.id,
-                        heading: b?.heading || p.title,
-                        oneLineSummary: p.one_line_summary || p.introduction || null,
-                        coverImageUrl: b?.cover_image_url || null,
-                        slug: p.slug || p.id,
-                        authorName: u?.name || 'Founder',
-                        matchingTags: []
-                    };
+            // Find current project's tags if promoted
+            const currentBlog = (blogs || []).find(b => b.project_id === projectId);
+            const currentPromo = currentBlog ? promotions.find(p => p.blog_id === currentBlog.id) : null;
+            const currentTags = currentPromo ? (tagsByPromo.get(currentPromo.id) || []) : [];
+
+            const seenProjectIds = new Set<string>();
+            seenProjectIds.add(projectId); // exclude current project
+
+            const similar: any[] = [];
+            for (const promo of promotions) {
+                const blog = blogMap.get(promo.blog_id);
+                if (!blog) continue;
+
+                const project = projectMap.get(blog.project_id);
+                if (!project || seenProjectIds.has(project.id)) continue;
+
+                seenProjectIds.add(project.id);
+                const user = userMap.get(promo.user_id) || (project.owner_id ? userMap.get(project.owner_id) : undefined);
+                const promoTags = tagsByPromo.get(promo.id) || [];
+
+                const matchingTags = promoTags.filter(t => currentTags.includes(t));
+
+                similar.push({
+                    projectId: project.id,
+                    heading: blog.heading || project.title,
+                    oneLineSummary: project.one_line_summary || project.introduction || null,
+                    coverImageUrl: blog.cover_image_url || null,
+                    slug: project.slug || project.id,
+                    authorName: user?.name || 'Founder',
+                    matchingTags
                 });
+
+                if (similar.length >= limit) break;
+            }
 
             return res.json(similar);
         } catch (error) {
@@ -288,31 +308,40 @@ export class PromotionController {
             if (!projectId) return res.status(400).json({ error: 'projectId is required' });
 
             // Find or create blog
-            let { data: blog } = await supabase.from('blogs').select('*').eq('project_id', projectId).single();
+            let { data: blog } = await supabase.from('blogs').select('*').eq('project_id', projectId).maybeSingle();
             if (!blog) {
-                const { data: project } = await supabase.from('projects').select('*').eq('id', projectId).single();
+                const { data: project } = await supabase.from('projects').select('*').eq('id', projectId).maybeSingle();
                 if (!project) return res.status(404).json({ error: 'Project not found' });
 
+                const now = new Date().toISOString();
                 const { data: newBlog, error: createBlogErr } = await supabase.from('blogs').insert({
                     id: randomUUID(),
                     project_id: projectId,
-                    heading: project.title,
-                    introduction: project.introduction,
-                    content: project.description
-                }).select().single();
+                    heading: project.title || 'Untitled Spotlight',
+                    introduction: project.introduction || project.one_line_summary || '',
+                    content: project.description || '',
+                    cover_image_url: '',
+                    custom_fields: '[]',
+                    created_at: now,
+                    updated_at: now
+                }).select().maybeSingle();
 
-                if (createBlogErr) return res.status(500).json({ error: 'Failed to create blog' });
+                if (createBlogErr || !newBlog) {
+                    console.error('[PromotionController] Failed to create blog:', createBlogErr);
+                    return res.status(500).json({ error: 'Failed to create blog' });
+                }
                 blog = newBlog;
             }
 
             // Check existing promotion
-            const { data: existing } = await supabase.from('blog_promotions').select('*').eq('blog_id', blog.id).single();
+            const { data: existing } = await supabase.from('blog_promotions').select('*').eq('blog_id', blog.id).maybeSingle();
             let promotionId = existing?.id;
 
+            const now = new Date().toISOString();
             if (existing) {
                 await supabase.from('blog_promotions').update({
                     status: 'ACTIVE',
-                    updated_at: new Date().toISOString()
+                    updated_at: now
                 }).eq('id', existing.id);
             } else {
                 promotionId = randomUUID();
@@ -320,7 +349,9 @@ export class PromotionController {
                     id: promotionId,
                     blog_id: blog.id,
                     user_id: userId,
-                    status: 'ACTIVE'
+                    status: 'ACTIVE',
+                    created_at: now,
+                    updated_at: now
                 });
             }
 

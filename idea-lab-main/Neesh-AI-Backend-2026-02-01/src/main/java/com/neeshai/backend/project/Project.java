@@ -8,7 +8,12 @@ import java.time.ZonedDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "projects")
+@Table(name = "projects", indexes = {
+        @Index(name = "idx_projects_owner_id", columnList = "owner_id"),
+        @Index(name = "idx_projects_status_timer", columnList = "status, timer_deadline"),
+        @Index(name = "idx_projects_status_stage3", columnList = "status, stage3_deadline"),
+        @Index(name = "idx_projects_slug", columnList = "slug")
+})
 @SQLDelete(sql = "UPDATE projects SET deleted = true WHERE id = ?")
 // @Where(clause = "deleted = false") // IMPORTANT: This filters globally for
 // JPA queries
@@ -86,6 +91,9 @@ public class Project {
     @Column(name = "timer_deadline", columnDefinition = "TIMESTAMP WITH TIME ZONE")
     private ZonedDateTime timerDeadline;
 
+    @Column(name = "stage3_deadline", columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    private ZonedDateTime stage3Deadline;
+
     public Project() {
     }
 
@@ -96,7 +104,7 @@ public class Project {
         this.slug = slug;
         this.status = "DRAFT";
         this.deleted = false;
-        this.timerDeadline = ZonedDateTime.now().plusDays(5);
+        this.timerDeadline = ZonedDateTime.now().plusHours(20);
     }
 
     @PrePersist
@@ -108,7 +116,7 @@ public class Project {
         if (this.status == null)
             this.status = "DRAFT";
         if (this.timerDeadline == null)
-            this.timerDeadline = (this.createdAt != null ? this.createdAt : ZonedDateTime.now()).plusDays(5);
+            this.timerDeadline = (this.createdAt != null ? this.createdAt : ZonedDateTime.now()).plusHours(20);
         if (this.id == null)
             this.id = UUID.randomUUID();
     }
@@ -293,5 +301,13 @@ public class Project {
 
     public void setTimerDeadline(ZonedDateTime timerDeadline) {
         this.timerDeadline = timerDeadline;
+    }
+
+    public ZonedDateTime getStage3Deadline() {
+        return stage3Deadline;
+    }
+
+    public void setStage3Deadline(ZonedDateTime stage3Deadline) {
+        this.stage3Deadline = stage3Deadline;
     }
 }

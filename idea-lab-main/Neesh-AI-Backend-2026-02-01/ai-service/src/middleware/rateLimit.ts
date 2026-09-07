@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const WINDOW_MS = 60 * 1000; // 1 minute
-const MAX_REQUESTS = 30; // 30 requests per minute per IP
+const MAX_REQUESTS = Number(process.env.RATE_LIMIT_MAX) || 300; // 300 requests per minute per IP
 const MAX_MAP_SIZE = 10000; // Cap map size to prevent unbounded memory growth
 
 // Clean up expired rate limit entries every minute
@@ -16,6 +16,11 @@ setInterval(() => {
 }, WINDOW_MS).unref(); // unref so timer doesn't block process shutdown
 
 export function rateLimiter(req: Request, res: Response, next: NextFunction) {
+    // Bypass rate limiting for internal service-to-service calls from Spring Boot
+    if (req.path.startsWith('/internal') || (process.env.AI_SERVICE_INTERNAL_API_KEY && req.headers['x-internal-api-key'] === process.env.AI_SERVICE_INTERNAL_API_KEY)) {
+        return next();
+    }
+
     const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || 'unknown';
     const now = Date.now();
 

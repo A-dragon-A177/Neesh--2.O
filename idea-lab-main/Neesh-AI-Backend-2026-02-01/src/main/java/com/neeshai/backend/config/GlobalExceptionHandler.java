@@ -26,6 +26,56 @@ public class GlobalExceptionHandler {
     @Value("${app.debug:false}")
     private boolean debugMode;
 
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<Object> handleResponseStatusException(org.springframework.web.server.ResponseStatusException ex) {
+        String correlationId = UUID.randomUUID().toString();
+        log.warn("ResponseStatusException [{}]: status={} reason={}", correlationId, ex.getStatusCode(), ex.getReason());
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("correlationId", correlationId);
+        body.put("status", ex.getStatusCode().value());
+        body.put("error", ex.getStatusCode().toString());
+        body.put("message", ex.getReason() != null ? ex.getReason() : ex.getMessage());
+
+        return new ResponseEntity<>(body, ex.getStatusCode());
+    }
+
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<Object> handleNoResourceFoundException(org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", 404);
+        body.put("error", "Not Found");
+        body.put("message", "The requested resource was not found: " + ex.getResourcePath());
+        return new ResponseEntity<>(body, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<Object> handleAccessDeniedException(org.springframework.security.access.AccessDeniedException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", 403);
+        body.put("error", "Forbidden");
+        body.put("message", "Access denied: " + ex.getMessage());
+        return new ResponseEntity<>(body, HttpStatus.FORBIDDEN);
+    }
+
+    @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
+    public ResponseEntity<Object> handleBadRequestExceptions(RuntimeException ex) {
+        String correlationId = UUID.randomUUID().toString();
+        log.warn("Bad request [{}]: {}", correlationId, ex.getMessage());
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("correlationId", correlationId);
+        body.put("status", 400);
+        body.put("error", "Bad Request");
+        body.put("message", ex.getMessage());
+
+        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleAllExceptions(Exception ex, WebRequest request) {
         // Generate correlation ID for tracking

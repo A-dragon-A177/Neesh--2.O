@@ -106,6 +106,11 @@ public class ProjectService {
         return projectRepository.findById(id)
                 .filter(p -> p.getOwnerId().equals(ownerId)) // Strict Ownership
                 .map(project -> {
+                    // Terminal state check: Closed projects cannot be modified
+                    if ("CLOSED".equalsIgnoreCase(project.getStatus())) {
+                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Project is permanently closed and cannot be modified.");
+                    }
+
                     // Slug Logic: Regenerate ONLY if title changes
                     if (request.title() != null && !request.title().equals(project.getTitle())) {
                         project.setTitle(request.title());
@@ -151,9 +156,13 @@ public class ProjectService {
                     // Status Transition Logic
                     if (request.status() != null) {
                         String statusUpper = request.status().toUpperCase();
-                        // Simple validation
-                        if ("DRAFT".equals(statusUpper) || "PUBLISHED".equals(statusUpper) || "LOCKED".equals(statusUpper)) {
+                        // Support Stage 3 and Closed statuses
+                        if ("DRAFT".equals(statusUpper) || "PUBLISHED".equals(statusUpper) || "LOCKED".equals(statusUpper)
+                                || "STAGE3_ACTIVE".equals(statusUpper) || "CLOSED".equals(statusUpper)) {
                             project.setStatus(statusUpper);
+                            if ("STAGE3_ACTIVE".equals(statusUpper) && project.getStage3Deadline() == null) {
+                                project.setStage3Deadline(java.time.ZonedDateTime.now().plusHours(200));
+                            }
                         } else {
                             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status");
                         }
@@ -168,9 +177,13 @@ public class ProjectService {
         return projectRepository.findById(id)
                 .filter(p -> p.getOwnerId().equals(ownerId))
                 .map(project -> {
+                    if ("CLOSED".equalsIgnoreCase(project.getStatus())) {
+                        throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                                "This project is permanently CLOSED and cannot be reopened.");
+                    }
                     project.setStatus("DRAFT");
-                    // Grant a new 5-day cycle upon unlock
-                    project.setTimerDeadline(java.time.ZonedDateTime.now().plusDays(5));
+                    // Grant a new 20-hour cycle upon unlock
+                    project.setTimerDeadline(java.time.ZonedDateTime.now().plusHours(20));
                     return projectRepository.save(project);
                 });
     }
@@ -184,7 +197,7 @@ public class ProjectService {
         java.time.ZonedDateTime now = java.time.ZonedDateTime.now();
         java.time.ZonedDateTime deadline = project.getTimerDeadline();
         if (deadline == null) {
-            deadline = (project.getCreatedAt() != null ? project.getCreatedAt() : now).plusDays(5);
+            deadline = (project.getCreatedAt() != null ? project.getCreatedAt() : now).plusHours(20);
             project.setTimerDeadline(deadline);
             projectRepository.save(project);
         }
@@ -203,13 +216,37 @@ public class ProjectService {
         boolean meetsRequirements = (gold >= 5 && silver >= 10 && bronze >= 15);
         boolean isExpired = now.isAfter(deadline);
 
+        // Auto-promote to Stage 3 if requirements met under Stage 2
+        if (meetsRequirements && ("DRAFT".equalsIgnoreCase(project.getStatus()) || "PUBLISHED".equalsIgnoreCase(project.getStatus()))) {
+            project.setStatus("STAGE3_ACTIVE");
+            if (project.getStage3Deadline() == null) {
+                project.setStage3Deadline(now.plusHours(200));
+            }
+            projectRepository.save(project);
+        }
+
         // Auto-lock project if timer expired and validation requirements not met
-        if (isExpired && !meetsRequirements && !"LOCKED".equalsIgnoreCase(project.getStatus())) {
+        if (isExpired && !meetsRequirements && !"LOCKED".equalsIgnoreCase(project.getStatus())
+                && !"STAGE3_ACTIVE".equalsIgnoreCase(project.getStatus()) && !"CLOSED".equalsIgnoreCase(project.getStatus())) {
             project.setStatus("LOCKED");
             projectRepository.save(project);
         }
 
+        // Auto-close project if Stage 3 200-hour deadline has expired
+        boolean isStage3Active = "STAGE3_ACTIVE".equalsIgnoreCase(project.getStatus());
+        boolean isClosed = "CLOSED".equalsIgnoreCase(project.getStatus());
+        if (isStage3Active && project.getStage3Deadline() != null && now.isAfter(project.getStage3Deadline())) {
+            project.setStatus("CLOSED");
+            projectRepository.save(project);
+            isStage3Active = false;
+            isClosed = true;
+        }
+
         long secondsRemaining = Math.max(0, java.time.Duration.between(now, deadline).getSeconds());
+        long stage3SecondsRemaining = 0;
+        if (project.getStage3Deadline() != null) {
+            stage3SecondsRemaining = Math.max(0, java.time.Duration.between(now, project.getStage3Deadline()).getSeconds());
+        }
 
         return new ProjectDTOs.ProjectTimerStatusDTO(
                 project.getId(),
@@ -225,8 +262,37 @@ public class ProjectService {
                 silver,
                 10,
                 bronze,
-                15
+                15,
+                project.getStage3Deadline(),
+                stage3SecondsRemaining,
+                isStage3Active,
+                isClosed
         );
+    }
+
+    @Transactional
+    public boolean checkAndPromoteToStage3(Project project) {
+        if (project == null || "CLOSED".equalsIgnoreCase(project.getStatus())
+                || "STAGE3_ACTIVE".equalsIgnoreCase(project.getStatus()) || "LOCKED".equalsIgnoreCase(project.getStatus())) {
+            return false;
+        }
+        List<com.neeshai.backend.audience.AudienceMember> members = audienceMemberRepository.findRealAudienceByProjectId(project.getId());
+        int gold = 0, silver = 0, bronze = 0;
+        for (com.neeshai.backend.audience.AudienceMember m : members) {
+            String tier = com.neeshai.backend.audience.AudienceDTOs.computeValidationTier(m);
+            if ("GOLD".equalsIgnoreCase(tier)) gold++;
+            else if ("SILVER".equalsIgnoreCase(tier)) silver++;
+            else if ("BRONZE".equalsIgnoreCase(tier)) bronze++;
+        }
+        if (gold >= 5 && silver >= 10 && bronze >= 15) {
+            project.setStatus("STAGE3_ACTIVE");
+            if (project.getStage3Deadline() == null) {
+                project.setStage3Deadline(java.time.ZonedDateTime.now().plusHours(200));
+            }
+            projectRepository.save(project);
+            return true;
+        }
+        return false;
     }
 
     @Transactional
@@ -243,7 +309,7 @@ public class ProjectService {
 
     public Optional<Project> getPublicProject(String slug) {
         return projectRepository.findBySlug(slug)
-                .filter(p -> "PUBLISHED".equals(p.getStatus()))
+                .filter(p -> "PUBLISHED".equals(p.getStatus()) || "STAGE3_ACTIVE".equals(p.getStatus()) || "CLOSED".equals(p.getStatus()))
                 .filter(p -> !p.isDeleted()); // Double check, though repo handles it
     }
 

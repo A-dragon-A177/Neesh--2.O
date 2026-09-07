@@ -221,7 +221,7 @@ const CVPCard = ({ onAnswer, isSaving }: { onAnswer: (p: any, t?: string) => voi
         <label className="text-xs font-semibold text-gray-700">If your product vanished, what would they use?</label>
         <Select onValueChange={setAlt} value={alt} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Alternative"/></SelectTrigger>
-          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+          <SelectContent className="z-[9999] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Direct Competitor" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Direct Competitor</SelectItem>
             <SelectItem value="A Workaround" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">A Workaround</SelectItem>
             <SelectItem value="Doing Nothing" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Doing Nothing</SelectItem>
@@ -232,7 +232,7 @@ const CVPCard = ({ onAnswer, isSaving }: { onAnswer: (p: any, t?: string) => voi
         <label className="text-xs font-semibold text-gray-700">Does your product primarily give them more money or time?</label>
         <Select onValueChange={setMetric} value={metric} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Metric"/></SelectTrigger>
-          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+          <SelectContent className="z-[9999] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="More Money" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">More Money (Affordability)</SelectItem>
             <SelectItem value="More Time" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">More Time (Convenience)</SelectItem>
           </SelectContent>
@@ -258,7 +258,7 @@ const MarketDesperationCard = ({ onAnswer, isSaving }: { onAnswer: (p: any, t?: 
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">Does your solution require a new habit?</label>
         <Select onValueChange={setHabit} value={habit} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select habit requirement"/></SelectTrigger>
-          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+          <SelectContent className="z-[9999] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Requires new habit" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Requires completely new habit</SelectItem>
             <SelectItem value="Replaces existing habit" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Replaces existing habit</SelectItem>
           </SelectContent>
@@ -267,7 +267,7 @@ const MarketDesperationCard = ({ onAnswer, isSaving }: { onAnswer: (p: any, t?: 
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">Are they currently spending money to solve this?</label>
         <Select onValueChange={setDesperation} value={desperation} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select spending behavior"/></SelectTrigger>
-          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+          <SelectContent className="z-[9999] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Yes spend money" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Yes, they spend money</SelectItem>
             <SelectItem value="No" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">No, they don't</SelectItem>
             <SelectItem value="Unsure" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">I am unsure</SelectItem>
@@ -299,7 +299,7 @@ const MarketPopulationCard = ({ onAnswer, isSaving }: { onAnswer: (p: any, t?: s
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">Does this population exist in your target location?</label>
         <Select onValueChange={setPopValid} value={popValid} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Population Reality"/></SelectTrigger>
-          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+          <SelectContent className="z-[9999] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Yes exist in concentrated" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Yes, they exist here</SelectItem>
             <SelectItem value="No too small" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">No, too small</SelectItem>
             <SelectItem value="Guessing" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">I am guessing</SelectItem>
@@ -309,7 +309,7 @@ const MarketPopulationCard = ({ onAnswer, isSaving }: { onAnswer: (p: any, t?: s
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">Is your primary market highly concentrated or dispersed?</label>
         <Select onValueChange={setGeo} value={geo} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Geography"/></SelectTrigger>
-          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+          <SelectContent className="z-[9999] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Concentrated Metro" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Concentrated Metro</SelectItem>
             <SelectItem value="Dispersed Tier 2-3" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Dispersed Tier 2-3</SelectItem>
           </SelectContent>
@@ -331,7 +331,7 @@ const AcqTrustCard = ({ onAnswer, isSaving }: { onAnswer: (p: any, t?: string) =
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">Can you instantly close 10 people without ads?</label>
         <Select onValueChange={setGrassroots} value={grassroots} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Grassroots Reality"/></SelectTrigger>
-          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+          <SelectContent className="z-[9999] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Yes have 10" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Yes, I have these 10</SelectItem>
             <SelectItem value="No need strangers" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">No, I need strangers/ads</SelectItem>
           </SelectContent>
@@ -340,7 +340,7 @@ const AcqTrustCard = ({ onAnswer, isSaving }: { onAnswer: (p: any, t?: string) =
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">If a stranger tries your product, what converts them?</label>
         <Select onValueChange={setChannel} value={channel} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Primary Channel"/></SelectTrigger>
-          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+          <SelectContent className="z-[9999] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Discounts or paid" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Discounts / paid ads</SelectItem>
             <SelectItem value="Organic recommend" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Trusted customers recommend it</SelectItem>
             <SelectItem value="Established rep" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">My established reputation</SelectItem>
@@ -364,7 +364,7 @@ const DefMoatCard = ({ onAnswer, isSaving }: { onAnswer: (p: any, t?: string) =>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">If a competitor finds you today, what is your primary defense?</label>
         <Select onValueChange={setTrap} value={trap} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Primary Defense"/></SelectTrigger>
-          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+          <SelectContent className="z-[9999] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Patents" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Patents / legal</SelectItem>
             <SelectItem value="Secret" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Idea is a secret</SelectItem>
             <SelectItem value="Speed of execution" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Speed of execution</SelectItem>
@@ -374,7 +374,7 @@ const DefMoatCard = ({ onAnswer, isSaving }: { onAnswer: (p: any, t?: string) =>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">What operational barrier physically slows a giant clone?</label>
         <Select onValueChange={setLead} value={lead} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Operational Barrier"/></SelectTrigger>
-          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+          <SelectContent className="z-[9999] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Easily copyable" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Nothing, easily copyable</SelectItem>
             <SelectItem value="On-ground operations" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Physical on-ground ops</SelectItem>
             <SelectItem value="Deep R&D" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Deep scientific R&D</SelectItem>
@@ -385,7 +385,7 @@ const DefMoatCard = ({ onAnswer, isSaving }: { onAnswer: (p: any, t?: string) =>
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">Once cloned, what is your roadmap to survive?</label>
         <Select onValueChange={setRoadmap} value={roadmap} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Roadmap Strategy"/></SelectTrigger>
-          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+          <SelectContent className="z-[9999] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Defend single idea" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Defend this specific product</SelectItem>
             <SelectItem value="Release next upgrade" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Immediately release next upgrade</SelectItem>
           </SelectContent>
@@ -407,7 +407,7 @@ const BuildExecutionCard = ({ onAnswer, isSaving }: { onAnswer: (p: any, t?: str
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">How distributed is the workload among founders?</label>
         <Select onValueChange={setTeam} value={team} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select Team Workload"/></SelectTrigger>
-          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+          <SelectContent className="z-[9999] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Missing Links" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Missing key roles (Tech/Sales)</SelectItem>
             <SelectItem value="Heavy Overlap" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">1-2 founders juggling 4-6 roles</SelectItem>
             <SelectItem value="Balanced Overlap" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Balanced (e.g. 3 founders, 2 roles each)</SelectItem>
@@ -418,7 +418,7 @@ const BuildExecutionCard = ({ onAnswer, isSaving }: { onAnswer: (p: any, t?: str
       <div className="space-y-2"><label className="text-xs font-semibold text-gray-700">What is your MVP status and funding criticality?</label>
         <Select onValueChange={setMvp} value={mvp} disabled={isSaving}>
           <SelectTrigger className="bg-white text-gray-900 font-medium h-11 rounded-xl border-gray-200"><SelectValue placeholder="Select MVP Status"/></SelectTrigger>
-          <SelectContent className="z-[110] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+          <SelectContent className="z-[9999] bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
             <SelectItem value="Idea Stage" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Idea Stage — Need money to build</SelectItem>
             <SelectItem value="Stuck Stage" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">In progress — Need funding to finish</SelectItem>
             <SelectItem value="Traction Stage" className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50">Fully built — Need money to scale</SelectItem>
@@ -574,12 +574,30 @@ const CreateProjectWizard = ({
   const generateCustomFields = (currentAnswers: Record<string, any>): CustomField[] => {
     const fields: CustomField[] = [];
     let order = 1;
-    CHAT_QUESTIONS.forEach((q) => {
-      if (!q.blogField || !q.sectionTitle) return;
-      const value = currentAnswers[q.id];
-      if (!value || (typeof value === "string" && !value.trim())) return;
-      fields.push({ id: crypto.randomUUID(), type: "spotlight_section", sectionTitle: q.sectionTitle, value: String(value), order: order++ });
+
+    const mappings = [
+      { keys: ["problem_story", "problem", "the_problem"], title: "The Problem" },
+      { keys: ["our_solution", "solution", "what_building"], title: "What We're Building" },
+      { keys: ["target_customer", "target_audience", "who_its_for"], title: "Who It's For" },
+      { keys: ["the_hook", "hook"], title: "The Hook" },
+      { keys: ["founder_story", "founderStory", "the_founders_story"], title: "The Founder's Story" },
+      { keys: ["vision", "our_vision"], title: "Our Vision" },
+      { keys: ["call_to_action", "cta", "get_involved"], title: "Get Involved" },
+    ];
+
+    mappings.forEach(m => {
+      let val = "";
+      for (const k of m.keys) {
+        if (currentAnswers[k] && typeof currentAnswers[k] === "string" && currentAnswers[k].trim()) {
+          val = currentAnswers[k].trim();
+          break;
+        }
+      }
+      if (val) {
+        fields.push({ id: crypto.randomUUID(), type: "spotlight_section", sectionTitle: m.title, value: val, order: order++ });
+      }
     });
+
     return fields;
   };
 
@@ -671,6 +689,11 @@ const CreateProjectWizard = ({
       setAnswers(updatedAnswers);
       const validationJson = buildValidationAnswersJson(updatedAnswers);
 
+      // Save blog in parallel so spotlight stays updated with answers in real-time
+      saveBlog(createdProject, updatedAnswers).catch(err => {
+        console.warn("[CreateProjectWizard] Intermediate blog save error:", err);
+      });
+
       if (isLastQuestion) {
         // Final step: update project with onboarding_completed: true and finalize blog in parallel
         const [updated] = await Promise.all([
@@ -753,7 +776,7 @@ const CreateProjectWizard = ({
                 <SelectTrigger className="h-11 sm:h-12 rounded-xl sm:rounded-2xl border-gray-200 bg-white text-gray-900 font-medium focus:bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20">
                   <SelectValue placeholder="Select industry" />
                 </SelectTrigger>
-                <SelectContent position="popper" className="z-[220] max-h-64 bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+                <SelectContent position="popper" className="z-[9999] max-h-64 bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
                   {INDUSTRIES.map(ind => (
                     <SelectItem key={ind} value={ind} className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50 focus:text-cyan-900 font-medium">
                       {ind}
@@ -768,7 +791,7 @@ const CreateProjectWizard = ({
                 <SelectTrigger className="h-11 sm:h-12 rounded-xl sm:rounded-2xl border-gray-200 bg-white text-gray-900 font-medium focus:bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20">
                   <SelectValue placeholder="Select stage" />
                 </SelectTrigger>
-                <SelectContent position="popper" className="z-[220] max-h-64 bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
+                <SelectContent position="popper" className="z-[9999] max-h-64 bg-white text-gray-900 border border-gray-200 shadow-xl rounded-xl">
                   {STARTUP_STAGES.map(s => (
                     <SelectItem key={s.value} value={s.value} className="cursor-pointer text-gray-900 hover:bg-cyan-50 focus:bg-cyan-50 focus:text-cyan-900 font-medium">
                       {s.label}

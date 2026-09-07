@@ -17,7 +17,7 @@ const tierConfig = {
     iconBg: "bg-gradient-to-br from-amber-400 via-amber-500 to-yellow-600 text-white shadow-[0_0_16px_rgba(245,158,11,0.5)] border border-amber-300",
     badgeBg: "bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 font-black border border-amber-300 shadow-sm font-display",
     glowShadow: "shadow-[0_4px_25px_rgba(245,158,11,0.25)]",
-    description: "Priority #1 intent or highly engaged validated buyer.",
+    description: "Highest conviction — intent + feedback + 3+ chatbot questions on a top-priority tag.",
   },
   SILVER: {
     label: "Silver Lead",
@@ -28,7 +28,7 @@ const tierConfig = {
     iconBg: "bg-gradient-to-br from-slate-400 via-slate-500 to-slate-600 text-white shadow-[0_0_14px_rgba(148,163,184,0.4)] border border-slate-300",
     badgeBg: "bg-gradient-to-r from-slate-700 to-slate-900 text-white font-extrabold border border-slate-600 shadow-sm font-sans",
     glowShadow: "shadow-[0_4px_20px_rgba(148,163,184,0.22)]",
-    description: "Moderate priority tag or active engagement lead.",
+    description: "Active lead — explicit intent with feedback or questions on a priority tag.",
   },
   BRONZE: {
     label: "Bronze Lead",
@@ -39,7 +39,7 @@ const tierConfig = {
     iconBg: "bg-gradient-to-br from-orange-500 via-amber-600 to-orange-700 text-white shadow-[0_0_14px_rgba(234,88,12,0.4)] border border-orange-300",
     badgeBg: "bg-gradient-to-r from-orange-600 via-amber-700 to-orange-700 text-white font-extrabold border border-orange-400 shadow-sm font-sans",
     glowShadow: "shadow-[0_4px_20px_rgba(234,88,12,0.22)]",
-    description: "Validated buyer with interest tag intent.",
+    description: "Basic interest signal — clicked an interest tag or expressed initial curiosity.",
   },
 };
 

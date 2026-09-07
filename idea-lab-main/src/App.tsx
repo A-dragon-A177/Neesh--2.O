@@ -7,6 +7,9 @@ import { lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { AuthProvider } from "./contexts/AuthContext";
 import { SubscriptionProvider } from "./contexts/SubscriptionContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ProtectedAdminRoute } from "@/components/ProtectedAdminRoute";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // ── Backend warmup: wake Render from cold sleep immediately ──
 // Fire-and-forget — runs once when the JS module loads, well before
@@ -84,16 +87,16 @@ const App = () => (
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/project/:id" element={<Project />} />
-              <Route path="/project/:id/preview" element={<BlogPreview />} />
-              <Route path="/project/:id/feedback" element={<FeedbackBuilder />} />
-              <Route path="/project/:id/chatbot" element={<Chatbot />} />
-              <Route path="/p/:slugWithId" element={<PublicBlog />} />
-              <Route path="/pitches" element={<PitchFeed />} />
-              <Route path="/space" element={<Space />} />
-              <Route path="/profile" element={<ProfileSettings />} />
-              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/dashboard" element={<ProtectedRoute><ErrorBoundary><Dashboard /></ErrorBoundary></ProtectedRoute>} />
+              <Route path="/project/:id" element={<ProtectedRoute><ErrorBoundary><Project /></ErrorBoundary></ProtectedRoute>} />
+              <Route path="/project/:id/preview" element={<ProtectedRoute><ErrorBoundary><BlogPreview /></ErrorBoundary></ProtectedRoute>} />
+              <Route path="/project/:id/feedback" element={<ProtectedRoute><ErrorBoundary><FeedbackBuilder /></ErrorBoundary></ProtectedRoute>} />
+              <Route path="/project/:id/chatbot" element={<ProtectedRoute><ErrorBoundary><Chatbot /></ErrorBoundary></ProtectedRoute>} />
+              <Route path="/p/:slugWithId" element={<ErrorBoundary><PublicBlog /></ErrorBoundary>} />
+              <Route path="/pitches" element={<ErrorBoundary><PitchFeed /></ErrorBoundary>} />
+              <Route path="/space" element={<ErrorBoundary><Space /></ErrorBoundary>} />
+              <Route path="/profile" element={<ProtectedRoute><ErrorBoundary><ProfileSettings /></ErrorBoundary></ProtectedRoute>} />
+              <Route path="/admin" element={<ProtectedAdminRoute><ErrorBoundary><AdminDashboard /></ErrorBoundary></ProtectedAdminRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
