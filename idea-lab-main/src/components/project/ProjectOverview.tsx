@@ -51,6 +51,7 @@ interface ProjectOverviewProps {
     elevatorPitchUrl?: string | null;
     earlyAccessPrice?: number | null;
     timerDeadline?: string | null;
+    stage3Deadline?: string | null;
     createdAt?: string | null;
   };
   validationAnswers?: string | null;
@@ -582,6 +583,9 @@ const ProjectOverview = ({
   const totalInteractions = audienceStats.totalMembers + totalQuestions;
 
   const validationStage = useMemo(() => computeValidationStage(totalInteractions), [totalInteractions]);
+  const isStage3Active = projectData.status?.toUpperCase() === "STAGE3_ACTIVE";
+  const isClosed = projectData.status?.toUpperCase() === "CLOSED";
+  const meetsSprintGoals = (buyersData?.goldCount || 0) >= 5 && (buyersData?.silverCount || 0) >= 10 && (buyersData?.bronzeCount || 0) >= 15;
   const healthScores = useMemo(
     () => computeHealthScores(totalFeedback, uniqueOccupations, totalQuestions, unansweredQuestions),
     [totalFeedback, uniqueOccupations, totalQuestions, unansweredQuestions]
@@ -687,35 +691,39 @@ const ProjectOverview = ({
 
   const resumeUrl = `${window.location.origin}/project/${projectId}?resume=true`;
   const isValidationComplete = useMemo(() => {
+    // Strictly true if onboarding was completed through all reality check modules
     if (projectData.onboardingCompleted === true) return true;
-    if (validationReport && validationReport !== "{}" && validationReport !== "null" && validationReport.trim().length > 20) {
-      return true;
-    }
-    if (validationAnswers) {
+
+    // Or if a valid, non-empty validation report was saved
+    if (validationReport && validationReport !== "{}" && validationReport !== "null" && validationReport.trim().length > 30) {
       try {
-        const parsed = JSON.parse(validationAnswers);
-        if (
-          (parsed["problem_story"] || parsed["cvp_input_a"]) &&
-          (parsed["our_solution"] || parsed["market_input_a"]) &&
-          (parsed["target_customer"] || parsed["acq_trust_card"] || parsed["acq_input_a"])
-        ) {
+        const parsed = JSON.parse(validationReport);
+        if (parsed.overallScore !== undefined || (Array.isArray(parsed.modules) && parsed.modules.length > 0)) {
           return true;
         }
       } catch (e) {}
     }
-    return projectData.onboardingCompleted !== false;
-  }, [projectData.onboardingCompleted, validationReport, validationAnswers]);
+    
+    // Otherwise validation is incomplete (questions were skipped or wizard was closed early)
+    return false;
+  }, [projectData.onboardingCompleted, validationReport]);
 
-  // Extract effective report JSON (dynamic per project if report missing)
+  // Extract effective report JSON (only when validation is complete)
   const effectiveReportJson = useMemo(() => {
     if (validationReport && validationReport !== "{}" && validationReport !== "null" && validationReport.trim().length > 10) {
       return validationReport;
     }
-    return generateDynamicProjectReport(projectId, projectData.title);
-  }, [validationReport, projectId, projectData.title]);
+    if (isValidationComplete) {
+      return generateDynamicProjectReport(projectId, projectData.title);
+    }
+    return null;
+  }, [isValidationComplete, validationReport, projectId, projectData.title]);
 
   // Extract score & status as exact average of the 5 modules
   const { parsedScore, isValidationFailed } = useMemo(() => {
+    if (!effectiveReportJson) {
+      return { parsedScore: 0, isValidationFailed: false };
+    }
     try {
       const parsed = JSON.parse(effectiveReportJson);
       let mods: any[] = [];
@@ -1056,22 +1064,23 @@ const ProjectOverview = ({
                     </p>
                   </div>
 
-                  {/* 5-Day Validation Sprint & Stage 3 Qualification Card */}
+                  {/* 20-Hour Validation Sprint & Stage 3 Qualification Card */}
                   <div className="bg-gradient-to-br from-indigo-50/80 via-white to-cyan-50/60 border-2 border-indigo-200/80 rounded-2xl p-5 shadow-sm space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div>
                         <h4 className="font-bold text-gray-900 text-sm font-display flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
-                          5-Day Stage 2 Sprint & Stage 3 Qualification
+                          20-Hour Stage 2 Sprint & Stage 3 Qualification
                         </h4>
                         <p className="text-xs text-slate-500 font-sans mt-0.5">
-                          Acquire <strong>5 Gold + 10 Silver + 15 Bronze</strong> verified audience members within 5 days to auto-qualify for Stage 3 Pilot MVP.
+                          Acquire <strong>5 Gold + 10 Silver + 15 Bronze</strong> verified audience members within 20 hours to auto-qualify for Stage 3 Pilot MVP.
                         </p>
                       </div>
                       <div className="shrink-0">
                         <ProjectTimer
                           deadline={projectData.timerDeadline}
                           createdAt={projectData.createdAt}
+                          stage3Deadline={projectData.stage3Deadline}
                           status={projectData.status}
                           goldCount={buyersData?.goldCount || 0}
                           silverCount={buyersData?.silverCount || 0}
@@ -1080,6 +1089,19 @@ const ProjectOverview = ({
                         />
                       </div>
                     </div>
+
+                    {/* Stage 2 Success Banner if qualified/Stage 3 active */}
+                    {(isStage3Active || isClosed || meetsSprintGoals) && (
+                      <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-3 text-emerald-900 dark:text-emerald-300 text-xs font-semibold">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span>Stage 2 Sprint Goals Met! All tier requirements satisfied (5 Gold, 10 Silver, 15 Bronze).</span>
+                        </div>
+                        <span className="text-[11px] px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 uppercase font-bold tracking-wider">
+                          Qualified ✅
+                        </span>
+                      </div>
+                    )}
 
                     {/* Progress indicators for 3 tiers */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
@@ -1185,28 +1207,72 @@ const ProjectOverview = ({
       </div>
 
       {/* 5. Stage 3 Dropdown Box */}
-      <div className="bg-white/60 backdrop-blur-xl border border-gray-100/80 rounded-[2rem] overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.02)]">
+      <div className={`bg-white/60 backdrop-blur-xl border ${
+        isStage3Active 
+          ? 'border-purple-300/90 shadow-[0_8px_30px_rgba(168,85,247,0.12)]' 
+          : isClosed 
+          ? 'border-slate-300/80 shadow-[0_8px_30px_rgba(0,0,0,0.04)]' 
+          : 'border-gray-100/80 shadow-[0_8px_30px_rgb(0,0,0,0.02)]'
+      } rounded-[2rem] overflow-hidden`}>
         <button
           onClick={() => toggleStage('stage3')}
           className="w-full flex flex-col sm:flex-row sm:items-center justify-between p-5 md:p-6 text-left hover:bg-white/40 transition-colors gap-3"
         >
           <div className="flex items-start sm:items-center gap-3 md:gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-cyan-50 flex items-center justify-center text-cyan-600 border border-cyan-100 shrink-0">
-              <TrendingUp className="w-6 h-6" />
+            <div className={`w-12 h-12 rounded-2xl ${
+              isStage3Active 
+                ? 'bg-purple-50 text-purple-600 border border-purple-200' 
+                : isClosed 
+                ? 'bg-slate-800 text-slate-200 border border-slate-700' 
+                : 'bg-cyan-50 text-cyan-600 border border-cyan-100'
+            } flex items-center justify-center shrink-0`}>
+              {isClosed ? <Archive className="w-6 h-6" /> : isStage3Active ? <Rocket className="w-6 h-6 animate-pulse" /> : <TrendingUp className="w-6 h-6" />}
             </div>
             <div>
-              <h3 className="font-bold text-gray-900 text-base md:text-lg font-display">Stage 3: Pilot MVP Cohort & Growth</h3>
-              <p className="text-xs text-gray-500 mt-0.5 font-sans">Recruit your pilot batch for MVP validation using spotlight metrics and pitch loop feedback.</p>
+              <h3 className="font-bold text-gray-900 text-base md:text-lg font-display flex items-center gap-2">
+                Stage 3: Pilot MVP Cohort & Growth
+                {isStage3Active && (
+                  <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-300 animate-pulse font-sans">
+                    Active (200h)
+                  </span>
+                )}
+                {isClosed && (
+                  <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-slate-900 text-slate-300 border border-slate-700 font-sans">
+                    Concluded
+                  </span>
+                )}
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5 font-sans">
+                {isClosed 
+                  ? "The 200-hour Pilot MVP window has ended. Project is permanently closed and archived." 
+                  : isStage3Active 
+                  ? "200-hour Pilot MVP window is LIVE! Engage pilot members and deliver prototypes." 
+                  : "Recruit your pilot batch for MVP validation using spotlight metrics and pitch loop feedback."}
+              </p>
             </div>
           </div>
           <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto border-t sm:border-t-0 pt-2 sm:pt-0">
-            <span className={`text-xs font-bold px-3 py-1.5 rounded-full border font-sans ${
-              (buyersData?.totalValidated || 0) >= 40 
-                ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
-                : "bg-cyan-50 text-cyan-800 border-cyan-200"
-            }`}>
-              {buyersData?.totalValidated || 0}/40 Buyers
-            </span>
+            {isStage3Active ? (
+              <ProjectTimer
+                stage3Deadline={projectData.stage3Deadline}
+                createdAt={projectData.createdAt}
+                status={projectData.status}
+                isStage3Active={true}
+                variant="compact"
+              />
+            ) : isClosed ? (
+              <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-slate-900 text-slate-300 border border-slate-700 font-sans">
+                Archived
+              </span>
+            ) : (
+              <span className={`text-xs font-bold px-3 py-1.5 rounded-full border font-sans ${
+                (buyersData?.totalValidated || 0) >= 40 
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                  : "bg-cyan-50 text-cyan-800 border-cyan-200"
+              }`}>
+                {buyersData?.totalValidated || 0}/40 Buyers
+              </span>
+            )}
             <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-cyan-50 text-cyan-800 border border-cyan-200 font-sans">
               {linkedProjects.length} Project Link{linkedProjects.length !== 1 ? 's' : ''} Active
             </span>
@@ -1223,6 +1289,55 @@ const ProjectOverview = ({
               transition={{ duration: 0.3 }}
               className="border-t border-gray-100/50 p-6 bg-slate-50/30 space-y-6 font-sans"
             >
+              {/* Active Stage 3 200-Hour Pilot MVP Countdown Card */}
+              {isStage3Active && (
+                <div className="bg-gradient-to-r from-purple-500/15 via-indigo-500/10 to-purple-500/15 border-2 border-purple-400/70 rounded-2xl p-6 shadow-md relative overflow-hidden backdrop-blur-md">
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5 relative z-10">
+                    <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-purple-500/30">
+                        <Rocket className="w-7 h-7" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="font-extrabold text-gray-900 text-base font-display">Stage 3 Pilot MVP Window (200 Hours)</h4>
+                          <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-300 uppercase tracking-wider font-display animate-pulse">
+                            Active Window ⚡
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-700 leading-relaxed font-sans max-w-xl">
+                          Stage 2 validation targets were successfully met! You have a <strong>200-hour sprint</strong> to engage your enrolled pilot cohort, test prototypes, and iterate. Once the 200 hours end, this project will permanently close and archive.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="shrink-0">
+                      <ProjectTimer
+                        stage3Deadline={projectData.stage3Deadline}
+                        createdAt={projectData.createdAt}
+                        status={projectData.status}
+                        isStage3Active={true}
+                        variant="header"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Closed Project Notification Banner */}
+              {isClosed && (
+                <div className="bg-slate-900 text-slate-200 border border-slate-700 rounded-2xl p-6 shadow-md space-y-2">
+                  <div className="flex items-center gap-3">
+                    <Archive className="w-6 h-6 text-slate-400" />
+                    <h4 className="font-bold text-base text-white font-display">Stage 3 Pilot MVP Concluded</h4>
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 uppercase">
+                      Permanently Closed
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed font-sans">
+                    The 200-hour Pilot MVP countdown has ended. This project has completed its lifecycle on Neesh AI and is preserved in permanent read-only archive mode.
+                  </p>
+                </div>
+              )}
+
               {/* Pilot Cohort Notification Banner */}
               <div className="bg-gradient-to-r from-cyan-500/10 via-teal-500/5 to-cyan-500/10 border border-cyan-300/40 rounded-2xl p-6 shadow-sm relative overflow-hidden backdrop-blur-md">
                 <div className="flex flex-col md:flex-row items-start md:items-center gap-5 relative z-10">

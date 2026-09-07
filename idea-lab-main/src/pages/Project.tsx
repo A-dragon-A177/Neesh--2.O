@@ -229,9 +229,98 @@ const Project = () => {
           });
         }
 
+        // If no custom fields in blog yet, check if project has validation_answers
+        if (loadedSections.length <= 2 && project?.validation_answers) {
+          try {
+            const parsed = typeof project.validation_answers === "string"
+              ? JSON.parse(project.validation_answers)
+              : project.validation_answers;
+
+            const mappings = [
+              { keys: ["problem_story", "problem", "the_problem"], title: "The Problem" },
+              { keys: ["our_solution", "solution", "what_building"], title: "What We're Building" },
+              { keys: ["target_customer", "target_audience", "who_its_for"], title: "Who It's For" },
+              { keys: ["the_hook", "hook"], title: "The Hook" },
+              { keys: ["founder_story", "founderStory", "the_founders_story"], title: "The Founder's Story" },
+              { keys: ["vision", "our_vision"], title: "Our Vision" },
+              { keys: ["call_to_action", "cta", "get_involved"], title: "Get Involved" },
+            ];
+
+            let customIdx = 1;
+            mappings.forEach(m => {
+              let val = "";
+              for (const k of m.keys) {
+                if (parsed[k] && typeof parsed[k] === "string" && parsed[k].trim()) {
+                  val = parsed[k].trim();
+                  break;
+                }
+              }
+              if (val) {
+                const resolvedTitle = getSpotlightTitle(m.title, project?.industry);
+                loadedSections.push({
+                  id: `auto-${customIdx++}`,
+                  title: resolvedTitle,
+                  content: val,
+                  type: "text",
+                  sectionTitle: m.title
+                });
+              }
+            });
+          } catch (e) {
+            console.warn("[Project] Error parsing validation_answers for blog:", e);
+          }
+        }
+
         setSections(loadedSections);
       } else {
-        // No blog found — keep default sections
+        // No blog found — check if project has validation answers
+        const loadedSections: typeof sections = [
+          { id: "1", title: "Introduction", content: project?.introduction || project?.one_line_summary || "", type: "text" },
+          { id: "2", title: "Content", content: project?.description || "", type: "text" },
+        ];
+
+        if (project?.validation_answers) {
+          try {
+            const parsed = typeof project.validation_answers === "string"
+              ? JSON.parse(project.validation_answers)
+              : project.validation_answers;
+
+            const mappings = [
+              { keys: ["problem_story", "problem", "the_problem"], title: "The Problem" },
+              { keys: ["our_solution", "solution", "what_building"], title: "What We're Building" },
+              { keys: ["target_customer", "target_audience", "who_its_for"], title: "Who It's For" },
+              { keys: ["the_hook", "hook"], title: "The Hook" },
+              { keys: ["founder_story", "founderStory", "the_founders_story"], title: "The Founder's Story" },
+              { keys: ["vision", "our_vision"], title: "Our Vision" },
+              { keys: ["call_to_action", "cta", "get_involved"], title: "Get Involved" },
+            ];
+
+            let customIdx = 1;
+            mappings.forEach(m => {
+              let val = "";
+              for (const k of m.keys) {
+                if (parsed[k] && typeof parsed[k] === "string" && parsed[k].trim()) {
+                  val = parsed[k].trim();
+                  break;
+                }
+              }
+              if (val) {
+                const resolvedTitle = getSpotlightTitle(m.title, project?.industry);
+                loadedSections.push({
+                  id: `auto-${customIdx++}`,
+                  title: resolvedTitle,
+                  content: val,
+                  type: "text",
+                  sectionTitle: m.title
+                });
+              }
+            });
+          } catch (e) {
+            console.warn("[Project] Error parsing validation_answers for fallback:", e);
+          }
+        }
+
+        setSections(loadedSections);
       }
     };
     loadBlog();
@@ -387,10 +476,11 @@ const Project = () => {
           </div>
 
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            {/* 5-Day Validation Sprint Timer */}
+            {/* 20-Hour Validation Sprint Timer */}
             <ProjectTimer
               deadline={project.timer_deadline}
               createdAt={project.created_at}
+              stage3Deadline={project.stage3_deadline}
               status={project.status}
               goldCount={buyersData?.goldCount || 0}
               silverCount={buyersData?.silverCount || 0}
@@ -435,10 +525,11 @@ const Project = () => {
         {/* Desktop Top Header - hidden on mobile */}
         <header className="hidden md:flex h-16 bg-card border-b border-border/50 items-center justify-between px-6 shadow-sm">
           <div className="flex items-center gap-3">
-            {/* 5-Day Validation Sprint Timer Pill */}
+            {/* 20-Hour Validation Sprint / Stage 3 Timer Pill */}
             <ProjectTimer
               deadline={project.timer_deadline}
               createdAt={project.created_at}
+              stage3Deadline={project.stage3_deadline}
               status={project.status}
               goldCount={buyersData?.goldCount || 0}
               silverCount={buyersData?.silverCount || 0}
@@ -524,11 +615,12 @@ const Project = () => {
 
         {/* Content Area */}
         <main className="flex-1 overflow-auto p-4 md:p-8 bg-background has-bottom-nav md:pb-8">
-          {/* Project Locked Banner / Overlay if 5-day timer concluded without goals */}
-          {project.status?.toUpperCase() === "LOCKED" && (
+          {/* Project Locked Banner / Overlay if 20-hour timer concluded without goals OR permanently CLOSED */}
+          {(project.status?.toUpperCase() === "LOCKED" || project.status?.toUpperCase() === "CLOSED") && (
             <ProjectLockedOverlay
               projectId={id || ""}
               projectTitle={project.title}
+              isClosed={project.status?.toUpperCase() === "CLOSED"}
               goldCount={buyersData?.goldCount || 0}
               silverCount={buyersData?.silverCount || 0}
               bronzeCount={buyersData?.bronzeCount || 0}
@@ -555,6 +647,7 @@ const Project = () => {
                   elevatorPitchUrl: project.elevator_pitch_url || null,
                   earlyAccessPrice: project.early_access_price,
                   timerDeadline: project.timer_deadline,
+                  stage3Deadline: project.stage3_deadline,
                   createdAt: project.created_at,
                 }}
                 validationAnswers={project.validation_answers || null}

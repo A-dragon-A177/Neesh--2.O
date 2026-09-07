@@ -119,7 +119,8 @@ export class VectorStoreService {
             .toLowerCase()
             .replace(/[^a-z0-9\s]/g, ' ')
             .split(/\s+/)
-            .filter(w => w.length > 3 && !STOP_WORDS.has(w));
+            .filter(w => w.length > 3 && !STOP_WORDS.has(w))
+            .map(w => w.replace(/[%_\\]/g, '')); // Escape ILIKE wildcards to prevent pattern injection
 
         if (keywords.length === 0) return [];
 

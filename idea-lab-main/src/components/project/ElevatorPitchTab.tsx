@@ -17,7 +17,8 @@ const MAX_FILE_SIZE_MB = 50;
 const SUGGESTED_DURATION = 60; // seconds — advisory only, NOT a hard limit
 
 const ElevatorPitchTab = ({ project, projectId, onUpdate }: ElevatorPitchTabProps) => {
-  const { submitPromotion } = usePromotions();
+  const { promotions, submitPromotion, removePromotion } = usePromotions();
+  const [isPromoting, setIsPromoting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -114,17 +115,46 @@ const ElevatorPitchTab = ({ project, projectId, onUpdate }: ElevatorPitchTabProp
 
       toast.success("Elevator pitch saved successfully!");
       console.log("[ElevatorPitch] Save complete! Duration:", duration, "URL:", finalUrl);
-
-      // Non-blocking background promotion submission
-      submitPromotion(projectId).catch((promoErr) => {
-        console.log("[ElevatorPitch] Background promotion note:", promoErr);
-      });
     } catch (err: any) {
       console.error("[ElevatorPitch] Save failed:", err);
       toast.error(`Failed to save: ${err?.message || "Unknown error"}`);
     } finally {
       setSaving(false);
       setUploading(false);
+    }
+  };
+
+  const activePromotion = promotions.find(p => p.projectId === projectId && p.status === 'ACTIVE');
+  const isPromoted = Boolean(activePromotion);
+
+  const handlePushToEngine = async () => {
+    setIsPromoting(true);
+    try {
+      await submitPromotion(projectId);
+      toast.success("Pitch pushed to Cross Promotional Engine! It is now live in the Pitch Space.");
+    } catch (err: any) {
+      console.error("[ElevatorPitch] Push to engine failed:", err);
+      toast.error(err?.message || "Failed to push to Cross Promotional Engine");
+    } finally {
+      setIsPromoting(false);
+    }
+  };
+
+  const handleRemoveFromEngine = async () => {
+    if (!activePromotion) return;
+    setIsPromoting(true);
+    try {
+      const ok = await removePromotion(activePromotion.id);
+      if (ok) {
+        toast.success("Pitch removed from Cross Promotional Engine.");
+      } else {
+        toast.error("Failed to remove pitch from Cross Promotional Engine.");
+      }
+    } catch (err: any) {
+      console.error("[ElevatorPitch] Remove from engine failed:", err);
+      toast.error(err?.message || "Failed to remove pitch from engine");
+    } finally {
+      setIsPromoting(false);
     }
   };
 
@@ -346,25 +376,69 @@ const ElevatorPitchTab = ({ project, projectId, onUpdate }: ElevatorPitchTabProp
           </p>
         </div>
 
-        {/* Cross Promo Tip / Warning */}
+        {/* Cross Promotional Engine Status */}
         {previewUrl ? (
-          <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-cyan-500/20 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Clapperboard className="w-4 h-4 text-cyan-400" />
-              <span className="text-sm font-medium text-foreground font-display">Cross Promotional Engine Active</span>
+          <div className={`border rounded-xl p-4 transition-all duration-300 flex flex-col justify-between gap-3 ${
+            isPromoted
+              ? "bg-gradient-to-br from-emerald-500/10 via-cyan-500/10 to-blue-500/10 border-cyan-500/40 shadow-sm"
+              : "bg-muted/30 border-border/50"
+          }`}>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-2">
+                  <Clapperboard className={`w-4 h-4 ${isPromoted ? "text-cyan-400" : "text-muted-foreground"}`} />
+                  <span className="text-sm font-semibold text-foreground font-display">Cross Promotional Engine</span>
+                </div>
+                {isPromoted ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    <CheckCircle2 className="w-3 h-3" /> Live in Pitch Space
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-muted text-muted-foreground border border-border">
+                    Private Only
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {isPromoted
+                  ? "Your pitch is actively syndicated across Pitch Space reels and 'More Like This' discovery feeds."
+                  : "Your pitch is currently private to your project. Push it to the Cross Promotional Engine to appear in Pitch Space and similar feeds."}
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Your pitch is ready to appear in the Neesh Pitches feed when you promote this project.
-            </p>
+
+            <div className="flex justify-end pt-1">
+              {isPromoted ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleRemoveFromEngine}
+                  disabled={isPromoting}
+                  className="text-xs h-8 gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/10"
+                >
+                  {isPromoting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  Remove from Engine
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={handlePushToEngine}
+                  disabled={isPromoting || isDirty}
+                  className="text-xs h-8 gap-1.5 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white border-0 shadow-md shadow-cyan-500/20"
+                >
+                  {isPromoting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Clapperboard className="w-3.5 h-3.5" />}
+                  Push to Cross Promotional Engine
+                </Button>
+              )}
+            </div>
           </div>
         ) : (
           <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle className="w-4 h-4 text-amber-500" />
-              <span className="text-sm font-medium text-amber-500 font-display">Cross Promotional Engine Warning</span>
+              <span className="text-sm font-medium text-amber-500 font-display">Cross Promotional Engine Inactive</span>
             </div>
             <p className="text-xs text-amber-500/80">
-              You must upload an Elevator Pitch to unlock the Reels feed! Without a pitch, your project will not appear in the Cross Promotional Engine.
+              Upload an Elevator Pitch video to enable the Cross Promotional Engine and Pitch Space reels feed.
             </p>
           </div>
         )}

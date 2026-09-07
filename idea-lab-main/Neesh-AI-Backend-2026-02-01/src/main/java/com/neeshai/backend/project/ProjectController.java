@@ -189,7 +189,7 @@ public class ProjectController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // 5-Day Validation Timer Status Endpoint
+    // 20-Hour Validation Timer Status Endpoint
     @GetMapping("/{id}/timer-status")
     public ResponseEntity<ProjectDTOs.ProjectTimerStatusDTO> getProjectTimerStatus(
             @PathVariable UUID id,

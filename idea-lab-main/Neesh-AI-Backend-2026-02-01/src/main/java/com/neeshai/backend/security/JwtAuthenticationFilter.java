@@ -57,6 +57,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     userService.syncUser(userId, email, name);
                     syncedUserCache.put(userId, now);
                     log.debug("Successfully synced user from JWT: {} ({})", userId, email);
+
+                    // Prevent unbounded memory growth under high user traffic
+                    if (syncedUserCache.size() > 2000) {
+                        syncedUserCache.entrySet().removeIf(entry -> (now - entry.getValue()) > SYNC_CACHE_TTL_MS);
+                    }
                 }
 
             } catch (Exception e) {

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { randomUUID } from 'crypto';
+import { encryptApiKey } from '../services/CryptoService';
 
 interface ApiKeyRequest {
     provider: 'GEMINI' | 'OPENAI';
@@ -70,7 +71,7 @@ export class ApiKeyController {
                 const { error: updateError } = await supabase
                     .from('user_api_keys')
                     .update({
-                        encrypted_api_key: apiKey, // In production, encrypt this
+                    encrypted_api_key: encryptApiKey(apiKey),
                         updated_at: new Date().toISOString()
                     })
                     .eq('id', existingKey.id);
@@ -88,7 +89,7 @@ export class ApiKeyController {
                     id: randomUUID(),
                     user_id: req.user?.id,
                     provider,
-                    encrypted_api_key: apiKey, // In production, encrypt this
+                    encrypted_api_key: encryptApiKey(apiKey),
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
                 };

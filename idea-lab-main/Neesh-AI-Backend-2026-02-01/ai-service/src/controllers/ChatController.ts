@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { decryptApiKey } from '../services/CryptoService';
 
 interface ChatRequest {
     query: string;
@@ -24,9 +25,8 @@ export class ChatController {
                 return null;
             }
 
-            // In production, decrypt the API key here
-            // For now, assuming it's stored as plain text (not recommended)
-            return apiKey.encrypted_api_key;
+            // Decrypt the API key (backward-compatible with plaintext records)
+            return decryptApiKey(apiKey.encrypted_api_key);
         } catch (error) {
             console.error(`[ChatController] Error getting ${provider} API key:`, error);
             return null;
@@ -142,11 +142,39 @@ ${conversationContext}
 
 Current User Question: ${query}
 
-Please provide a helpful, accurate response based on the project context and conversation history. If the question is not related to the project, politely redirect the user to project-related topics.`;
+Please provide a helpful, accurate response based on the project context and conversation history. Keep it focused on the project.`;
 
-            const result = await model.generateContent(prompt);
-            const response = result.response;
-            const answer = response.text();
+            let answer: string;
+            try {
+                if (geminiApiKey) {
+                    const genAI = new GoogleGenerativeAI(geminiApiKey);
+                    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+                    const result = await model.generateContent(prompt);
+                    answer = result.response.text();
+                } else {
+                    throw new Error('No Gemini key');
+                }
+            } catch (llmErr) {
+                console.warn('[ChatController] Gemini unavailable, falling back to OpenAI...');
+                if (process.env.OPENAI_API_KEY) {
+                    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+                        },
+                        body: JSON.stringify({
+                            model: 'gpt-4o-mini',
+                            messages: [{ role: 'user', content: prompt }],
+                            max_tokens: 600
+                        })
+                    });
+                    const json: any = await res.json();
+                    answer = json.choices?.[0]?.message?.content || 'I could not generate an answer right now.';
+                } else {
+                    throw llmErr;
+                }
+            }
 
             console.log('[ChatController] Generated response length:', answer.length);
 
@@ -211,9 +239,37 @@ User Question: ${query}
 
 Please provide a helpful response about this project. Keep it concise and relevant to the project.`;
 
-            const result = await model.generateContent(prompt);
-            const response = result.response;
-            const answer = response.text();
+            let answer: string;
+            try {
+                if (geminiApiKey) {
+                    const genAI = new GoogleGenerativeAI(geminiApiKey);
+                    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+                    const result = await model.generateContent(prompt);
+                    answer = result.response.text();
+                } else {
+                    throw new Error('No Gemini key');
+                }
+            } catch (llmErr) {
+                console.warn('[ChatController] Gemini public chat failed, falling back to OpenAI...');
+                if (process.env.OPENAI_API_KEY) {
+                    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+                        },
+                        body: JSON.stringify({
+                            model: 'gpt-4o-mini',
+                            messages: [{ role: 'user', content: prompt }],
+                            max_tokens: 500
+                        })
+                    });
+                    const json: any = await res.json();
+                    answer = json.choices?.[0]?.message?.content || 'I am ready to assist with any questions about this project.';
+                } else {
+                    throw llmErr;
+                }
+            }
 
             res.json({
                 answer,

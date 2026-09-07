@@ -624,6 +624,46 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
             });
           }
 
+          // Fallback: If no custom sections found from blog, auto-generate from project validation_answers
+          if (sections.filter(s => s.type !== "feedback").length <= 2 && (project?.validation_answers || project?.validationAnswers)) {
+            try {
+              const rawAnswers = project.validation_answers || project.validationAnswers;
+              const parsed = typeof rawAnswers === "string" ? JSON.parse(rawAnswers) : rawAnswers;
+
+              const mappings = [
+                { keys: ["problem_story", "problem", "the_problem"], title: "The Problem" },
+                { keys: ["our_solution", "solution", "what_building"], title: "What We're Building" },
+                { keys: ["target_customer", "target_audience", "who_its_for"], title: "Who It's For" },
+                { keys: ["the_hook", "hook"], title: "The Hook" },
+                { keys: ["founder_story", "founderStory", "the_founders_story"], title: "The Founder's Story" },
+                { keys: ["vision", "our_vision"], title: "Our Vision" },
+                { keys: ["call_to_action", "cta", "get_involved"], title: "Get Involved" },
+              ];
+
+              let customIdx = 1;
+              mappings.forEach(m => {
+                let val = "";
+                for (const k of m.keys) {
+                  if (parsed[k] && typeof parsed[k] === "string" && parsed[k].trim()) {
+                    val = parsed[k].trim();
+                    break;
+                  }
+                }
+                if (val) {
+                  const resolvedTitle = getSpotlightTitle(m.title, projectIndustry);
+                  sections.push({
+                    id: `auto-${customIdx++}`,
+                    title: resolvedTitle,
+                    content: val,
+                    type: "text",
+                  });
+                }
+              });
+            } catch (e) {
+              console.warn("[BlogPreview] Error auto-generating sections from validation_answers:", e);
+            }
+          }
+
 
 
 

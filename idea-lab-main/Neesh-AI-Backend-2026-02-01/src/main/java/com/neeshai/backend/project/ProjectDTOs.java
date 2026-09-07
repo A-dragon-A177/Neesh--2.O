@@ -53,7 +53,8 @@ public class ProjectDTOs {
             ZonedDateTime timerDeadline,
             ZonedDateTime createdAt,
             ZonedDateTime updatedAt,
-            Integer audienceViewCount) {
+            Integer audienceViewCount,
+            ZonedDateTime stage3Deadline) {
         public static PrivateProjectDTO fromEntity(Project project) {
             return fromEntity(project, 0);
         }
@@ -78,10 +79,11 @@ public class ProjectDTOs {
                     project.getElevatorPitchThumbnail(),
                     project.getElevatorPitchDuration(),
                     project.getEarlyAccessPrice(),
-                    project.getTimerDeadline() != null ? project.getTimerDeadline() : (project.getCreatedAt() != null ? project.getCreatedAt().plusDays(5) : null),
+                    project.getTimerDeadline() != null ? project.getTimerDeadline() : (project.getCreatedAt() != null ? project.getCreatedAt().plusHours(20) : null),
                     project.getCreatedAt(),
                     project.getUpdatedAt(),
-                    totalAudienceViews);
+                    totalAudienceViews,
+                    project.getStage3Deadline());
         }
     }
 
@@ -100,7 +102,11 @@ public class ProjectDTOs {
             int silverCount,
             int silverTarget,
             int bronzeCount,
-            int bronzeTarget
+            int bronzeTarget,
+            ZonedDateTime stage3Deadline,
+            long stage3SecondsRemaining,
+            boolean isStage3Active,
+            boolean isClosed
     ) {
     }
 

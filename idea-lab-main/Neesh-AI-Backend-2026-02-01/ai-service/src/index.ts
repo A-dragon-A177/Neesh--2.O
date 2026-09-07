@@ -5,12 +5,21 @@ import bodyParser from 'body-parser';
 import compression from 'compression';
 import { RagController } from './controllers/RagController';
 
+// ── Production Hardening Imports ─────────────────────────────────────
+import { validateEnvironment } from './config/validateEnv';
+import { requireProjectOwnership } from './middleware/projectOwnership';
+import { publicRateLimiter } from './middleware/publicRateLimit';
+import { sanitizeChatInput } from './middleware/inputSanitizer';
+
+// Validate required environment variables on startup (fail fast)
+validateEnvironment();
+
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(compression());
 
-const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:8080,http://localhost:7000')
+const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:8080,http://localhost:7000,http://localhost:7001')
     .split(',')
     .map(o => o.trim());
 
@@ -20,7 +29,7 @@ app.use(cors({
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
-            callback(new Error(`CORS policy violation: origin ${origin} not allowed`));
+            callback(null, false);
         }
     },
     credentials: true
@@ -77,6 +86,16 @@ app.use('/api', (req, res, next) => {
     return supabaseAuth(req, res, next);
 });
 
+// ── Project Ownership Verification (Phase 1 Security Hardening) ──────
+// Applies to all authenticated project-scoped routes.
+// Runs AFTER supabaseAuth (so req.user is populated) but BEFORE controllers.
+// Public routes are unaffected (they don't pass through supabaseAuth).
+app.use('/api/projects/:id', (req, res, next) => {
+    if (req.path.startsWith('/public/')) return next();
+    return requireProjectOwnership(req, res, next);
+});
+app.use('/api/documents/project/:projectId', requireProjectOwnership);
+
 const ragController = new RagController();
 
 // Public API routes (user-facing)
@@ -102,10 +121,19 @@ app.post('/api/documents/project/:projectId/refresh', (req, res) => documentCont
 import { ChatController } from './controllers/ChatController';
 const chatController = new ChatController();
 
-app.post('/api/projects/:id/chat', (req, res) => chatController.chatWithProject(req, res));
+app.post('/api/projects/:id/chat', sanitizeChatInput, (req, res) => chatController.chatWithProject(req, res));
 
-// Public chat endpoint (no auth required)
-app.post('/api/public/projects/:id/chat', (req, res) => chatController.publicChatWithProject(req, res));
+// Public chat endpoint (no auth required) — with stricter rate limiting + input sanitization
+app.post('/api/public/projects/:id/chat', publicRateLimiter, sanitizeChatInput, (req, res) => chatController.publicChatWithProject(req, res));
+
+// Public project endpoints (no auth required)
+app.get('/api/public/health', (req, res) => res.json({ status: 'healthy', timestamp: new Date().toISOString() }));
+app.get('/api/public/projects/id/:projectId', (req, res) => projectController.getPublicProjectById(req, res));
+app.get('/api/public/projects/blog/:slug', (req, res) => blogController.getPublicBlog(req, res));
+app.get('/api/public/projects/:projectId/blog', (req, res) => blogController.getPublicBlog(req, res));
+app.get('/api/public/projects/:projectId/early-access-price', (req, res) => projectController.getEarlyAccessPrice(req, res));
+app.get('/api/public/projects/:projectId/comments', (req, res) => projectController.getPublicComments(req, res));
+app.get('/api/public/projects/:slug', (req, res) => projectController.getPublicProject(req, res));
 
 // Blog API routes (authenticated)
 import { BlogController } from './controllers/BlogController';
@@ -114,21 +142,30 @@ const blogController = new BlogController();
 app.get('/api/projects/:projectId/blog', (req, res) => blogController.getBlog(req, res));
 app.put('/api/projects/:projectId/blog', (req, res) => blogController.upsertBlog(req, res));
 
-// Public blog endpoint (no auth required)
-app.get('/api/public/projects/:projectId/blog', (req, res) => blogController.getPublicBlog(req, res));
-
 // Audience routes (authenticated)
 import { AudienceController } from './controllers/AudienceController';
 const audienceController = new AudienceController();
 
 app.get('/api/projects/:projectId/audience', (req, res) => audienceController.getAudience(req, res));
 app.post('/api/public/projects/:projectId/feedback', (req, res) => audienceController.submitPublicFeedback(req, res));
+app.post('/api/public/projects/:projectId/comments', (req, res) => audienceController.submitPublicFeedback(req, res));
+app.post('/api/public/projects/:projectId/interest', (req, res) => audienceController.recordInterest(req, res));
+app.get('/api/public/projects/:projectId/interest-count', (req, res) => audienceController.getInterestCount(req, res));
+app.get('/api/public/projects/:projectId/check-interest', (req, res) => audienceController.checkUserInterest(req, res));
 
 // User / subscription routes (authenticated)
 import { UserController } from './controllers/UserController';
 const userController = new UserController();
 
 app.get('/api/users/subscription', (req, res) => userController.getSubscription(req, res));
+app.get('/api/users/me', (req, res) => {
+    res.json({
+        id: req.user?.id,
+        email: req.user?.email,
+        name: req.user?.email?.split('@')[0] || 'Founder',
+        role: 'user'
+    });
+});
 app.put('/api/users/subscription/upgrade', (req, res) => userController.upgradeToPro(req, res));
 app.put('/api/users/branding', (req, res) => userController.updateBranding(req, res));
 
@@ -175,6 +212,16 @@ app.get('/api/projects/:projectId/questions/unanswered', (req, res) => {
 app.put('/api/questions/:questionId/resolve', (req, res) => {
     res.json({ success: true });
 });
+
+// Validated Buyers endpoint
+app.get('/api/projects/:projectId/validated-buyers', (req, res) => audienceController.getValidatedBuyers(req, res));
+
+// Audience member detail & question answering endpoints
+app.get('/api/audience/:memberId', (req, res) => audienceController.getMemberDetail(req, res));
+app.put('/api/audience/questions/:questionId/answer', (req, res) => audienceController.answerQuestion(req, res));
+
+// Spotlight analytics endpoint (dynamic calculated from real audience interactions)
+app.get('/api/projects/:projectId/spotlight-analytics', (req, res) => audienceController.getSpotlightAnalytics(req, res));
 
 // Links stub routes
 app.get('/api/projects/:projectId/links', (req, res) => {
@@ -296,6 +343,23 @@ app.get('/internal/metrics', (req, res) => {
     return res.json(metricsRegistry.getMetricsSnapshot());
 });
 
-app.listen(port, () => {
+// ── Graceful Shutdown (Phase 2 Infrastructure Hardening) ─────────────
+const server = app.listen(port, () => {
     console.log(`AI Service running on port ${port}`);
 });
+
+function gracefulShutdown(signal: string) {
+    console.log(`[Shutdown] ${signal} received. Closing server gracefully...`);
+    server.close(() => {
+        console.log('[Shutdown] HTTP server closed. All in-flight requests completed.');
+        process.exit(0);
+    });
+    // Force shutdown after 30 seconds if connections don't drain
+    setTimeout(() => {
+        console.error('[Shutdown] Forced shutdown after 30s timeout');
+        process.exit(1);
+    }, 30000).unref();
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

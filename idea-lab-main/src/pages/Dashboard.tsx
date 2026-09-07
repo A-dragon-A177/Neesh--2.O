@@ -84,6 +84,8 @@ const statusStyles = {
   active: "status-active",
   published: "status-published",
   locked: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 font-bold",
+  stage3_active: "bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30 font-bold",
+  closed: "bg-slate-800 text-slate-300 border border-slate-700 font-bold",
 };
 
 // Helper function to get cover image URL from localStorage
@@ -604,6 +606,7 @@ const Dashboard = () => {
                       <div className="absolute top-3 left-3 flex items-center gap-1.5 z-10">
                         <ProjectTimer
                           deadline={project.timer_deadline}
+                          stage3Deadline={project.stage3_deadline}
                           createdAt={project.created_at}
                           status={project.status}
                           variant="compact"
