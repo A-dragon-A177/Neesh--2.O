@@ -234,28 +234,27 @@ app.delete('/api/projects/:projectId/links/:linkId', (req, res) => {
     res.json({ success: true });
 });
 
-// Promotion & Pitches API routes
+// Promotion API routes
 import { PromotionController } from './controllers/PromotionController';
+
 const promotionController = new PromotionController();
 
-// Public pitch and promotion endpoints (no auth required)
-app.get('/api/public/pitches', (req, res) => promotionController.getPitchFeed(req, res));
-app.get('/api/public/promotions/similar/:projectId', (req, res) => promotionController.getSimilarBlogs(req, res));
-app.get('/api/public/projects/:id/interest-count', (req, res) => { (req.params as any).projectId = req.params.id; return audienceController.getInterestCount(req, res); });
-app.post('/api/public/projects/:id/record-pitch-view', (req, res) => promotionController.recordPitchView(req, res));
-app.get('/api/public/blog-branding/:projectId', (req, res) => promotionController.getBlogBranding(req, res));
+app.get('/api/promotions', (req, res) =>
+    promotionController.getPromotions(req, res)
+);
 
-// Public OTP and Password Reset endpoints (no auth required)
-import { OtpController } from './controllers/OtpController';
-const otpController = new OtpController();
-app.post('/api/public/otp/send', (req, res) => otpController.sendOtp(req, res));
-app.post('/api/public/otp/verify', (req, res) => otpController.verifyOtp(req, res));
-app.post('/api/public/otp/reset-password', (req, res) => otpController.resetPassword(req, res));
+app.post('/api/promotions', (req, res) =>
+    promotionController.createPromotion(req, res)
+);
 
-// Authenticated promotions routes
-app.get('/api/promotions', (req, res) => promotionController.getUserPromotions(req, res));
-app.post('/api/promotions', (req, res) => promotionController.submitPromotion(req, res));
-app.delete('/api/promotions/:id', (req, res) => promotionController.removePromotion(req, res));
+app.delete('/api/promotions/:promotionId', (req, res) =>
+    promotionController.removePromotion(req, res)
+);
+
+// Blog branding stub route
+app.get('/api/public/blog-branding/:projectId', (req, res) => {
+    res.json({ botName: null, botAvatarUrl: null });
+});
 
 // Public health check endpoint
 app.get('/', (req, res) => {

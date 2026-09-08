@@ -1,266 +1,300 @@
 import { Request, Response } from 'express';
-import { supabase } from '../config/supabase';
 import { randomUUID } from 'crypto';
+import { supabase } from '../config/supabase';
 
-interface PitchFeedItem {
+const MAX_TAGS = 5;
+
+interface PromotionRequest {
     projectId: string;
-    title: string;
-    oneLineSummary: string | null;
-    slug: string;
-    elevatorPitchUrl: string;
-    elevatorPitchThumbnail: string | null;
-    elevatorPitchDuration: number | null;
-    coverImageUrl: string | null;
-    authorName: string;
-    authorProfileImageUrl: string | null;
-}
-
-// Deterministic seeded shuffle (Mulberry32 PRNG)
-function seededShuffle<T>(array: T[], seed: number): T[] {
-    const result = [...array];
-    let s = seed >>> 0;
-    const random = () => {
-        let t = (s += 0x6D2B79F5);
-        t = Math.imul(t ^ (t >>> 15), t | 1);
-        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-
-    for (let i = result.length - 1; i > 0; i--) {
-        const j = Math.floor(random() * (i + 1));
-        [result[i], result[j]] = [result[j], result[i]];
-    }
-    return result;
+    tags?: string[];
 }
 
 export class PromotionController {
 
     /**
-     * Public Reels / Pitch feed
+     * Convert database promotion + blog + project + tags
+     * into the shape expected by the frontend.
      */
-    async getPitchFeed(req: Request, res: Response) {
-        try {
-            const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 20, 1), 100);
-            const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
-            const seed = req.query.seed ? parseInt(req.query.seed as string) : null;
-            const excludeStr = req.query.exclude as string | undefined;
-
-            const excludeSet = new Set<string>();
-            if (excludeStr) {
-                excludeStr.split(',').forEach(id => {
-                    const trimmed = id.trim();
-                    if (trimmed) excludeSet.add(trimmed);
-                });
-            }
-
-            // 1. Fetch all active promotions
-            const { data: promotions, error: promoErr } = await supabase
-                .from('blog_promotions')
-                .select('*')
-                .eq('status', 'ACTIVE')
-                .order('created_at', { ascending: false });
-
-            if (promoErr) {
-                console.error('[PromotionController] Error fetching promotions:', promoErr);
-                return res.status(500).json({ error: 'Failed to fetch pitch feed' });
-            }
-
-            // 2. Fetch blogs, projects, and users to build feed
-            const { data: blogs } = await supabase.from('blogs').select('*');
-            const { data: projects } = await supabase.from('projects').select('*');
-            const { data: users } = await supabase.from('users').select('*');
-
-            const blogMap = new Map((blogs || []).map(b => [b.id, b]));
-            const projectMap = new Map((projects || []).map(p => [p.id, p]));
-            const userMap = new Map((users || []).map(u => [u.id, u]));
-
-            const seenProjectIds = new Set<string>();
-            let feedItems: PitchFeedItem[] = [];
-
-            // ONLY include projects that have an explicit ACTIVE promotion in blog_promotions
-            for (const promo of (promotions || [])) {
-                const blog = blogMap.get(promo.blog_id);
-                if (!blog) continue;
-
-                const project = projectMap.get(blog.project_id);
-                if (!project || seenProjectIds.has(project.id) || excludeSet.has(project.id)) continue;
-
-                // Ensure the project has an elevator pitch video
-                if (!project.elevator_pitch_url || !project.elevator_pitch_url.trim()) continue;
-
-                seenProjectIds.add(project.id);
-                const user = userMap.get(promo.user_id) || (project.owner_id ? userMap.get(project.owner_id) : undefined);
-
-                feedItems.push({
-                    projectId: project.id,
-                    title: blog.heading || project.title || 'Untitled Pitch',
-                    oneLineSummary: project.one_line_summary || project.introduction || null,
-                    slug: project.slug || project.id,
-                    elevatorPitchUrl: project.elevator_pitch_url,
-                    elevatorPitchThumbnail: project.elevator_pitch_thumbnail || null,
-                    elevatorPitchDuration: project.elevator_pitch_duration ? Number(project.elevator_pitch_duration) : null,
-                    coverImageUrl: blog.cover_image_url || null,
-                    authorName: user?.name || 'Founder',
-                    authorProfileImageUrl: user?.profile_image_url || null,
-                });
-            }
-
-            // Seeded deterministic shuffle
-            if (seed !== null && !isNaN(seed)) {
-                feedItems = seededShuffle(feedItems, seed);
-            }
-
-            const paged = feedItems.slice(offset, offset + limit);
-            return res.json(paged);
-        } catch (error) {
-            console.error('[PromotionController] getPitchFeed error:', error);
-            return res.status(500).json({ error: 'Internal server error' });
-        }
+    private toDTO(promotion: any, blog: any, project: any, tags: string[]) {
+        return {
+            id: promotion.id,
+            blogId: promotion.blog_id,
+            projectId: project.id,
+            blogTitle: blog?.heading || project.title || '',
+            coverImageUrl: blog?.cover_image_url || '',
+            tags,
+            status: promotion.status,
+            createdAt: promotion.created_at
+        };
     }
 
     /**
-     * Similar blogs for "More Like This" (Strictly active promotions only)
+     * POST /api/promotions
      */
-    async getSimilarBlogs(req: Request, res: Response) {
-        try {
-            const { projectId } = req.params;
-            const limit = parseInt(req.query.limit as string) || 6;
-
-            // 1. Fetch only ACTIVE promotions
-            const { data: promotions, error: promoErr } = await supabase
-                .from('blog_promotions')
-                .select('*')
-                .eq('status', 'ACTIVE')
-                .order('created_at', { ascending: false });
-
-            if (promoErr || !promotions || promotions.length === 0) {
-                return res.json([]);
-            }
-
-            const { data: blogs } = await supabase.from('blogs').select('*');
-            const { data: projects } = await supabase.from('projects').select('*');
-            const { data: users } = await supabase.from('users').select('*');
-            const { data: tagsData } = await supabase.from('promotion_tags').select('*');
-
-            const blogMap = new Map((blogs || []).map(b => [b.id, b]));
-            const projectMap = new Map((projects || []).map(p => [p.id, p]));
-            const userMap = new Map((users || []).map(u => [u.id, u]));
-
-            // Group tags by promotion_id
-            const tagsByPromo = new Map<string, string[]>();
-            (tagsData || []).forEach(t => {
-                const arr = tagsByPromo.get(t.promotion_id) || [];
-                arr.push(t.tag);
-                tagsByPromo.set(t.promotion_id, arr);
-            });
-
-            // Find current project's tags if promoted
-            const currentBlog = (blogs || []).find(b => b.project_id === projectId);
-            const currentPromo = currentBlog ? promotions.find(p => p.blog_id === currentBlog.id) : null;
-            const currentTags = currentPromo ? (tagsByPromo.get(currentPromo.id) || []) : [];
-
-            const seenProjectIds = new Set<string>();
-            seenProjectIds.add(projectId); // exclude current project
-
-            const similar: any[] = [];
-            for (const promo of promotions) {
-                const blog = blogMap.get(promo.blog_id);
-                if (!blog) continue;
-
-                const project = projectMap.get(blog.project_id);
-                if (!project || seenProjectIds.has(project.id)) continue;
-
-                seenProjectIds.add(project.id);
-                const user = userMap.get(promo.user_id) || (project.owner_id ? userMap.get(project.owner_id) : undefined);
-                const promoTags = tagsByPromo.get(promo.id) || [];
-
-                const matchingTags = promoTags.filter(t => currentTags.includes(t));
-
-                similar.push({
-                    projectId: project.id,
-                    heading: blog.heading || project.title,
-                    oneLineSummary: project.one_line_summary || project.introduction || null,
-                    coverImageUrl: blog.cover_image_url || null,
-                    slug: project.slug || project.id,
-                    authorName: user?.name || 'Founder',
-                    matchingTags
-                });
-
-                if (similar.length >= limit) break;
-            }
-
-            return res.json(similar);
-        } catch (error) {
-            console.error('[PromotionController] getSimilarBlogs error:', error);
-            return res.status(500).json({ error: 'Internal server error' });
-        }
-    }
-
-    /**
-     * Interest count (e.g. fire/reactions on pitch)
-     */
-    async getInterestCount(req: Request, res: Response) {
-        try {
-            const { id } = req.params;
-            // Count audience feedback entries for this project
-            const { count, error } = await supabase
-                .from('audience_feedback')
-                .select('*', { count: 'exact', head: true })
-                .eq('project_id', id);
-
-            return res.json({ count: count || 0 });
-        } catch (error) {
-            return res.json({ count: 0 });
-        }
-    }
-
-    /**
-     * Record pitch view telemetry
-     */
-    async recordPitchView(req: Request, res: Response) {
-        return res.json({ success: true });
-    }
-
-    /**
-     * Blog branding info
-     */
-    async getBlogBranding(req: Request, res: Response) {
-        try {
-            const { projectId } = req.params;
-            const { data: project } = await supabase.from('projects').select('owner_id').eq('id', projectId).single();
-            if (project?.owner_id) {
-                const { data: user } = await supabase.from('users').select('*').eq('id', project.owner_id).single();
-                const plan = user?.subscription_plan || 'FREE';
-                const isFree = plan.toUpperCase() === 'FREE';
-                return res.json({
-                    plan,
-                    customLogoUrl: isFree ? null : user?.custom_logo_url,
-                    customBrandingText: isFree ? null : user?.custom_branding_text,
-                    showBranding: isFree,
-                    botName: null,
-                    botAvatarUrl: null
-                });
-            }
-            return res.json({
-                plan: 'FREE',
-                customLogoUrl: null,
-                customBrandingText: null,
-                showBranding: true,
-                botName: null,
-                botAvatarUrl: null
-            });
-        } catch (error) {
-            return res.json({ plan: 'FREE', showBranding: true, botName: null, botAvatarUrl: null });
-        }
-    }
-
-    /**
-     * Authenticated promotion endpoints
-     */
-    async getUserPromotions(req: Request, res: Response) {
+    async createPromotion(req: Request, res: Response) {
         try {
             const userId = req.user?.id;
-            if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+            if (!userId) {
+                return res.status(401).json({
+                    error: 'Unauthorized'
+                });
+            }
+
+            const { projectId, tags }: PromotionRequest = req.body;
+
+            if (!projectId) {
+                return res.status(400).json({
+                    error: 'projectId is required'
+                });
+            }
+
+            // Verify that this project belongs to the authenticated user.
+            const { data: project, error: projectError } = await supabase
+                .from('projects')
+                .select('*')
+                .eq('id', projectId)
+                .eq('owner_id', userId)
+                .single();
+
+            if (projectError || !project) {
+                console.error('[PromotionController] Project lookup failed:', projectError);
+
+                return res.status(404).json({
+                    error: 'Project not found'
+                });
+            }
+
+            // Find the blog belonging to this project.
+            let { data: blog, error: blogError } = await supabase
+                .from('blogs')
+                .select('*')
+                .eq('project_id', projectId)
+                .maybeSingle();
+
+            if (blogError) {
+                console.error('[PromotionController] Blog lookup failed:', blogError);
+
+                return res.status(500).json({
+                    error: 'Failed to load blog'
+                });
+            }
+
+            // The old Java implementation auto-created a blog if one
+            // did not exist. Preserve that behavior.
+            if (!blog) {
+                const now = new Date().toISOString();
+
+                const { data: newBlog, error: createBlogError } = await supabase
+                    .from('blogs')
+                    .insert({
+                        id: randomUUID(),
+                        project_id: projectId,
+                        heading: project.title || '',
+                        cover_image_url: '',
+                        introduction: project.introduction || '',
+                        content: project.description || '',
+                        custom_fields: JSON.stringify([]),
+                        created_at: now,
+                        updated_at: now
+                    })
+                    .select('*')
+                    .single();
+
+                if (createBlogError || !newBlog) {
+                    console.error(
+                        '[PromotionController] Blog creation failed:',
+                        createBlogError
+                    );
+
+                    return res.status(500).json({
+                        error: 'Failed to create blog for promotion'
+                    });
+                }
+
+                blog = newBlog;
+            }
+
+            // Normalize tags exactly like the existing promotion implementation.
+            let normalizedTags = Array.isArray(tags)
+                ? tags
+                    .filter((tag): tag is string => typeof tag === 'string')
+                    .map(tag => tag.toLowerCase().trim())
+                    .filter(Boolean)
+                    .filter((tag, index, array) => array.indexOf(tag) === index)
+                : [];
+
+            // If the frontend doesn't provide tags, use project industry
+            // when available, otherwise default to "startup".
+            if (normalizedTags.length === 0) {
+                const industry =
+                    typeof project.industry === 'string'
+                        ? project.industry.trim()
+                        : '';
+
+                normalizedTags = [
+                    industry ? industry.toLowerCase() : 'startup'
+                ];
+            }
+
+            if (normalizedTags.length > MAX_TAGS) {
+                return res.status(400).json({
+                    error: `Maximum ${MAX_TAGS} tags allowed per promotion.`
+                });
+            }
+
+            // Check whether this blog already has a promotion.
+            const { data: existingPromotion, error: existingError } = await supabase
+                .from('blog_promotions')
+                .select('*')
+                .eq('blog_id', blog.id)
+                .maybeSingle();
+
+            if (existingError) {
+                console.error(
+                    '[PromotionController] Existing promotion lookup failed:',
+                    existingError
+                );
+
+                return res.status(500).json({
+                    error: 'Failed to check existing promotion'
+                });
+            }
+
+            let promotion: any;
+
+            if (existingPromotion) {
+                // Reuse existing promotion and activate it.
+                const { data: updatedPromotion, error: updateError } = await supabase
+                    .from('blog_promotions')
+                    .update({
+                        status: 'ACTIVE',
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', existingPromotion.id)
+                    .eq('user_id', userId)
+                    .select('*')
+                    .single();
+
+                if (updateError || !updatedPromotion) {
+                    console.error(
+                        '[PromotionController] Promotion update failed:',
+                        updateError
+                    );
+
+                    return res.status(500).json({
+                        error: 'Failed to update promotion'
+                    });
+                }
+
+                promotion = updatedPromotion;
+
+                // Replace existing tags.
+                const { error: deleteTagsError } = await supabase
+                    .from('promotion_tags')
+                    .delete()
+                    .eq('promotion_id', promotion.id);
+
+                if (deleteTagsError) {
+                    console.error(
+                        '[PromotionController] Tag deletion failed:',
+                        deleteTagsError
+                    );
+
+                    return res.status(500).json({
+                        error: 'Failed to update promotion tags'
+                    });
+                }
+
+            } else {
+                const now = new Date().toISOString();
+
+                const { data: newPromotion, error: createPromotionError } = await supabase
+                    .from('blog_promotions')
+                    .insert({
+                        id: randomUUID(),
+                        blog_id: blog.id,
+                        user_id: userId,
+                        status: 'ACTIVE',
+                        created_at: now,
+                        updated_at: now
+                    })
+                    .select('*')
+                    .single();
+
+                if (createPromotionError || !newPromotion) {
+                    console.error(
+                        '[PromotionController] Promotion creation failed:',
+                        createPromotionError
+                    );
+
+                    return res.status(500).json({
+                        error: 'Failed to create promotion'
+                    });
+                }
+
+                promotion = newPromotion;
+            }
+
+            // Insert normalized tags.
+            const tagRows = normalizedTags.map(tag => ({
+                promotion_id: promotion.id,
+                tag
+            }));
+
+            const { error: tagError } = await supabase
+                .from('promotion_tags')
+                .insert(tagRows);
+
+            if (tagError) {
+                console.error(
+                    '[PromotionController] Tag insertion failed:',
+                    tagError
+                );
+
+                return res.status(500).json({
+                    error: 'Promotion created but tags could not be saved'
+                });
+            }
+
+            console.log(
+                '[PromotionController] Promotion created/updated:',
+                promotion.id
+            );
+
+            return res.status(201).json(
+                this.toDTO(
+                    promotion,
+                    blog,
+                    project,
+                    normalizedTags
+                )
+            );
+
+        } catch (error: any) {
+            console.error(
+                '[PromotionController] createPromotion error:',
+                error
+            );
+
+            return res.status(500).json({
+                error: 'Internal server error'
+            });
+        }
+    }
+
+    /**
+     * GET /api/promotions
+     */
+    async getPromotions(req: Request, res: Response) {
+        try {
+            const userId = req.user?.id;
+
+            if (!userId) {
+                return res.status(401).json({
+                    error: 'Unauthorized'
+                });
+            }
 
             const { data: promotions, error } = await supabase
                 .from('blog_promotions')
@@ -269,134 +303,125 @@ export class PromotionController {
                 .order('created_at', { ascending: false });
 
             if (error) {
-                return res.status(500).json({ error: 'Failed to fetch user promotions' });
-            }
+                console.error(
+                    '[PromotionController] Failed to fetch promotions:',
+                    error
+                );
 
-            const { data: blogs } = await supabase.from('blogs').select('*');
-            const { data: tags } = await supabase.from('promotion_tags').select('*');
-
-            const blogMap = new Map((blogs || []).map(b => [b.id, b]));
-
-            const result = (promotions || []).map(promo => {
-                const blog = blogMap.get(promo.blog_id);
-                const promoTags = (tags || []).filter(t => t.promotion_id === promo.id).map(t => t.tag);
-                return {
-                    id: promo.id,
-                    blogId: promo.blog_id,
-                    projectId: blog?.project_id || null,
-                    heading: blog?.heading || 'Untitled',
-                    coverImageUrl: blog?.cover_image_url || null,
-                    tags: promoTags,
-                    status: promo.status,
-                    createdAt: promo.created_at
-                };
-            });
-
-            return res.json(result);
-        } catch (error) {
-            console.error('[PromotionController] getUserPromotions error:', error);
-            return res.status(500).json({ error: 'Internal server error' });
-        }
-    }
-
-    async submitPromotion(req: Request, res: Response) {
-        try {
-            const userId = req.user?.id;
-            if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-
-            const { projectId, tags } = req.body;
-            if (!projectId) return res.status(400).json({ error: 'projectId is required' });
-
-            // Find or create blog
-            let { data: blog } = await supabase.from('blogs').select('*').eq('project_id', projectId).maybeSingle();
-            if (!blog) {
-                const { data: project } = await supabase.from('projects').select('*').eq('id', projectId).maybeSingle();
-                if (!project) return res.status(404).json({ error: 'Project not found' });
-
-                const now = new Date().toISOString();
-                const { data: newBlog, error: createBlogErr } = await supabase.from('blogs').insert({
-                    id: randomUUID(),
-                    project_id: projectId,
-                    heading: project.title || 'Untitled Spotlight',
-                    introduction: project.introduction || project.one_line_summary || '',
-                    content: project.description || '',
-                    cover_image_url: '',
-                    custom_fields: '[]',
-                    created_at: now,
-                    updated_at: now
-                }).select().maybeSingle();
-
-                if (createBlogErr || !newBlog) {
-                    console.error('[PromotionController] Failed to create blog:', createBlogErr);
-                    return res.status(500).json({ error: 'Failed to create blog' });
-                }
-                blog = newBlog;
-            }
-
-            // Check existing promotion
-            const { data: existing } = await supabase.from('blog_promotions').select('*').eq('blog_id', blog.id).maybeSingle();
-            let promotionId = existing?.id;
-
-            const now = new Date().toISOString();
-            if (existing) {
-                await supabase.from('blog_promotions').update({
-                    status: 'ACTIVE',
-                    updated_at: now
-                }).eq('id', existing.id);
-            } else {
-                promotionId = randomUUID();
-                await supabase.from('blog_promotions').insert({
-                    id: promotionId,
-                    blog_id: blog.id,
-                    user_id: userId,
-                    status: 'ACTIVE',
-                    created_at: now,
-                    updated_at: now
+                return res.status(500).json({
+                    error: 'Failed to fetch promotions'
                 });
             }
 
-            // Update tags
-            if (tags && Array.isArray(tags)) {
-                await supabase.from('promotion_tags').delete().eq('promotion_id', promotionId);
-                const tagInserts = tags.map(t => ({
-                    id: randomUUID(),
-                    promotion_id: promotionId,
-                    tag: String(t).trim().toLowerCase()
-                })).filter(t => t.tag);
+            const result = [];
 
-                if (tagInserts.length > 0) {
-                    await supabase.from('promotion_tags').insert(tagInserts);
+            for (const promotion of promotions || []) {
+
+                const { data: blog } = await supabase
+                    .from('blogs')
+                    .select('*')
+                    .eq('id', promotion.blog_id)
+                    .maybeSingle();
+
+                const { data: project } = await supabase
+                    .from('projects')
+                    .select('*')
+                    .eq('id', blog?.project_id)
+                    .maybeSingle();
+
+                const { data: tagRows } = await supabase
+                    .from('promotion_tags')
+                    .select('tag')
+                    .eq('promotion_id', promotion.id);
+
+                if (project) {
+                    result.push(
+                        this.toDTO(
+                            promotion,
+                            blog,
+                            project,
+                            (tagRows || []).map(row => row.tag)
+                        )
+                    );
                 }
             }
 
-            return res.json({
-                id: promotionId,
-                blogId: blog.id,
-                projectId,
-                heading: blog.heading || 'Untitled',
-                status: 'ACTIVE',
-                tags: tags || []
-            });
+            return res.json(result);
+
         } catch (error) {
-            console.error('[PromotionController] submitPromotion error:', error);
-            return res.status(500).json({ error: 'Internal server error' });
+            console.error(
+                '[PromotionController] getPromotions error:',
+                error
+            );
+
+            return res.status(500).json({
+                error: 'Internal server error'
+            });
         }
     }
 
+    /**
+     * DELETE /api/promotions/:promotionId
+     */
     async removePromotion(req: Request, res: Response) {
         try {
             const userId = req.user?.id;
-            const { id } = req.params;
-            if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+            const { promotionId } = req.params;
 
-            await supabase.from('blog_promotions').update({
-                status: 'REMOVED',
-                updated_at: new Date().toISOString()
-            }).eq('id', id).eq('user_id', userId);
+            if (!userId) {
+                return res.status(401).json({
+                    error: 'Unauthorized'
+                });
+            }
 
-            return res.json({ success: true });
+            const { data: promotion, error: findError } = await supabase
+                .from('blog_promotions')
+                .select('*')
+                .eq('id', promotionId)
+                .eq('user_id', userId)
+                .single();
+
+            if (findError || !promotion) {
+                return res.status(404).json({
+                    error: 'Promotion not found'
+                });
+            }
+
+            // Match the existing Java implementation:
+            // remove by changing status rather than deleting the record.
+            const { error: updateError } = await supabase
+                .from('blog_promotions')
+                .update({
+                    status: 'REMOVED',
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', promotionId)
+                .eq('user_id', userId);
+
+            if (updateError) {
+                console.error(
+                    '[PromotionController] Promotion removal failed:',
+                    updateError
+                );
+
+                return res.status(500).json({
+                    error: 'Failed to remove promotion'
+                });
+            }
+
+            return res.json({
+                success: true
+            });
+
         } catch (error) {
-            return res.status(500).json({ error: 'Internal server error' });
+            console.error(
+                '[PromotionController] removePromotion error:',
+                error
+            );
+
+            return res.status(500).json({
+                error: 'Internal server error'
+            });
         }
     }
 }
