@@ -86,12 +86,25 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
 
-        // Parse allowed origins from configuration
-        List<String> origins = Arrays.asList(allowedOrigins.split(","));
-        config.setAllowedOrigins(origins);
+        // Explicitly allow all Vercel deployment domains and local development
+        config.addAllowedOriginPattern("https://*.vercel.app");
+        config.addAllowedOriginPattern("https://neesh-2-o.vercel.app");
+        config.addAllowedOriginPattern("https://*.neeshglobal.com");
+        config.addAllowedOriginPattern("https://neeshglobal.com");
+        config.addAllowedOriginPattern("http://localhost:[*]");
 
-        config.setAllowedHeaders(Arrays.asList("Origin", "Content-Type", "Accept", "Authorization"));
-        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        // Parse allowed origins from configuration
+        if (allowedOrigins != null && !allowedOrigins.isBlank()) {
+            for (String origin : allowedOrigins.split(",")) {
+                String trimmed = origin.trim();
+                if (!trimmed.isEmpty()) {
+                    config.addAllowedOriginPattern(trimmed);
+                }
+            }
+        }
+
+        config.setAllowedHeaders(Arrays.asList("Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With", "Range"));
+        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         source.registerCorsConfiguration("/**", config);
         return new CorsFilter(source);
     }

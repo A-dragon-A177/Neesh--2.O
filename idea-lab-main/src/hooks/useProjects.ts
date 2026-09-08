@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 import apiClient from "@/lib/api";
+import { supabase } from "@/integrations/supabase/client";
 
 // Backend API response format (camelCase)
 interface BackendProject {
@@ -226,8 +227,51 @@ export const useProjects = () => {
       setError(null);
 
       console.log("[useProjects] Fetching projects from backend...");
-      const rawRes = await apiClient.get<BackendProject[] | { content: BackendProject[] }>('/api/projects');
-      const backendProjects = Array.isArray(rawRes) ? rawRes : (rawRes?.content || []);
+      let backendProjects: BackendProject[] = [];
+      try {
+        const rawRes = await apiClient.get<BackendProject[] | { content: BackendProject[] }>('/api/projects');
+        backendProjects = Array.isArray(rawRes) ? rawRes : (rawRes?.content || []);
+      } catch (backendErr) {
+        console.warn("[useProjects] Backend fetch failed or blocked by CORS, falling back to direct Supabase query:", backendErr);
+        const { data: supaProjects, error: supaErr } = await supabase
+          .from("projects" as any)
+          .select("*")
+          .eq("owner_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (supaErr) {
+          throw supaErr;
+        }
+
+        backendProjects = (supaProjects || []).map((p: any) => ({
+          id: p.id,
+          title: p.title || "Untitled Project",
+          slug: p.slug || p.id,
+          oneLineSummary: p.one_line_summary,
+          introduction: p.introduction,
+          description: p.description,
+          status: p.status || "DRAFT",
+          industry: p.industry,
+          startupStage: p.startup_stage,
+          validationAnswers: p.validation_answers,
+          validationReport: p.validation_report,
+          onboardingCompleted: p.onboarding_completed,
+          chatbotName: p.chatbot_name,
+          welcomeMessage: p.welcome_message,
+          primaryColor: p.primary_color,
+          botAvatarUrl: p.bot_avatar_url,
+          elevatorPitchUrl: p.elevator_pitch_url,
+          elevatorPitchThumbnail: p.elevator_pitch_thumbnail,
+          elevatorPitchDuration: p.elevator_pitch_duration,
+          earlyAccessPrice: p.early_access_price,
+          timerDeadline: p.timer_deadline,
+          stage3Deadline: p.stage3_deadline,
+          audienceViewCount: p.audience_view_count,
+          createdAt: p.created_at,
+          updatedAt: p.updated_at,
+        }));
+      }
+
       console.log("[useProjects] Received projects:", backendProjects);
 
       const transformedProjects = backendProjects.map(transformProject);

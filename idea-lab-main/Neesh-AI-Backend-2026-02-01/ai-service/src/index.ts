@@ -19,21 +19,33 @@ const port = process.env.PORT || 3000;
 
 app.use(compression());
 
-const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:8080,http://localhost:7000,http://localhost:7001')
+const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:8080,http://localhost:7000,http://localhost:7001,https://neesh-2-o.vercel.app')
     .split(',')
     .map(o => o.trim());
 
-app.use(cors({
+const corsOptions: cors.CorsOptions = {
     origin: (origin, callback) => {
         // Allow requests with no origin (like mobile apps, curl, or server-to-server)
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(null, false);
-        }
+        if (!origin) return callback(null, true);
+
+        // Allow explicitly listed origins
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+
+        // Allow all Vercel deployments (production, preview, staging)
+        if (/^https:\/\/[a-zA-Z0-9_\-]+\.vercel\.app$/.test(origin)) return callback(null, true);
+
+        // Allow Neesh Global domain
+        if (/^https:\/\/(.*\.)?neeshglobal\.com$/.test(origin)) return callback(null, true);
+
+        callback(null, false);
     },
-    credentials: true
-}));
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With', 'Range', 'Origin']
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(bodyParser.json());
 
 import { rateLimiter } from './middleware/rateLimit';
@@ -76,9 +88,13 @@ app.get('/internal/jobs/:jobId', (req, res) => {
     });
 });
 
-// Apply Supabase auth middleware to protected /api routes (exclude /api/public/*)
+// Apply Supabase auth middleware to protected /api routes (exclude /api/public/* and OPTIONS preflight)
 import { supabaseAuth } from './middleware/supabaseAuth';
 app.use('/api', (req, res, next) => {
+    // Skip auth for OPTIONS preflight requests
+    if (req.method === 'OPTIONS') {
+        return next();
+    }
     // Skip auth for public endpoints
     if (req.path.startsWith('/public/')) {
         return next();
@@ -91,10 +107,13 @@ app.use('/api', (req, res, next) => {
 // Runs AFTER supabaseAuth (so req.user is populated) but BEFORE controllers.
 // Public routes are unaffected (they don't pass through supabaseAuth).
 app.use('/api/projects/:id', (req, res, next) => {
-    if (req.path.startsWith('/public/')) return next();
+    if (req.method === 'OPTIONS' || req.path.startsWith('/public/')) return next();
     return requireProjectOwnership(req, res, next);
 });
-app.use('/api/documents/project/:projectId', requireProjectOwnership);
+app.use('/api/documents/project/:projectId', (req, res, next) => {
+    if (req.method === 'OPTIONS') return next();
+    return requireProjectOwnership(req, res, next);
+});
 
 const ragController = new RagController();
 

@@ -16,6 +16,10 @@ declare global {
 }
 
 export const supabaseAuth = async (req: Request, res: Response, next: NextFunction) => {
+    // OPTIONS preflight requests do not carry Authorization headers
+    if (req.method === 'OPTIONS') {
+        return next();
+    }
     try {
         const authHeader = req.headers.authorization;
 
