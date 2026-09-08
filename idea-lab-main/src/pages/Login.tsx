@@ -100,26 +100,39 @@ const Login = () => {
 
   const [searchParams] = useSearchParams();
   const getTargetRedirect = useCallback(() => {
+    let target = "/dashboard";
     const fromQuery = searchParams.get("returnTo");
-    if (fromQuery) return fromQuery;
-    try {
-      const stored = sessionStorage.getItem("post_login_redirect");
-      if (stored) {
-        sessionStorage.removeItem("post_login_redirect");
-        return stored;
+    if (fromQuery) {
+      target = fromQuery;
+    } else {
+      try {
+        const stored = sessionStorage.getItem("post_login_redirect");
+        if (stored) {
+          sessionStorage.removeItem("post_login_redirect");
+          target = stored;
+        }
+      } catch {}
+    }
+
+    // Sanitize: never redirect to an external or old deployment domain
+    if (target.startsWith("http://") || target.startsWith("https://")) {
+      try {
+        const parsed = new URL(target);
+        if (parsed.origin !== window.location.origin) {
+          target = parsed.pathname + parsed.search + parsed.hash;
+        }
+      } catch {
+        target = "/dashboard";
       }
-    } catch {}
-    return "/dashboard";
+    }
+
+    return target.startsWith("/") ? target : `/${target}`;
   }, [searchParams]);
 
   useEffect(() => {
     if (!loading && user) {
       const target = getTargetRedirect();
-      if (target.startsWith("http://") || target.startsWith("https://")) {
-        window.location.href = target;
-      } else {
-        navigate(target);
-      }
+      navigate(target);
     }
   }, [user, loading, navigate, getTargetRedirect]);
 

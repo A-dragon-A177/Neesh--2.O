@@ -168,8 +168,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return await supabase.auth.signInWithPassword({ email, password });
   };
 
+  const resolveAbsoluteRedirectUrl = (redirectTo?: string): string => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    if (!redirectTo || redirectTo.trim() === '') {
+      return origin ? `${origin}/dashboard` : '/dashboard';
+    }
+    // If it's a relative path (e.g. "/dashboard" or "dashboard")
+    if (redirectTo.startsWith('/')) {
+      return `${origin}${redirectTo}`;
+    }
+    if (!redirectTo.startsWith('http://') && !redirectTo.startsWith('https://')) {
+      return `${origin}/${redirectTo}`;
+    }
+    // If it's an absolute URL, check whether it points to an old deployment domain
+    try {
+      const parsed = new URL(redirectTo);
+      if (origin && parsed.origin !== origin && (parsed.hostname.includes('vercel.app') || parsed.hostname.includes('localhost'))) {
+        return `${origin}${parsed.pathname}${parsed.search}${parsed.hash}`;
+      }
+      return redirectTo;
+    } catch {
+      return origin ? `${origin}/dashboard` : '/dashboard';
+    }
+  };
+
   const signInWithGoogle = async (redirectTo?: string) => {
-    const targetUrl = redirectTo || `${window.location.origin}/dashboard`;
+    const targetUrl = resolveAbsoluteRedirectUrl(redirectTo);
     try {
       sessionStorage.setItem('post_login_redirect', targetUrl);
     } catch {}
@@ -180,7 +204,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInWithGithub = async (redirectTo?: string) => {
-    const targetUrl = redirectTo || `${window.location.origin}/dashboard`;
+    const targetUrl = resolveAbsoluteRedirectUrl(redirectTo);
     try {
       sessionStorage.setItem('post_login_redirect', targetUrl);
     } catch {}

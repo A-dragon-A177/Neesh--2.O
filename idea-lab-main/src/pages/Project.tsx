@@ -81,11 +81,12 @@ const Project = () => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   // Pre-formatted Share Progress text & OG image URL
+  const origin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://neesh-2-o.vercel.app';
   const publicSlug = (project as any)?.slug || (project?.title ? project.title.toLowerCase().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-') : 'idea');
-  const publicUrl = `https://neeshglobal.com/p/${publicSlug}-${project?.id || id}`;
+  const publicUrl = `${origin}/p/${publicSlug}-${project?.id || id}`;
   const healthScore = (project as any)?.score || 88;
   const detectedGap = (project as any)?.keyGap || "Pricing model & technical specifications clarity";
-  const ogImageUrl = `https://neeshglobal.com/api/og-share?title=${encodeURIComponent(project?.title || "Startup Idea")}&score=${healthScore}&gap=${encodeURIComponent(detectedGap)}&industry=${encodeURIComponent(project?.industry || "SaaS")}`;
+  const ogImageUrl = `${origin}/api/og-share?title=${encodeURIComponent(project?.title || "Startup Idea")}&score=${healthScore}&gap=${encodeURIComponent(detectedGap)}&industry=${encodeURIComponent(project?.industry || "SaaS")}`;
 
   const sharePostText = `Validating my startup concept "${project?.title || "Startup Idea"}" on @NeeshAI! 🚀\n\n📊 Current Idea Health Score: ${healthScore}/100\n💡 Key Customer Gap Detected: ${detectedGap}\n\nCheck out the pitch reel & ask our AI chatbot questions here:\n${publicUrl}\n\n#buildinpublic #startups #NeeshAI`;
   const [isWizardOpen, setIsWizardOpen] = useState(false);
