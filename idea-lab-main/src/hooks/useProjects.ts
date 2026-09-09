@@ -237,6 +237,7 @@ export const useProjects = () => {
           .from("projects" as any)
           .select("*")
           .eq("owner_id", user.id)
+          .eq("deleted", false)
           .order("created_at", { ascending: false });
 
         if (supaErr) {
@@ -272,9 +273,11 @@ export const useProjects = () => {
         }));
       }
 
-      console.log("[useProjects] Received projects:", backendProjects);
+      // Filter out any soft-deleted projects so they are never displayed or queried
+      const activeProjects = backendProjects.filter((p: any) => p.deleted !== true);
+      console.log("[useProjects] Received active projects:", activeProjects);
 
-      const transformedProjects = backendProjects.map(transformProject);
+      const transformedProjects = activeProjects.map(transformProject);
       setProjects(transformedProjects);
       lastFetchedUserIdRef.current = user.id;
     } catch (err) {

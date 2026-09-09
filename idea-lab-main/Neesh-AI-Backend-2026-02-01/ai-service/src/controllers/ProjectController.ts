@@ -75,6 +75,7 @@ export class ProjectController {
                 .from('projects')
                 .select('*')
                 .eq('owner_id', req.user?.id)
+                .eq('deleted', false)
                 .order('created_at', { ascending: false });
 
             if (error) {
@@ -160,6 +161,7 @@ export class ProjectController {
                 .select('*')
                 .eq('id', id)
                 .eq('owner_id', req.user?.id)
+                .eq('deleted', false)
                 .single();
 
             if (error || !project) {
@@ -314,7 +316,7 @@ export class ProjectController {
 
             const { error } = await supabase
                 .from('projects')
-                .delete()
+                .update({ deleted: true, updated_at: new Date().toISOString() })
                 .eq('id', id)
                 .eq('owner_id', req.user?.id);
 

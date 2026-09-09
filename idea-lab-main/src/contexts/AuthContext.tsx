@@ -38,46 +38,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('[AuthContext] Syncing user with backend...');
       await apiClient.get('/api/users/me');
       console.log('[AuthContext] User synced with backend successfully');
-    } catch (error) {
-      console.warn('[AuthContext] Backend sync failed:', error);
+    } catch (error: any) {
+      if (error?.name !== 'AbortError' && !error?.message?.includes('aborted')) {
+        console.warn('[AuthContext] Backend sync failed:', error);
+      }
     }
   }, []);
 
   useEffect(() => {
     console.log('[AuthContext] Initializing Supabase Auth Provider...');
-
-    const initSession = async () => {
-      // Check if we have the mock session in local storage first
-      const mockStorage = localStorage.getItem('sb-mock-auth-token');
-      if (mockStorage) {
-        try {
-          const parsed = JSON.parse(mockStorage);
-          if (parsed.user && parsed.access_token === "mock-token") {
-            const mockSession: Session = {
-              access_token: "mock-token",
-              refresh_token: "mock-refresh-token",
-              expires_in: 3600,
-              token_type: "bearer",
-              user: parsed.user
-            };
-            setSession(mockSession);
-            setUser(parsed.user);
-            currentUserIdRef.current = parsed.user.id;
-            setLoading(false);
-            return;
-          }
-        } catch (e) { }
-      }
-
-      const { data: { session: initialSession } } = await supabase.auth.getSession();
-      setSession(initialSession);
-      setUser(initialSession?.user ?? null);
-      if (initialSession?.user) {
-        currentUserIdRef.current = initialSession.user.id;
-        handlePostLoginRedirect();
-      }
-      setLoading(false);
-    };
+    let isMounted = true;
 
     const handlePostLoginRedirect = () => {
       try {
@@ -98,12 +68,62 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
+    const initSession = async () => {
+      // Check if we have the mock session in local storage first
+      const mockStorage = localStorage.getItem('sb-mock-auth-token');
+      if (mockStorage) {
+        try {
+          const parsed = JSON.parse(mockStorage);
+          if (parsed.user && parsed.access_token === "mock-token") {
+            const mockSession: Session = {
+              access_token: "mock-token",
+              refresh_token: "mock-refresh-token",
+              expires_in: 3600,
+              token_type: "bearer",
+              user: parsed.user
+            };
+            if (!isMounted) return;
+            setSession(mockSession);
+            setUser(parsed.user);
+            currentUserIdRef.current = parsed.user.id;
+            setLoading(false);
+            return;
+          }
+        } catch (e) { }
+      }
+
+      try {
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.warn('[AuthContext] getSession returned error:', error.message);
+        }
+        if (!isMounted) return;
+        setSession(initialSession);
+        setUser(initialSession?.user ?? null);
+        if (initialSession?.user) {
+          currentUserIdRef.current = initialSession.user.id;
+          handlePostLoginRedirect();
+        }
+      } catch (err: any) {
+        // AbortError is normal when unmounting or navigating away
+        if (err?.name === 'AbortError' || err?.message?.includes('aborted')) {
+          return;
+        }
+        console.error('[AuthContext] Error getting initial session:', err);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
     initSession();
 
     // Listen to state changes (but ignore if we are using the mock session)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      if (!isMounted) return;
       // If we are currently using a mock session, don't overwrite it with real auth changes
       if (localStorage.getItem('sb-mock-auth-token')) return;
 
@@ -120,6 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, []);

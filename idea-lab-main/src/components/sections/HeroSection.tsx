@@ -1,18 +1,16 @@
-import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Link } from "react-router-dom";
 
 import Globe from "@/components/ui/Globe";
 
 export default function HeroSection() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: containerRef });
-  const opacity = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
-  const y = useTransform(scrollYProgress, [0, 0.6], [0, -80]);
+  const { scrollYProgress } = useScroll();
+  const opacity = useTransform(scrollYProgress, [0, 0.15], [1, 0]);
+  const y = useTransform(scrollYProgress, [0, 0.15], [0, -80]);
 
   return (
     <section
-      ref={containerRef}
+      style={{ position: "relative" }}
       className="relative min-h-[90vh] bg-gray-950 flex items-center overflow-hidden"
     >
       {/* ── 3D Globe Background ── */}

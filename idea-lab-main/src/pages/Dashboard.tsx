@@ -149,7 +149,7 @@ const Dashboard = () => {
     if (!projects?.length) return;
 
     const fetchMissingCoverImages = async () => {
-      const missingProjects = projects.filter(p => !hasCheckedCoverImage(p.id));
+      const missingProjects = projects.filter(p => !hasCheckedCoverImage(p.id) && !(p as any).deleted);
       
       if (missingProjects.length === 0) return;
 
