@@ -12,7 +12,18 @@ ai-service/node_modules/
 # Environment files (NEVER COMMIT THESE)
 .env
 *.env
+**/.env
+**/.env.*
 !.env.example
+!**/.env.example
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+*credentials*.json
+*.secret
 
 # Logs and temporary files
 *.log

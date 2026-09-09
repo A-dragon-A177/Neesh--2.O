@@ -27,6 +27,14 @@ dist-ssr
 **/.env
 **/.env.*
 !**/.env.example
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+*credentials*.json
+*.secret
 
 # Vite timestamp temp files
 vite.config.ts.timestamp-*

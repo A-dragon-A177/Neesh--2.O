@@ -616,24 +616,6 @@ const Project = () => {
 
         {/* Content Area */}
         <main className="flex-1 overflow-auto p-4 md:p-8 bg-background has-bottom-nav md:pb-8">
-          {/* Project Locked Banner / Overlay if 20-hour timer concluded without goals OR permanently CLOSED */}
-          {(project.status?.toUpperCase() === "LOCKED" || project.status?.toUpperCase() === "CLOSED") && (
-            <ProjectLockedOverlay
-              projectId={id || ""}
-              projectTitle={project.title}
-              isClosed={project.status?.toUpperCase() === "CLOSED"}
-              goldCount={buyersData?.goldCount || 0}
-              silverCount={buyersData?.silverCount || 0}
-              bronzeCount={buyersData?.bronzeCount || 0}
-              onUnlock={async () => {
-                const unlocked = await unlockProject(id || "");
-                if (unlocked) {
-                  setProject(unlocked);
-                  refetchBuyers();
-                }
-              }}
-            />
-          )}
 
           {activeTab === "overview" && project && (
             <>
@@ -836,6 +818,25 @@ const Project = () => {
         currentTab={activeTab}
         onSelectTab={(tab) => handleTabChange(tab as any)}
       />
+
+      {/* Fullscreen blocking modal — portals to document.body, covers entire viewport */}
+      {(project.status?.toUpperCase() === "LOCKED" || project.status?.toUpperCase() === "CLOSED") && (
+        <ProjectLockedOverlay
+          projectId={id || ""}
+          projectTitle={project.title}
+          isClosed={project.status?.toUpperCase() === "CLOSED"}
+          goldCount={buyersData?.goldCount || 0}
+          silverCount={buyersData?.silverCount || 0}
+          bronzeCount={buyersData?.bronzeCount || 0}
+          onUnlock={async () => {
+            const unlocked = await unlockProject(id || "");
+            if (unlocked) {
+              setProject(unlocked);
+              refetchBuyers();
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

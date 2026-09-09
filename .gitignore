@@ -17,6 +17,14 @@ target/
 **/*.env
 **/*.env.*
 !**/.env.example
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+*credentials*.json
+*.secret
 
 # Logs and debug files
 *.log
