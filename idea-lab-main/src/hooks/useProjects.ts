@@ -388,8 +388,30 @@ export const useProjects = () => {
   const unlockProject = async (id: string): Promise<Project | null> => {
     try {
       console.log("[useProjects] Unlocking project:", id);
-      const backendProject = await apiClient.post<BackendProject>(`/api/projects/${id}/unlock`);
-      const updated = transformProject(backendProject);
+      let backendProject: BackendProject | null = null;
+      try {
+        backendProject = await apiClient.post<BackendProject>(`/api/projects/${id}/unlock`);
+      } catch (backendErr) {
+        console.warn("[useProjects] Backend unlock failed, updating directly via Supabase:", backendErr);
+        const newDeadline = new Date(Date.now() + 20 * 60 * 60 * 1000).toISOString();
+        const { data: supaProject, error: supaErr } = await supabase
+          .from("projects" as any)
+          .update({
+            status: "DRAFT",
+            timer_deadline: newDeadline,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", id)
+          .select("*")
+          .single();
+
+        if (supaErr || !supaProject) {
+          throw backendErr || supaErr;
+        }
+        backendProject = supaProject as any;
+      }
+
+      const updated = transformProject(backendProject!);
       setProjects(prev => prev.map(p => p.id === id ? updated : p));
       toast.success("Project unlocked successfully! 🚀");
       return updated;

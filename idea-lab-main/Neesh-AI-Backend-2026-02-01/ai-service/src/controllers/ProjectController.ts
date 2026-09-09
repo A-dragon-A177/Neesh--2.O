@@ -462,4 +462,144 @@ export class ProjectController {
             return res.json([]);
         }
     }
+
+    async unlockProject(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            console.log('[ProjectController] Unlocking project:', id);
+
+            const { data: project, error } = await supabase
+                .from('projects')
+                .select('*')
+                .eq('id', id)
+                .eq('owner_id', req.user?.id)
+                .eq('deleted', false)
+                .single();
+
+            if (error || !project) {
+                return res.status(404).json({ error: 'Project not found' });
+            }
+
+            if (project.status?.toUpperCase() === 'CLOSED') {
+                return res.status(403).json({
+                    error: 'Forbidden',
+                    message: 'This project is permanently CLOSED and cannot be reopened.'
+                });
+            }
+
+            // Grant a new 20-hour cycle upon unlock and restore status to DRAFT
+            const newDeadline = new Date(Date.now() + 20 * 60 * 60 * 1000).toISOString();
+            const { data: updatedProject, error: updateError } = await supabase
+                .from('projects')
+                .update({
+                    status: 'DRAFT',
+                    timer_deadline: newDeadline,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', id)
+                .select('*')
+                .single();
+
+            if (updateError || !updatedProject) {
+                console.error('[ProjectController] Error unlocking project in DB:', updateError);
+                return res.status(500).json({ error: 'Failed to unlock project' });
+            }
+
+            console.log('[ProjectController] Successfully unlocked project:', id);
+            return res.json(this.transformPublicProject(updatedProject));
+        } catch (error) {
+            console.error('[ProjectController] unlockProject error:', error);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+
+    async getTimerStatus(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            const { data: project, error } = await supabase
+                .from('projects')
+                .select('*')
+                .eq('id', id)
+                .eq('owner_id', req.user?.id)
+                .eq('deleted', false)
+                .single();
+
+            if (error || !project) {
+                return res.status(404).json({ error: 'Project not found' });
+            }
+
+            const now = new Date();
+            let deadline = project.timer_deadline
+                ? new Date(project.timer_deadline)
+                : new Date(new Date(project.created_at || now).getTime() + 20 * 60 * 60 * 1000);
+
+            // Fetch audience member validation counts
+            const { data: members } = await supabase
+                .from('audience_members')
+                .select('id, name, email, feedback_text, last_interaction_at')
+                .eq('project_id', id);
+
+            let gold = 0;
+            let silver = 0;
+            let bronze = 0;
+            (members || []).forEach((m: any) => {
+                const hasEmail = Boolean(m.email && m.email.includes('@'));
+                const hasFeedback = Boolean(m.feedback_text && m.feedback_text.trim().length > 10);
+                if (hasEmail && hasFeedback) gold++;
+                else if (hasEmail) silver++;
+                else bronze++;
+            });
+
+            const meetsRequirements = gold >= 5 && silver >= 10 && bronze >= 15;
+            const isExpired = now.getTime() > deadline.getTime();
+            let currentStatus = project.status || 'DRAFT';
+
+            // Auto-promote to Stage 3 if requirements met under Stage 2
+            if (meetsRequirements && (currentStatus.toUpperCase() === 'DRAFT' || currentStatus.toUpperCase() === 'PUBLISHED')) {
+                currentStatus = 'STAGE3_ACTIVE';
+                const stage3Deadline = project.stage3_deadline || new Date(now.getTime() + 200 * 60 * 60 * 1000).toISOString();
+                await supabase.from('projects').update({
+                    status: 'STAGE3_ACTIVE',
+                    stage3_deadline: stage3Deadline
+                }).eq('id', id);
+            }
+
+            // Auto-lock project if timer expired and validation requirements not met
+            if (isExpired && !meetsRequirements && currentStatus.toUpperCase() !== 'LOCKED' && currentStatus.toUpperCase() !== 'STAGE3_ACTIVE' && currentStatus.toUpperCase() !== 'CLOSED') {
+                currentStatus = 'LOCKED';
+                await supabase.from('projects').update({ status: 'LOCKED' }).eq('id', id);
+            }
+
+            const isStage3Active = currentStatus.toUpperCase() === 'STAGE3_ACTIVE';
+            const isClosed = currentStatus.toUpperCase() === 'CLOSED';
+            const secondsRemaining = Math.max(0, Math.floor((deadline.getTime() - now.getTime()) / 1000));
+            let stage3SecondsRemaining = 0;
+            if (project.stage3_deadline) {
+                stage3SecondsRemaining = Math.max(0, Math.floor((new Date(project.stage3_deadline).getTime() - now.getTime()) / 1000));
+            }
+
+            return res.json({
+                projectId: project.id,
+                status: currentStatus,
+                createdAt: project.created_at,
+                timerDeadline: deadline.toISOString(),
+                secondsRemaining,
+                isExpired,
+                isLocked: currentStatus.toUpperCase() === 'LOCKED',
+                meetsRequirements,
+                goldCount: gold,
+                goldRequired: 5,
+                silverCount: silver,
+                silverRequired: 10,
+                bronzeCount: bronze,
+                bronzeRequired: 15,
+                stage3SecondsRemaining,
+                isStage3Active,
+                isClosed
+            });
+        } catch (error) {
+            console.error('[ProjectController] getTimerStatus error:', error);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    }
 }

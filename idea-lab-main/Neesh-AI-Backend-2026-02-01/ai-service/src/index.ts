@@ -126,6 +126,8 @@ app.post('/api/projects', (req, res) => projectController.createProject(req, res
 app.get('/api/projects/:id', (req, res) => projectController.getProject(req, res));
 app.put('/api/projects/:id', (req, res) => projectController.updateProject(req, res));
 app.delete('/api/projects/:id', (req, res) => projectController.deleteProject(req, res));
+app.post('/api/projects/:id/unlock', (req, res) => projectController.unlockProject(req, res));
+app.get('/api/projects/:id/timer-status', (req, res) => projectController.getTimerStatus(req, res));
 
 // Document API routes
 import { DocumentController, uploadMiddleware } from './controllers/DocumentController';
