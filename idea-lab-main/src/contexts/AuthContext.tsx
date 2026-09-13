@@ -15,7 +15,20 @@ interface AuthContextType {
   syncWithBackend: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const globalObj = typeof window !== 'undefined' ? (window as any) : (globalThis as any);
+const AuthContext = globalObj.__NEESH_AUTH_CONTEXT__ || (globalObj.__NEESH_AUTH_CONTEXT__ = createContext<AuthContextType | undefined>(undefined));
+
+const defaultAuthValue: AuthContextType = {
+  user: null,
+  session: null,
+  loading: true,
+  signOut: async () => ({ error: null }),
+  signUp: async () => ({ data: null, error: null }),
+  signIn: async () => ({ data: null, error: null }),
+  signInWithGoogle: async () => ({ data: null, error: null }),
+  signInWithGithub: async () => ({ data: null, error: null }),
+  syncWithBackend: async () => {},
+};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -275,7 +288,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 export const useAuthContext = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuthContext must be used within an AuthProvider");
+    console.warn("[AuthContext] useAuthContext accessed before or outside AuthProvider, using fallback safe state");
+    return defaultAuthValue;
   }
   return context;
 };

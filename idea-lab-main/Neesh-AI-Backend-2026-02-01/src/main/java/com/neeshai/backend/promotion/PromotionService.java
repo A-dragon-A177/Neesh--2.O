@@ -244,6 +244,7 @@ public class PromotionService {
 
             Project project = blog.getProject();
             if (project == null || seenProjectIds.contains(project.getId())) continue;
+            if (project.getElevatorPitchUrl() == null || project.getElevatorPitchUrl().isBlank()) continue;
 
             // Skip pitches already loaded by the frontend (deduplication)
             if (excludeIds != null && excludeIds.contains(project.getId())) continue;

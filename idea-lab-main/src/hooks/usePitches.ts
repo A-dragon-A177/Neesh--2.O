@@ -46,16 +46,23 @@ async function fetchPitchesFromSupabase(
   excludeIds: Set<string>
 ): Promise<PitchFeedItem[]> {
   try {
-    // 1. Fetch active blog promotions
+    // 1. Fetch active blog promotions only (status = ACTIVE)
     const { data: promotions } = await supabase
       .from("blog_promotions" as any)
       .select("*")
       .eq("status", "ACTIVE")
       .order("created_at", { ascending: false });
 
-    // 2. Fetch blogs, projects with elevator pitch videos, and users
+    if (!promotions || promotions.length === 0) {
+      return [];
+    }
+
+    const blogIds = promotions.map((p: any) => p.blog_id).filter(Boolean);
+    if (blogIds.length === 0) return [];
+
+    // 2. Fetch blogs for active promotions, projects with elevator pitch, and users
     const [blogsRes, projectsRes, usersRes] = await Promise.all([
-      supabase.from("blogs" as any).select("id, heading, project_id, cover_image_url"),
+      supabase.from("blogs" as any).select("id, heading, project_id, cover_image_url").in("id", blogIds),
       supabase.from("projects" as any).select("id, title, slug, one_line_summary, introduction, elevator_pitch_url, elevator_pitch_thumbnail, elevator_pitch_duration, owner_id").not("elevator_pitch_url", "is", null),
       supabase.from("users" as any).select("id, name, profile_image_url"),
     ]);
@@ -71,8 +78,8 @@ async function fetchPitchesFromSupabase(
     const seenProjectIds = new Set<string>();
     let items: PitchFeedItem[] = [];
 
-    // Priority 1: Projects with active promotions
-    for (const promo of (promotions || [])) {
+    // Only include projects actively promoted in the Cross-Promotional Engine
+    for (const promo of promotions) {
       const blog = blogMap.get(promo.blog_id);
       if (!blog) continue;
 
@@ -89,31 +96,9 @@ async function fetchPitchesFromSupabase(
         oneLineSummary: project.one_line_summary || project.introduction || null,
         slug: project.slug || project.id,
         elevatorPitchUrl: project.elevator_pitch_url,
-        elevatorPitchThumbnail: project.elevator_pitch_thumbnail || null,
+        elevatorPitchThumbnail: project.elevator_pitch_thumbnail?.trim() || null,
         elevatorPitchDuration: project.elevator_pitch_duration ? Number(project.elevator_pitch_duration) : null,
-        coverImageUrl: blog.cover_image_url || null,
-        authorName: user?.name || "Founder",
-        authorProfileImageUrl: user?.profile_image_url || null,
-      });
-    }
-
-    // Priority 2: Projects that have an elevator pitch video but no promo row yet
-    for (const project of projects) {
-      if (seenProjectIds.has(project.id) || excludeIds.has(project.id)) continue;
-      if (!project.elevator_pitch_url || !project.elevator_pitch_url.trim()) continue;
-
-      seenProjectIds.add(project.id);
-      const user = project.owner_id ? userMap.get(project.owner_id) : undefined;
-
-      items.push({
-        projectId: project.id,
-        title: project.title || "Untitled Pitch",
-        oneLineSummary: project.one_line_summary || project.introduction || null,
-        slug: project.slug || project.id,
-        elevatorPitchUrl: project.elevator_pitch_url,
-        elevatorPitchThumbnail: project.elevator_pitch_thumbnail || null,
-        elevatorPitchDuration: project.elevator_pitch_duration ? Number(project.elevator_pitch_duration) : null,
-        coverImageUrl: null,
+        coverImageUrl: blog.cover_image_url?.trim() || null,
         authorName: user?.name || "Founder",
         authorProfileImageUrl: user?.profile_image_url || null,
       });

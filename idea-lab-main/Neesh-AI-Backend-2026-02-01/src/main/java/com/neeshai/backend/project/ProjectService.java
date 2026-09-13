@@ -24,17 +24,20 @@ public class ProjectService {
     private final ValidationEngine validationEngine;
     private final com.neeshai.backend.service.SupabaseStorageService supabaseStorageService;
     private final com.neeshai.backend.audience.AudienceMemberRepository audienceMemberRepository;
+    private final com.neeshai.backend.blog.BlogService blogService;
 
     public ProjectService(ProjectRepository projectRepository, ProjectLinkService projectLinkService,
                           UserRepository userRepository, ValidationEngine validationEngine,
                           com.neeshai.backend.service.SupabaseStorageService supabaseStorageService,
-                          com.neeshai.backend.audience.AudienceMemberRepository audienceMemberRepository) {
+                          com.neeshai.backend.audience.AudienceMemberRepository audienceMemberRepository,
+                          com.neeshai.backend.blog.BlogService blogService) {
         this.projectRepository = projectRepository;
         this.projectLinkService = projectLinkService;
         this.userRepository = userRepository;
         this.validationEngine = validationEngine;
         this.supabaseStorageService = supabaseStorageService;
         this.audienceMemberRepository = audienceMemberRepository;
+        this.blogService = blogService;
     }
 
     @Transactional
@@ -70,7 +73,11 @@ public class ProjectService {
 
         project.setOnboardingCompleted(request.onboardingCompleted() != null ? request.onboardingCompleted() : false);
 
-        return projectRepository.save(project);
+        Project saved = projectRepository.save(project);
+        if (request.validationAnswers() != null && !request.validationAnswers().isBlank()) {
+            blogService.syncBlogWithValidationAnswers(saved);
+        }
+        return saved;
     }
 
     public ProjectDTOs.PrivateProjectDTO toPrivateDTO(Project project) {
@@ -136,6 +143,7 @@ public class ProjectService {
                     if (request.validationAnswers() != null && !request.validationAnswers().isBlank()) {
                         project.setValidationAnswers(request.validationAnswers());
                         project.setValidationReport(validationEngine.generateReport(request.validationAnswers()));
+                        blogService.syncBlogWithValidationAnswers(project);
                     }
 
                     if (request.onboardingCompleted() != null) {

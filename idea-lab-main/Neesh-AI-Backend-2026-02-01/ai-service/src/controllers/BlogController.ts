@@ -6,39 +6,134 @@ export function buildCustomFieldsFromAnswers(answers: Record<string, any>, proje
     const fields: any[] = [];
     let order = 1;
 
-    const sectionMappings: Array<{
-        keys: string[];
-        title: string;
-        type?: string;
-    }> = [
-        { keys: ['problem_story', 'problem', 'the_problem', 'problemDescription'], title: 'The Problem' },
-        { keys: ['our_solution', 'solution', 'what_building', 'solutionDescription'], title: "What We're Building" },
-        { keys: ['target_customer', 'target_audience', 'idealCustomer', 'who_its_for'], title: "Who It's For" },
-        { keys: ['the_hook', 'hook', 'keyInsight', 'surprisingInsight'], title: 'The Hook' },
-        { keys: ['founder_story', 'founderStory', 'motivation', 'the_founders_story'], title: "The Founder's Story" },
-        { keys: ['vision', 'longTermVision', 'our_vision'], title: 'Our Vision' },
-        { keys: ['call_to_action', 'cta', 'get_involved', 'nextSteps'], title: 'Get Involved' },
-    ];
-
-    if (answers && typeof answers === 'object') {
-        for (const mapping of sectionMappings) {
-            let value = '';
-            for (const key of mapping.keys) {
-                if (answers[key] && typeof answers[key] === 'string' && answers[key].trim()) {
-                    value = answers[key].trim();
-                    break;
-                }
-            }
-            if (value) {
-                fields.push({
-                    id: randomUUID(),
-                    type: mapping.type || 'spotlight_section',
-                    sectionTitle: mapping.title,
-                    value: value,
-                    order: order++
-                });
-            }
+    const getStringVal = (...keys: string[]): string => {
+        if (!answers || typeof answers !== 'object') return '';
+        for (const k of keys) {
+            const v = answers[k];
+            if (typeof v === 'string' && v.trim()) return v.trim();
         }
+        return '';
+    };
+
+    // 1. The Problem
+    const problem = getStringVal('problem_story', 'problem', 'the_problem', 'problemDescription');
+    if (problem) {
+        fields.push({ id: randomUUID(), type: 'spotlight_section', sectionTitle: 'The Problem', value: problem, order: order++ });
+    }
+
+    // 2. What We're Building
+    const solution = getStringVal('our_solution', 'solution', 'what_building', 'solutionDescription');
+    if (solution) {
+        fields.push({ id: randomUUID(), type: 'spotlight_section', sectionTitle: "What We're Building", value: solution, order: order++ });
+    }
+
+    // 3. Value Advantage & Economics (CVP)
+    const cvpAlt = getStringVal('cvp_input_a');
+    const cvpMetric = getStringVal('cvp_input_b');
+    const cvpAltCost = getStringVal('cvp_input_c');
+    const cvpOurCost = getStringVal('cvp_input_d');
+    const cvpValidation = getStringVal('cvp_input_e');
+    if (cvpAlt || cvpAltCost || cvpOurCost || cvpMetric) {
+        const lines: string[] = [];
+        if (cvpAlt) lines.push(`• Alternative Solution: ${cvpAlt}`);
+        if (cvpMetric) lines.push(`• Core Value Driver: ${cvpMetric}`);
+        if (cvpAltCost && cvpOurCost) lines.push(`• Cost Comparison: $${cvpAltCost} (Alternative) vs $${cvpOurCost} (Our Solution)`);
+        else if (cvpAltCost) lines.push(`• Alternative Cost: $${cvpAltCost}`);
+        else if (cvpOurCost) lines.push(`• Solution Cost: $${cvpOurCost}`);
+        if (cvpValidation) lines.push(`• Validation Status: ${cvpValidation}`);
+        if (lines.length > 0) {
+            fields.push({ id: randomUUID(), type: 'spotlight_section', sectionTitle: 'Value Advantage & Economics', value: lines.join('\n'), order: order++ });
+        }
+    }
+
+    // 4. Who It's For
+    const target = getStringVal('target_customer', 'target_audience', 'idealCustomer', 'who_its_for');
+    if (target) {
+        fields.push({ id: randomUUID(), type: 'spotlight_section', sectionTitle: "Who It's For", value: target, order: order++ });
+    }
+
+    // 5. Market Opportunity & Dynamics
+    const marketHabit = getStringVal('market_input_a');
+    const marketSpend = getStringVal('market_input_b');
+    const marketPrice = getStringVal('market_input_c1');
+    const marketConcentration = getStringVal('market_input_c2');
+    const marketGeo = getStringVal('market_input_d');
+    if (marketHabit || marketSpend || marketPrice || marketGeo || marketConcentration) {
+        const lines: string[] = [];
+        if (marketHabit) lines.push(`• Customer Urgency: ${marketHabit}`);
+        if (marketSpend) lines.push(`• Willingness to Pay: ${marketSpend}`);
+        if (marketPrice) lines.push(`• Target Pricing: $${marketPrice}/yr`);
+        if (marketGeo || marketConcentration) {
+            const geoPart = [marketGeo, marketConcentration ? `(${marketConcentration})` : ''].filter(Boolean).join(' ');
+            lines.push(`• Market Profile: ${geoPart}`);
+        }
+        if (lines.length > 0) {
+            fields.push({ id: randomUUID(), type: 'spotlight_section', sectionTitle: 'Market Opportunity & Dynamics', value: lines.join('\n'), order: order++ });
+        }
+    }
+
+    // 6. The Hook
+    const hook = getStringVal('the_hook', 'hook', 'keyInsight', 'surprisingInsight');
+    if (hook) {
+        fields.push({ id: randomUUID(), type: 'spotlight_section', sectionTitle: 'The Hook', value: hook, order: order++ });
+    }
+
+    // 7. Customer Acquisition & Trust
+    const acqAccess = getStringVal('acq_input_a');
+    const acqChannel = getStringVal('acq_input_b');
+    const acqRep = getStringVal('acq_input_c');
+    if (acqAccess || acqChannel || acqRep) {
+        const lines: string[] = [];
+        if (acqAccess) lines.push(`• Customer Access: ${acqAccess}`);
+        if (acqChannel) lines.push(`• Growth Engine: ${acqChannel}`);
+        if (acqRep) lines.push(`• Industry Authority: ${acqRep}`);
+        if (lines.length > 0) {
+            fields.push({ id: randomUUID(), type: 'spotlight_section', sectionTitle: 'Customer Acquisition & Trust', value: lines.join('\n'), order: order++ });
+        }
+    }
+
+    // 8. Defensibility & Moat
+    const defMoat = getStringVal('def_input_a');
+    const defTech = getStringVal('def_input_b');
+    const defStrategy = getStringVal('def_input_c');
+    if (defMoat || defTech || defStrategy) {
+        const lines: string[] = [];
+        if (defMoat) lines.push(`• Core Advantage: ${defMoat}`);
+        if (defTech) lines.push(`• Technical Barrier: ${defTech}`);
+        if (defStrategy) lines.push(`• Defense Strategy: ${defStrategy}`);
+        if (lines.length > 0) {
+            fields.push({ id: randomUUID(), type: 'spotlight_section', sectionTitle: 'Defensibility & Moat', value: lines.join('\n'), order: order++ });
+        }
+    }
+
+    // 9. The Founder's Story
+    const founder = getStringVal('founder_story', 'founderStory', 'motivation', 'the_founders_story');
+    if (founder) {
+        fields.push({ id: randomUUID(), type: 'spotlight_section', sectionTitle: "The Founder's Story", value: founder, order: order++ });
+    }
+
+    // 10. Execution & Build Readiness
+    const buildStability = getStringVal('build_input_a');
+    const buildStage = getStringVal('build_input_b');
+    if (buildStability || buildStage) {
+        const lines: string[] = [];
+        if (buildStability) lines.push(`• Team Execution Capacity: ${buildStability}`);
+        if (buildStage) lines.push(`• Current Milestone: ${buildStage}`);
+        if (lines.length > 0) {
+            fields.push({ id: randomUUID(), type: 'spotlight_section', sectionTitle: 'Execution & Build Readiness', value: lines.join('\n'), order: order++ });
+        }
+    }
+
+    // 11. Our Vision
+    const vision = getStringVal('vision', 'longTermVision', 'our_vision');
+    if (vision) {
+        fields.push({ id: randomUUID(), type: 'spotlight_section', sectionTitle: 'Our Vision', value: vision, order: order++ });
+    }
+
+    // 12. Get Involved
+    const cta = getStringVal('call_to_action', 'cta', 'get_involved', 'nextSteps');
+    if (cta) {
+        fields.push({ id: randomUUID(), type: 'spotlight_section', sectionTitle: 'Get Involved', value: cta, order: order++ });
     }
 
     // Fallback to project description if no sections matched
@@ -53,6 +148,46 @@ export function buildCustomFieldsFromAnswers(answers: Record<string, any>, proje
     }
 
     return fields;
+}
+
+export function mergeCustomFieldsWithAnswers(existingFields: any[], answers: Record<string, any>, project?: any): any[] {
+    const generated = buildCustomFieldsFromAnswers(answers, project);
+    const existing = Array.isArray(existingFields) ? [...existingFields] : [];
+
+    const cleanedExisting = existing.filter(f => {
+        if (!f) return false;
+        const title = (f.sectionTitle || f.title || '').trim().toLowerCase();
+        const val = (f.value || f.content || '').trim();
+        if (title === 'content' && !val) return false;
+        if (!title && !val) return false;
+        return true;
+    });
+
+    const norm = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const merged = [...cleanedExisting];
+    let maxOrder = merged.reduce((max, f) => Math.max(max, typeof f.order === 'number' ? f.order : 0), 0);
+
+    for (const gen of generated) {
+        const genNorm = norm(gen.sectionTitle);
+        const existingIdx = merged.findIndex(f => norm(f.sectionTitle || f.title) === genNorm);
+        if (existingIdx >= 0) {
+            const exVal = (merged[existingIdx].value || merged[existingIdx].content || '').trim();
+            if (!exVal && gen.value) {
+                merged[existingIdx] = {
+                    ...merged[existingIdx],
+                    value: gen.value
+                };
+            }
+        } else {
+            maxOrder++;
+            merged.push({
+                ...gen,
+                order: maxOrder
+            });
+        }
+    }
+
+    return merged;
 }
 
 export class BlogController {
@@ -113,7 +248,7 @@ export class BlogController {
 
             let finalBlog = blog;
 
-            // Auto-populate from validation answers if blog doesn't exist or has empty custom_fields
+            // Auto-populate / merge from validation answers
             let currentFields: any[] = [];
             if (blog?.custom_fields) {
                 try {
@@ -123,26 +258,28 @@ export class BlogController {
                 }
             }
 
-            if (!blog || !Array.isArray(currentFields) || currentFields.length === 0) {
-                let parsedAnswers: Record<string, any> = {};
-                if (project.validation_answers) {
-                    try {
-                        parsedAnswers = typeof project.validation_answers === 'string'
-                            ? JSON.parse(project.validation_answers)
-                            : project.validation_answers;
-                    } catch (e) {
-                        parsedAnswers = {};
-                    }
+            let parsedAnswers: Record<string, any> = {};
+            if (project.validation_answers) {
+                try {
+                    parsedAnswers = typeof project.validation_answers === 'string'
+                        ? JSON.parse(project.validation_answers)
+                        : project.validation_answers;
+                } catch (e) {
+                    parsedAnswers = {};
                 }
+            }
 
-                const generatedFields = buildCustomFieldsFromAnswers(parsedAnswers, project);
+            const mergedFields = mergeCustomFieldsWithAnswers(currentFields, parsedAnswers, project);
+            const needsUpdate = !blog || JSON.stringify(currentFields) !== JSON.stringify(mergedFields);
+
+            if (needsUpdate) {
                 const blogData = {
                     project_id: projectId,
                     heading: blog?.heading || project.title || '',
                     cover_image_url: blog?.cover_image_url || '',
                     introduction: blog?.introduction || project.one_line_summary || project.introduction || '',
                     content: blog?.content || '',
-                    custom_fields: JSON.stringify(generatedFields),
+                    custom_fields: JSON.stringify(mergedFields),
                     updated_at: new Date().toISOString(),
                 };
 
@@ -153,7 +290,7 @@ export class BlogController {
                         .eq('project_id', projectId)
                         .select()
                         .single();
-                    finalBlog = updated || blog;
+                    finalBlog = updated || { ...blog, ...blogData };
                 } else {
                     const { data: created } = await supabase
                         .from('blogs')
@@ -280,7 +417,7 @@ export class BlogController {
                 }
             }
 
-            if ((!blog || !Array.isArray(currentFields) || currentFields.length === 0) && project) {
+            if (project) {
                 let parsedAnswers: Record<string, any> = {};
                 if (project.validation_answers) {
                     try {
@@ -292,32 +429,36 @@ export class BlogController {
                     }
                 }
 
-                const generatedFields = buildCustomFieldsFromAnswers(parsedAnswers, project);
-                const blogData = {
-                    project_id: projectId,
-                    heading: blog?.heading || project.title || '',
-                    cover_image_url: blog?.cover_image_url || '',
-                    introduction: blog?.introduction || project.one_line_summary || project.introduction || '',
-                    content: blog?.content || '',
-                    custom_fields: JSON.stringify(generatedFields),
-                    updated_at: new Date().toISOString(),
-                };
+                const mergedFields = mergeCustomFieldsWithAnswers(currentFields, parsedAnswers, project);
+                const needsUpdate = !blog || JSON.stringify(currentFields) !== JSON.stringify(mergedFields);
 
-                if (blog) {
-                    const { data: updated } = await supabase
-                        .from('blogs')
-                        .update(blogData)
-                        .eq('project_id', projectId)
-                        .select()
-                        .single();
-                    finalBlog = updated || blog;
-                } else {
-                    const { data: created } = await supabase
-                        .from('blogs')
-                        .insert({ ...blogData, id: randomUUID(), created_at: new Date().toISOString() })
-                        .select()
-                        .single();
-                    finalBlog = created || blogData;
+                if (needsUpdate) {
+                    const blogData = {
+                        project_id: projectId,
+                        heading: blog?.heading || project.title || '',
+                        cover_image_url: blog?.cover_image_url || '',
+                        introduction: blog?.introduction || project.one_line_summary || project.introduction || '',
+                        content: blog?.content || '',
+                        custom_fields: JSON.stringify(mergedFields),
+                        updated_at: new Date().toISOString(),
+                    };
+
+                    if (blog) {
+                        const { data: updated } = await supabase
+                            .from('blogs')
+                            .update(blogData)
+                            .eq('project_id', projectId)
+                            .select()
+                            .single();
+                        finalBlog = updated || { ...blog, ...blogData };
+                    } else {
+                        const { data: created } = await supabase
+                            .from('blogs')
+                            .insert({ ...blogData, id: randomUUID(), created_at: new Date().toISOString() })
+                            .select()
+                            .single();
+                        finalBlog = created || blogData;
+                    }
                 }
             }
 

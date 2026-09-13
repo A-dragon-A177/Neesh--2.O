@@ -43,29 +43,326 @@ public class BlogService {
             return Optional.empty();
         }
 
+        Project project = projectOpt.get();
         Optional<Blog> blogOpt = blogRepository.findByProjectId(projectId);
+
+        Blog blog;
+        boolean isNew = false;
         if (blogOpt.isEmpty()) {
-            return Optional.of(new BlogDTOs.BlogContentDTO(
-                    projectOpt.get().getTitle(), "", "", "", List.of(), List.of()));
+            blog = Blog.builder()
+                    .project(project)
+                    .heading(project.getTitle())
+                    .introduction(project.getOneLineSummary() != null ? project.getOneLineSummary() : project.getIntroduction())
+                    .content("")
+                    .customFields("[]")
+                    .interestTags("[]")
+                    .build();
+            isNew = true;
+        } else {
+            blog = blogOpt.get();
         }
 
-        Blog blog = blogOpt.get();
-        List<Map<String, Object>> customFields = parseCustomFields(blog.getCustomFields());
-        List<Map<String, Object>> interestTags = parseCustomFields(blog.getInterestTags());
+        List<Map<String, Object>> currentCustomFields = parseCustomFields(blog.getCustomFields());
+        List<Map<String, Object>> mergedCustomFields = mergeCustomFields(currentCustomFields, project.getValidationAnswers());
 
-        log.debug("Retrieved blog content with {} custom fields and {} interest tags for project {}", customFields.size(), interestTags.size(), projectId);
+        boolean shouldSave = isNew;
+
+        if (mergedCustomFields.size() != currentCustomFields.size() ||
+                !serializeCustomFields(mergedCustomFields).equals(blog.getCustomFields())) {
+            blog.setCustomFields(serializeCustomFields(mergedCustomFields));
+            shouldSave = true;
+        }
+
+        if ((blog.getIntroduction() == null || blog.getIntroduction().isBlank()) &&
+                (project.getOneLineSummary() != null || project.getIntroduction() != null)) {
+            blog.setIntroduction(project.getOneLineSummary() != null ? project.getOneLineSummary() : project.getIntroduction());
+            shouldSave = true;
+        }
+
+        if (shouldSave) {
+            try {
+                blog = blogRepository.save(blog);
+                log.info("Auto-synced blog custom fields from validation answers for project {}", projectId);
+            } catch (Exception e) {
+                log.warn("Could not save auto-synced blog for project {}: {}", projectId, e.getMessage());
+            }
+        }
+
+        List<Map<String, Object>> interestTags = parseCustomFields(blog.getInterestTags());
+        log.debug("Retrieved blog content with {} custom fields and {} interest tags for project {}",
+                mergedCustomFields.size(), interestTags.size(), projectId);
 
         String heading = (blog.getHeading() != null && !blog.getHeading().isBlank())
                 ? blog.getHeading()
-                : projectOpt.get().getTitle();
+                : project.getTitle();
 
         return Optional.of(new BlogDTOs.BlogContentDTO(
                 heading,
                 blog.getCoverImageUrl(),
                 blog.getIntroduction(),
                 blog.getContent(),
-                customFields,
+                mergedCustomFields,
                 interestTags));
+    }
+
+    @Transactional
+    public void syncBlogWithValidationAnswers(Project project) {
+        if (project == null || project.getId() == null) return;
+
+        Optional<Blog> blogOpt = blogRepository.findByProjectId(project.getId());
+        Blog blog = blogOpt.orElseGet(() -> Blog.builder()
+                .project(project)
+                .heading(project.getTitle())
+                .introduction(project.getOneLineSummary() != null ? project.getOneLineSummary() : project.getIntroduction())
+                .content("")
+                .customFields("[]")
+                .interestTags("[]")
+                .build());
+
+        List<Map<String, Object>> current = parseCustomFields(blog.getCustomFields());
+        List<Map<String, Object>> merged = mergeCustomFields(current, project.getValidationAnswers());
+
+        boolean updated = false;
+        if (merged.size() != current.size() || !serializeCustomFields(merged).equals(blog.getCustomFields())) {
+            blog.setCustomFields(serializeCustomFields(merged));
+            updated = true;
+        }
+
+        if ((blog.getIntroduction() == null || blog.getIntroduction().isBlank()) &&
+                (project.getOneLineSummary() != null || project.getIntroduction() != null)) {
+            blog.setIntroduction(project.getOneLineSummary() != null ? project.getOneLineSummary() : project.getIntroduction());
+            updated = true;
+        }
+
+        if (blog.getHeading() == null || blog.getHeading().isBlank()) {
+            blog.setHeading(project.getTitle());
+            updated = true;
+        }
+
+        if (updated || blog.getId() == null) {
+            try {
+                blogRepository.save(blog);
+                log.info("Synced blog with validation answers for project: {}", project.getId());
+            } catch (Exception e) {
+                log.warn("Failed to sync blog with validation answers for project {}: {}", project.getId(), e.getMessage());
+            }
+        }
+    }
+
+    public List<Map<String, Object>> mergeCustomFields(List<Map<String, Object>> existingFields, String validationAnswersJson) {
+        List<Map<String, Object>> generated = generateCustomFieldsFromAnswers(validationAnswersJson);
+        if (existingFields == null || existingFields.isEmpty()) {
+            return generated;
+        }
+
+        List<Map<String, Object>> result = new java.util.ArrayList<>();
+        java.util.Set<String> handledTitles = new java.util.HashSet<>();
+
+        for (Map<String, Object> field : existingFields) {
+            if (field == null) continue;
+            String title = (String) field.getOrDefault("sectionTitle", field.getOrDefault("title", ""));
+            String value = (String) field.getOrDefault("value", field.getOrDefault("content", ""));
+
+            // Filter out empty placeholder "Content" block
+            if (title != null && title.equalsIgnoreCase("Content") && (value == null || value.trim().isEmpty())) {
+                continue;
+            }
+            if ((title == null || title.trim().isEmpty()) && (value == null || value.trim().isEmpty())) {
+                continue;
+            }
+
+            result.add(field);
+            if (title != null && !title.isBlank()) {
+                handledTitles.add(title.trim().toLowerCase().replaceAll("[^a-z0-9]", ""));
+            }
+        }
+
+        int nextOrder = result.size() + 1;
+        for (Map<String, Object> gen : generated) {
+            String genTitle = (String) gen.get("sectionTitle");
+            String normTitle = genTitle.toLowerCase().replaceAll("[^a-z0-9]", "");
+            if (!handledTitles.contains(normTitle)) {
+                Map<String, Object> newField = new java.util.HashMap<>(gen);
+                newField.put("order", nextOrder++);
+                result.add(newField);
+                handledTitles.add(normTitle);
+            }
+        }
+
+        return result;
+    }
+
+    public List<Map<String, Object>> generateCustomFieldsFromAnswers(String validationAnswersJson) {
+        List<Map<String, Object>> fields = new java.util.ArrayList<>();
+        if (validationAnswersJson == null || validationAnswersJson.trim().isEmpty()) {
+            return fields;
+        }
+
+        try {
+            com.fasterxml.jackson.databind.JsonNode answers = objectMapper.readTree(validationAnswersJson);
+            if (answers == null || !answers.isObject()) {
+                return fields;
+            }
+
+            int order = 1;
+
+            java.util.function.Function<String[], String> getString = keys -> {
+                for (String k : keys) {
+                    if (answers.hasNonNull(k)) {
+                        String v = answers.get(k).asText();
+                        if (v != null && !v.trim().isEmpty()) {
+                            return v.trim();
+                        }
+                    }
+                }
+                return "";
+            };
+
+            // 1. The Problem
+            String problem = getString.apply(new String[]{"problem_story", "problem", "the_problem", "problemDescription"});
+            if (!problem.isEmpty()) {
+                fields.add(createSectionField("The Problem", problem, order++));
+            }
+
+            // 2. What We're Building
+            String solution = getString.apply(new String[]{"our_solution", "solution", "what_building", "solutionDescription"});
+            if (!solution.isEmpty()) {
+                fields.add(createSectionField("What We're Building", solution, order++));
+            }
+
+            // 3. Value Advantage & Economics (CVP Reality Check)
+            String cvpAlt = getString.apply(new String[]{"cvp_input_a"});
+            String cvpMetric = getString.apply(new String[]{"cvp_input_b"});
+            String cvpAltCost = getString.apply(new String[]{"cvp_input_c"});
+            String cvpOurCost = getString.apply(new String[]{"cvp_input_d"});
+            String cvpValidation = getString.apply(new String[]{"cvp_input_e"});
+
+            if (!cvpAlt.isEmpty() || !cvpMetric.isEmpty() || !cvpAltCost.isEmpty() || !cvpOurCost.isEmpty()) {
+                List<String> lines = new java.util.ArrayList<>();
+                if (!cvpAlt.isEmpty()) lines.add("• Alternative Solution: " + cvpAlt);
+                if (!cvpMetric.isEmpty()) lines.add("• Core Value Driver: " + cvpMetric);
+                if (!cvpAltCost.isEmpty() && !cvpOurCost.isEmpty()) {
+                    lines.add("• Cost Comparison: $" + cvpAltCost + " (Alternative) vs $" + cvpOurCost + " (Our Solution)");
+                } else if (!cvpAltCost.isEmpty()) {
+                    lines.add("• Alternative Cost: $" + cvpAltCost);
+                } else if (!cvpOurCost.isEmpty()) {
+                    lines.add("• Solution Cost: $" + cvpOurCost);
+                }
+                if (!cvpValidation.isEmpty()) lines.add("• Validation Status: " + cvpValidation);
+                if (!lines.isEmpty()) {
+                    fields.add(createSectionField("Value Advantage & Economics", String.join("\n", lines), order++));
+                }
+            }
+
+            // 4. Who It's For
+            String target = getString.apply(new String[]{"target_customer", "target_audience", "idealCustomer", "who_its_for"});
+            if (!target.isEmpty()) {
+                fields.add(createSectionField("Who It's For", target, order++));
+            }
+
+            // 5. Market Opportunity & Dynamics
+            String marketHabit = getString.apply(new String[]{"market_input_a"});
+            String marketSpend = getString.apply(new String[]{"market_input_b"});
+            String marketPrice = getString.apply(new String[]{"market_input_c1"});
+            String marketConcentration = getString.apply(new String[]{"market_input_c2"});
+            String marketGeo = getString.apply(new String[]{"market_input_d"});
+
+            if (!marketHabit.isEmpty() || !marketSpend.isEmpty() || !marketPrice.isEmpty() || !marketGeo.isEmpty() || !marketConcentration.isEmpty()) {
+                List<String> lines = new java.util.ArrayList<>();
+                if (!marketHabit.isEmpty()) lines.add("• Customer Urgency: " + marketHabit);
+                if (!marketSpend.isEmpty()) lines.add("• Willingness to Pay: " + marketSpend);
+                if (!marketPrice.isEmpty()) lines.add("• Target Pricing: $" + marketPrice + "/yr");
+                if (!marketGeo.isEmpty() || !marketConcentration.isEmpty()) {
+                    String geoPart = marketGeo + (!marketConcentration.isEmpty() ? " (" + marketConcentration + ")" : "");
+                    lines.add("• Market Profile: " + geoPart.trim());
+                }
+                if (!lines.isEmpty()) {
+                    fields.add(createSectionField("Market Opportunity & Dynamics", String.join("\n", lines), order++));
+                }
+            }
+
+            // 6. The Hook
+            String hook = getString.apply(new String[]{"the_hook", "hook", "keyInsight", "surprisingInsight"});
+            if (!hook.isEmpty()) {
+                fields.add(createSectionField("The Hook", hook, order++));
+            }
+
+            // 7. Customer Acquisition & Trust
+            String acqAccess = getString.apply(new String[]{"acq_input_a"});
+            String acqChannel = getString.apply(new String[]{"acq_input_b"});
+            String acqRep = getString.apply(new String[]{"acq_input_c"});
+
+            if (!acqAccess.isEmpty() || !acqChannel.isEmpty() || !acqRep.isEmpty()) {
+                List<String> lines = new java.util.ArrayList<>();
+                if (!acqAccess.isEmpty()) lines.add("• Customer Access: " + acqAccess);
+                if (!acqChannel.isEmpty()) lines.add("• Growth Engine: " + acqChannel);
+                if (!acqRep.isEmpty()) lines.add("• Industry Authority: " + acqRep);
+                if (!lines.isEmpty()) {
+                    fields.add(createSectionField("Customer Acquisition & Trust", String.join("\n", lines), order++));
+                }
+            }
+
+            // 8. Defensibility & Moat
+            String defMoat = getString.apply(new String[]{"def_input_a"});
+            String defTech = getString.apply(new String[]{"def_input_b"});
+            String defStrategy = getString.apply(new String[]{"def_input_c"});
+
+            if (!defMoat.isEmpty() || !defTech.isEmpty() || !defStrategy.isEmpty()) {
+                List<String> lines = new java.util.ArrayList<>();
+                if (!defMoat.isEmpty()) lines.add("• Core Advantage: " + defMoat);
+                if (!defTech.isEmpty()) lines.add("• Technical Barrier: " + defTech);
+                if (!defStrategy.isEmpty()) lines.add("• Defense Strategy: " + defStrategy);
+                if (!lines.isEmpty()) {
+                    fields.add(createSectionField("Defensibility & Moat", String.join("\n", lines), order++));
+                }
+            }
+
+            // 9. The Founder's Story
+            String founder = getString.apply(new String[]{"founder_story", "founderStory", "motivation", "the_founders_story"});
+            if (!founder.isEmpty()) {
+                fields.add(createSectionField("The Founder's Story", founder, order++));
+            }
+
+            // 10. Execution & Build Readiness
+            String buildStability = getString.apply(new String[]{"build_input_a"});
+            String buildStage = getString.apply(new String[]{"build_input_b"});
+
+            if (!buildStability.isEmpty() || !buildStage.isEmpty()) {
+                List<String> lines = new java.util.ArrayList<>();
+                if (!buildStability.isEmpty()) lines.add("• Team Execution Capacity: " + buildStability);
+                if (!buildStage.isEmpty()) lines.add("• Current Milestone: " + buildStage);
+                if (!lines.isEmpty()) {
+                    fields.add(createSectionField("Execution & Build Readiness", String.join("\n", lines), order++));
+                }
+            }
+
+            // 11. Our Vision
+            String vision = getString.apply(new String[]{"vision", "longTermVision", "our_vision"});
+            if (!vision.isEmpty()) {
+                fields.add(createSectionField("Our Vision", vision, order++));
+            }
+
+            // 12. Get Involved
+            String cta = getString.apply(new String[]{"call_to_action", "cta", "get_involved", "nextSteps"});
+            if (!cta.isEmpty()) {
+                fields.add(createSectionField("Get Involved", cta, order++));
+            }
+
+        } catch (Exception e) {
+            log.warn("Error parsing validation answers for blog custom fields: {}", e.getMessage());
+        }
+
+        return fields;
+    }
+
+    private Map<String, Object> createSectionField(String sectionTitle, String value, int order) {
+        Map<String, Object> field = new java.util.HashMap<>();
+        field.put("id", UUID.randomUUID().toString());
+        field.put("type", "spotlight_section");
+        field.put("sectionTitle", sectionTitle);
+        field.put("value", value);
+        field.put("order", order);
+        return field;
     }
 
     @Transactional

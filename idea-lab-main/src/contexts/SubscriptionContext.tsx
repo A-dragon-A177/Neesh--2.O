@@ -25,7 +25,21 @@ interface SubscriptionContextType {
   refetch: (force?: boolean) => Promise<void>;
 }
 
-const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
+const globalObj = typeof window !== 'undefined' ? (window as any) : (globalThis as any);
+const SubscriptionContext = globalObj.__NEESH_SUBSCRIPTION_CONTEXT__ || (globalObj.__NEESH_SUBSCRIPTION_CONTEXT__ = createContext<SubscriptionContextType | undefined>(undefined));
+
+const defaultSubscriptionValue: SubscriptionContextType = {
+  subscription: null,
+  loading: true,
+  isPro: false,
+  isFree: true,
+  isEnterprise: false,
+  canCreateProject: true,
+  daysRemaining: null,
+  upgradeToPro: async () => false,
+  updateBranding: async () => false,
+  refetch: async () => {},
+};
 
 export const SubscriptionProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
@@ -127,6 +141,9 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
 
 export const useSubscription = () => {
   const ctx = useContext(SubscriptionContext);
-  if (!ctx) throw new Error("useSubscription must be used within SubscriptionProvider");
+  if (!ctx) {
+    console.warn("[SubscriptionContext] useSubscription accessed outside SubscriptionProvider, using safe fallback");
+    return defaultSubscriptionValue;
+  }
   return ctx;
 };

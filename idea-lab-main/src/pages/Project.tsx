@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { getSpotlightTitle } from "@/lib/spotlightTitles";
+import { mergeSectionsWithValidationAnswers } from "@/lib/spotlightSections";
 import defaultChatbotAvatar from "@/assets/chatbot-avatar.png";
 import { Button } from "@/components/ui/button";
 import {
@@ -141,7 +142,6 @@ const Project = () => {
     }>;
   }>>([
     { id: "1", title: "Introduction", content: "", type: "text" },
-    { id: "2", title: "Content", content: "", type: "text" },
   ]);
 
   const [interestTags, setInterestTags] = useState<Array<{ id: string; label: string; priority: number; color?: string }>>([
@@ -174,158 +174,22 @@ const Project = () => {
     const loadBlog = async () => {
       if (!id || !project) return;
       const blog = await getBlog(id);
-      if (blog) {
-        if (blog.interest_tags && blog.interest_tags.length > 0) {
-          setInterestTags(blog.interest_tags);
-        }
-
-        // Start with intro and content sections
-        // Fall back to project fields if blog hasn't been saved yet
-        const loadedSections: typeof sections = [
-          { id: "1", title: "Introduction", content: blog.introduction || project?.introduction || "", type: "text" },
-          { id: "2", title: "Content", content: blog.content || project?.description || "", type: "text" },
-        ];
-
-        // Add custom fields as sections (including feedback)
-        if (blog.custom_fields && Array.isArray(blog.custom_fields)) {
-          blog.custom_fields.forEach((field: any, idx: number) => {
-            if (field.type === "feedback") {
-              loadedSections.push({
-                id: field.id || `feedback-${idx}`,
-                title: field.title || "Feedback Form",
-                content: field.description || "",
-                type: "feedback",
-                feedbackTitle: field.title,
-                feedbackDescription: field.description,
-                feedbackFields: field.fields || [],
-              });
-            } else if (field.type === "image") {
-              loadedSections.push({
-                id: field.id,
-                title: `Image ${field.order + 1}`,
-                content: field.value || "",
-                type: "image",
-                imageUrl: field.value,
-              });
-            } else if (field.type === "video") {
-              loadedSections.push({
-                id: field.id,
-                title: `Video ${field.order + 1}`,
-                content: field.value || "",
-                type: "video",
-                videoUrl: field.value,
-              });
-            } else {
-              const resolvedTitle = field.type === "spotlight_section" && field.sectionTitle
-                ? getSpotlightTitle(field.sectionTitle, project?.industry)
-                : field.sectionTitle || `Section ${field.order + 1}`;
-              loadedSections.push({
-                id: field.id,
-                title: resolvedTitle,
-                content: field.value || "",
-                type: field.type || "text",
-                sectionTitle: field.sectionTitle,
-              });
-            }
-          });
-        }
-
-        // If no custom fields in blog yet, check if project has validation_answers
-        if (loadedSections.length <= 2 && project?.validation_answers) {
-          try {
-            const parsed = typeof project.validation_answers === "string"
-              ? JSON.parse(project.validation_answers)
-              : project.validation_answers;
-
-            const mappings = [
-              { keys: ["problem_story", "problem", "the_problem"], title: "The Problem" },
-              { keys: ["our_solution", "solution", "what_building"], title: "What We're Building" },
-              { keys: ["target_customer", "target_audience", "who_its_for"], title: "Who It's For" },
-              { keys: ["the_hook", "hook"], title: "The Hook" },
-              { keys: ["founder_story", "founderStory", "the_founders_story"], title: "The Founder's Story" },
-              { keys: ["vision", "our_vision"], title: "Our Vision" },
-              { keys: ["call_to_action", "cta", "get_involved"], title: "Get Involved" },
-            ];
-
-            let customIdx = 1;
-            mappings.forEach(m => {
-              let val = "";
-              for (const k of m.keys) {
-                if (parsed[k] && typeof parsed[k] === "string" && parsed[k].trim()) {
-                  val = parsed[k].trim();
-                  break;
-                }
-              }
-              if (val) {
-                const resolvedTitle = getSpotlightTitle(m.title, project?.industry);
-                loadedSections.push({
-                  id: `auto-${customIdx++}`,
-                  title: resolvedTitle,
-                  content: val,
-                  type: "text",
-                  sectionTitle: m.title
-                });
-              }
-            });
-          } catch (e) {
-            console.warn("[Project] Error parsing validation_answers for blog:", e);
-          }
-        }
-
-        setSections(loadedSections);
-      } else {
-        // No blog found — check if project has validation answers
-        const loadedSections: typeof sections = [
-          { id: "1", title: "Introduction", content: project?.introduction || project?.one_line_summary || "", type: "text" },
-          { id: "2", title: "Content", content: project?.description || "", type: "text" },
-        ];
-
-        if (project?.validation_answers) {
-          try {
-            const parsed = typeof project.validation_answers === "string"
-              ? JSON.parse(project.validation_answers)
-              : project.validation_answers;
-
-            const mappings = [
-              { keys: ["problem_story", "problem", "the_problem"], title: "The Problem" },
-              { keys: ["our_solution", "solution", "what_building"], title: "What We're Building" },
-              { keys: ["target_customer", "target_audience", "who_its_for"], title: "Who It's For" },
-              { keys: ["the_hook", "hook"], title: "The Hook" },
-              { keys: ["founder_story", "founderStory", "the_founders_story"], title: "The Founder's Story" },
-              { keys: ["vision", "our_vision"], title: "Our Vision" },
-              { keys: ["call_to_action", "cta", "get_involved"], title: "Get Involved" },
-            ];
-
-            let customIdx = 1;
-            mappings.forEach(m => {
-              let val = "";
-              for (const k of m.keys) {
-                if (parsed[k] && typeof parsed[k] === "string" && parsed[k].trim()) {
-                  val = parsed[k].trim();
-                  break;
-                }
-              }
-              if (val) {
-                const resolvedTitle = getSpotlightTitle(m.title, project?.industry);
-                loadedSections.push({
-                  id: `auto-${customIdx++}`,
-                  title: resolvedTitle,
-                  content: val,
-                  type: "text",
-                  sectionTitle: m.title
-                });
-              }
-            });
-          } catch (e) {
-            console.warn("[Project] Error parsing validation_answers for fallback:", e);
-          }
-        }
-
-        setSections(loadedSections);
+      if (blog && blog.interest_tags && blog.interest_tags.length > 0) {
+        setInterestTags(blog.interest_tags);
       }
+
+      const loadedSections = mergeSectionsWithValidationAnswers({
+        existingCustomFields: blog?.custom_fields || null,
+        validationAnswers: project?.validation_answers || null,
+        introduction: blog?.introduction || project?.introduction || project?.one_line_summary || "",
+        content: blog?.content || project?.description || "",
+        industry: project?.industry || null,
+      });
+
+      setSections(loadedSections);
     };
     loadBlog();
-  }, [id, project?.id]);
+  }, [id, project?.id, project?.validation_answers, project?.industry]);
 
   const handleSaveBlog = async () => {
     if (!id) return;
@@ -376,7 +240,7 @@ const Project = () => {
             type: s.type,
             value: s.content,
             order: index,
-            ...(s.sectionTitle ? { sectionTitle: s.sectionTitle } : {}),
+            sectionTitle: s.sectionTitle || s.title,
           };
         })
       );

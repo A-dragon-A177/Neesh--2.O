@@ -1,5 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import { getSpotlightTitle } from "@/lib/spotlightTitles";
+import { buildSectionsFromValidationAnswers } from "@/lib/spotlightSections";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, Image, Share2, Clock, Send, MessageCircle, Copy, Check, Link2, Loader2, Sparkles, Volume2, VolumeX, ArrowRight, Clapperboard, Play, X, Flame, Star, Upload, Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { NeeshLogo } from "@/components/NeeshLogo";
@@ -509,11 +510,11 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
             });
           }
 
-          if (blog?.content) {
+          if (blog?.content && blog.content.trim().length > 0) {
             sections.push({
               id: "content",
               title: "Content",
-              content: blog.content,
+              content: blog.content.trim(),
               type: "text",
             });
           }
@@ -596,7 +597,11 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
                   type: "video",
                   videoUrl: vidUrl,
                 });
-              } else if (field.value) {
+              } else if (field.value && typeof field.value === "string" && field.value.trim().length > 0) {
+                const rawTitle = field.sectionTitle || field.title || "";
+                if (rawTitle.toLowerCase() === "content" && !field.value.trim()) {
+                  return;
+                }
                 // Content/text section — resolve industry-specific heading
                 const resolvedTitle = field.type === "spotlight_section" && field.sectionTitle
                   ? getSpotlightTitle(field.sectionTitle, projectIndustry)
@@ -604,7 +609,7 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
                 sections.push({
                   id: field.id || `section-${idx}`,
                   title: resolvedTitle,
-                  content: field.value,
+                  content: field.value.trim(),
                   type: field.type || "text",
                 });
               }
@@ -624,43 +629,39 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
             });
           }
 
-          // Fallback: If no custom sections found from blog, auto-generate from project validation_answers
-          if (sections.filter(s => s.type !== "feedback").length <= 2 && (project?.validation_answers || project?.validationAnswers)) {
+          // Merge answered questionnaire questions from project validation_answers
+          if (project?.validation_answers || project?.validationAnswers) {
             try {
               const rawAnswers = project.validation_answers || project.validationAnswers;
-              const parsed = typeof rawAnswers === "string" ? JSON.parse(rawAnswers) : rawAnswers;
+              const answerSections = buildSectionsFromValidationAnswers(rawAnswers);
 
-              const mappings = [
-                { keys: ["problem_story", "problem", "the_problem"], title: "The Problem" },
-                { keys: ["our_solution", "solution", "what_building"], title: "What We're Building" },
-                { keys: ["target_customer", "target_audience", "who_its_for"], title: "Who It's For" },
-                { keys: ["the_hook", "hook"], title: "The Hook" },
-                { keys: ["founder_story", "founderStory", "the_founders_story"], title: "The Founder's Story" },
-                { keys: ["vision", "our_vision"], title: "Our Vision" },
-                { keys: ["call_to_action", "cta", "get_involved"], title: "Get Involved" },
-              ];
+              let customIdx = sections.length + 1;
+              for (const item of answerSections) {
+                const rawKey = item.sectionTitle.toLowerCase();
+                const resolvedTitle = getSpotlightTitle(item.sectionTitle, projectIndustry);
+                const resolvedKey = resolvedTitle.toLowerCase();
 
-              let customIdx = 1;
-              mappings.forEach(m => {
-                let val = "";
-                for (const k of m.keys) {
-                  if (parsed[k] && typeof parsed[k] === "string" && parsed[k].trim()) {
-                    val = parsed[k].trim();
-                    break;
+                const existing = sections.find(
+                  (s) =>
+                    s.title.toLowerCase() === rawKey ||
+                    s.title.toLowerCase() === resolvedKey
+                );
+
+                if (existing) {
+                  if (!existing.content || !existing.content.trim()) {
+                    existing.content = item.value;
                   }
-                }
-                if (val) {
-                  const resolvedTitle = getSpotlightTitle(m.title, projectIndustry);
+                } else {
                   sections.push({
                     id: `auto-${customIdx++}`,
                     title: resolvedTitle,
-                    content: val,
+                    content: item.value,
                     type: "text",
                   });
                 }
-              });
+              }
             } catch (e) {
-              console.warn("[BlogPreview] Error auto-generating sections from validation_answers:", e);
+              console.warn("[BlogPreview] Error merging validation_answers into sections:", e);
             }
           }
 

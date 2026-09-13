@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 import apiClient from "@/lib/api";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface CustomField {
   id: string;
@@ -34,6 +35,7 @@ export interface Blog {
   chatbot_name?: string | null;
   welcome_message?: string | null;
   primary_color?: string | null;
+  botAvatarUrl?: string | null;
   bot_avatar_url?: string | null;
   created_at: string;
   updated_at: string;
@@ -103,16 +105,61 @@ export const useBlogs = () => {
       setError(null);
 
       console.log(`[useBlogs] Fetching blog for project ${projectId}`);
-      // Using generic get with explicit type
-      const backendData = await apiClient.get<BackendBlogContent>(`/api/projects/${projectId}/blog`);
+      try {
+        const backendData = await apiClient.get<BackendBlogContent>(`/api/projects/${projectId}/blog`);
+        if (backendData && (backendData.heading || backendData.customFields?.length > 0 || backendData.introduction)) {
+          console.log("[useBlogs] Received blog data from backend:", backendData);
+          return transformBlog(projectId, backendData);
+        }
+      } catch (backendErr) {
+        console.warn("[useBlogs] Backend getBlog error, attempting Supabase fallback:", backendErr);
+      }
 
-      console.log("[useBlogs] Received blog data:", backendData);
-      return transformBlog(projectId, backendData);
+      // Supabase direct fallback
+      const { data: supaBlog } = await supabase
+        .from("blogs" as any)
+        .select("*")
+        .eq("project_id", projectId)
+        .maybeSingle();
 
+      if (supaBlog) {
+        let customFields = [];
+        if (supaBlog.custom_fields) {
+          try {
+            customFields = typeof supaBlog.custom_fields === "string" ? JSON.parse(supaBlog.custom_fields) : supaBlog.custom_fields;
+          } catch (e) {
+            customFields = [];
+          }
+        }
+        let interestTags = [];
+        if (supaBlog.interest_tags) {
+          try {
+            interestTags = typeof supaBlog.interest_tags === "string" ? JSON.parse(supaBlog.interest_tags) : supaBlog.interest_tags;
+          } catch (e) {
+            interestTags = [];
+          }
+        }
+        return {
+          id: supaBlog.id || projectId,
+          project_id: projectId,
+          heading: supaBlog.heading,
+          cover_image_url: supaBlog.cover_image_url,
+          introduction: supaBlog.introduction,
+          content: supaBlog.content,
+          custom_fields: Array.isArray(customFields) ? customFields : [],
+          interest_tags: Array.isArray(interestTags) ? interestTags : [],
+          chatbot_name: supaBlog.chatbot_name || null,
+          welcome_message: supaBlog.welcome_message || null,
+          primary_color: supaBlog.primary_color || null,
+          bot_avatar_url: supaBlog.bot_avatar_url || null,
+          created_at: supaBlog.created_at || new Date().toISOString(),
+          updated_at: supaBlog.updated_at || new Date().toISOString(),
+        };
+      }
+
+      return null;
     } catch (err) {
-      // 404 is expected if blog doesn't exist yet, simplified backend returns 404
       console.warn("[useBlogs] Blog likely not found or error:", err);
-      // Return null so frontend knows to show empty state/create mode
       return null;
     } finally {
       setLoading(false);
@@ -130,22 +177,50 @@ export const useBlogs = () => {
       setError(null);
 
       console.log(`[useBlogs] Saving blog for project ${projectId}`);
-      console.log("[useBlogs] Input received:", input);
-      console.log("[useBlogs] Introduction from input:", input.introduction);
-      console.log("[useBlogs] Content from input:", input.content);
-
       const backendInput = transformInput(input);
-      console.log("[useBlogs] Transformed backend input:", backendInput);
-      console.log("[useBlogs] Backend introduction:", backendInput.introduction);
-      console.log("[useBlogs] Backend content:", backendInput.content);
 
-      // PUT acts as upsert in our backend controller
-      const backendData = await apiClient.put<BackendBlogContent>(`/api/projects/${projectId}/blog`, backendInput);
+      try {
+        const backendData = await apiClient.put<BackendBlogContent>(`/api/projects/${projectId}/blog`, backendInput);
+        console.log("[useBlogs] Blog saved successfully via backend:", backendData);
+        return transformBlog(projectId, backendData);
+      } catch (backendErr) {
+        console.warn("[useBlogs] Backend save failed, saving to Supabase directly:", backendErr);
+        const { data: existing } = await supabase
+          .from("blogs" as any)
+          .select("id")
+          .eq("project_id", projectId)
+          .maybeSingle();
 
-      console.log("[useBlogs] Blog saved successfully!");
-      console.log("[useBlogs] Response from backend:", backendData);
-      return transformBlog(projectId, backendData);
+        const blogData: any = {
+          project_id: projectId,
+          heading: input.heading || "",
+          cover_image_url: input.cover_image_url || "",
+          introduction: input.introduction || "",
+          content: input.content || "",
+          custom_fields: JSON.stringify(input.custom_fields || []),
+          interest_tags: JSON.stringify(input.interest_tags || []),
+          updated_at: new Date().toISOString(),
+        };
 
+        if (existing) {
+          await supabase.from("blogs" as any).update(blogData).eq("project_id", projectId);
+        } else {
+          await supabase.from("blogs" as any).insert({ ...blogData, id: crypto.randomUUID(), created_at: new Date().toISOString() });
+        }
+
+        return {
+          id: existing?.id || projectId,
+          project_id: projectId,
+          heading: input.heading || "",
+          cover_image_url: input.cover_image_url || "",
+          introduction: input.introduction || "",
+          content: input.content || "",
+          custom_fields: input.custom_fields || [],
+          interest_tags: input.interest_tags || [],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save blog";
       setError(message);
@@ -160,8 +235,56 @@ export const useBlogs = () => {
   const getPublicBlog = async (projectId: string): Promise<Blog | null> => {
     try {
       console.log(`[useBlogs] Fetching public blog for ${projectId}`);
-      const backendData = await apiClient.get<BackendBlogContent>(`/api/public/projects/${projectId}/blog`, { skipAuth: true });
-      return transformBlog(projectId, backendData);
+      try {
+        const backendData = await apiClient.get<BackendBlogContent>(`/api/public/projects/${projectId}/blog`, { skipAuth: true });
+        if (backendData && (backendData.heading || backendData.customFields?.length > 0)) {
+          return transformBlog(projectId, backendData);
+        }
+      } catch (backendErr) {
+        console.warn("[useBlogs] Backend public blog failed, querying Supabase directly:", backendErr);
+      }
+
+      const { data: supaBlog } = await supabase
+        .from("blogs" as any)
+        .select("*")
+        .eq("project_id", projectId)
+        .maybeSingle();
+
+      if (supaBlog) {
+        let customFields = [];
+        if (supaBlog.custom_fields) {
+          try {
+            customFields = typeof supaBlog.custom_fields === "string" ? JSON.parse(supaBlog.custom_fields) : supaBlog.custom_fields;
+          } catch (e) {
+            customFields = [];
+          }
+        }
+        let interestTags = [];
+        if (supaBlog.interest_tags) {
+          try {
+            interestTags = typeof supaBlog.interest_tags === "string" ? JSON.parse(supaBlog.interest_tags) : supaBlog.interest_tags;
+          } catch (e) {
+            interestTags = [];
+          }
+        }
+        return {
+          id: supaBlog.id || projectId,
+          project_id: projectId,
+          heading: supaBlog.heading,
+          cover_image_url: supaBlog.cover_image_url,
+          introduction: supaBlog.introduction,
+          content: supaBlog.content,
+          custom_fields: Array.isArray(customFields) ? customFields : [],
+          interest_tags: Array.isArray(interestTags) ? interestTags : [],
+          chatbot_name: supaBlog.chatbot_name || null,
+          welcome_message: supaBlog.welcome_message || null,
+          primary_color: supaBlog.primary_color || null,
+          bot_avatar_url: supaBlog.bot_avatar_url || null,
+          created_at: supaBlog.created_at || new Date().toISOString(),
+          updated_at: supaBlog.updated_at || new Date().toISOString(),
+        };
+      }
+      return null;
     } catch (err) {
       console.error("[useBlogs] Error fetching public blog:", err);
       return null;
@@ -171,15 +294,34 @@ export const useBlogs = () => {
   const getPublicBlogBySlug = async (slug: string): Promise<Blog | null> => {
     try {
       console.log(`[useBlogs] Fetching public blog by slug: ${slug}`);
-      const backendData = await apiClient.get<BackendBlogContent>(`/api/public/projects/blog/${slug}`, { skipAuth: true });
-
-      // Extract project ID from slug for transformation
-      const projectId = extractProjectIdFromSlug(slug);
-      if (!projectId) {
-        throw new Error("Invalid slug format");
+      try {
+        const backendData = await apiClient.get<BackendBlogContent>(`/api/public/projects/blog/${slug}`, { skipAuth: true });
+        if (backendData && (backendData.heading || backendData.customFields?.length > 0)) {
+          const projectId = extractProjectIdFromSlug(slug);
+          if (projectId) {
+            return transformBlog(projectId, backendData);
+          }
+        }
+      } catch (backendErr) {
+        console.warn("[useBlogs] Backend public blog by slug failed, querying Supabase directly:", backendErr);
       }
 
-      return transformBlog(projectId, backendData);
+      const projectId = extractProjectIdFromSlug(slug);
+      if (projectId) {
+        return getPublicBlog(projectId);
+      }
+
+      const { data: proj } = await supabase
+        .from("projects" as any)
+        .select("id")
+        .eq("slug", slug)
+        .maybeSingle();
+
+      if (proj?.id) {
+        return getPublicBlog(proj.id);
+      }
+
+      return null;
     } catch (err) {
       console.error("[useBlogs] Error fetching public blog by slug:", err);
       return null;

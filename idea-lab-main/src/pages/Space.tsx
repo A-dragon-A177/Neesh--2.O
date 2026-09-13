@@ -8,6 +8,49 @@ import { usePitches, type PitchFeedItem } from "@/hooks/usePitches";
 import ScrollCanvas from "@/components/ScrollCanvas";
 import { SeoHead } from "@/components/SeoHead";
 
+function PitchThumbnail({ pitch }: { pitch: PitchFeedItem }) {
+  const [hasError, setHasError] = useState(false);
+  const imageUrl = (!hasError && (pitch.coverImageUrl?.trim() || pitch.elevatorPitchThumbnail?.trim())) || null;
+
+  if (imageUrl) {
+    return (
+      <div className="relative h-44 overflow-hidden bg-slate-900">
+        <img
+          src={imageUrl}
+          alt={pitch.title}
+          onError={() => setHasError(true)}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          loading="lazy"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-black/20" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative h-44 overflow-hidden bg-slate-900">
+      <div className="w-full h-full bg-gradient-to-br from-[#0b172a] via-[#102a45] to-[#0f172a] flex items-center justify-center relative overflow-hidden">
+        {/* Background Grid Pattern inside thumbnail */}
+        <div
+          className="absolute inset-0 opacity-15"
+          style={{
+            backgroundImage: `linear-gradient(#09daed 1px, transparent 1px), linear-gradient(90deg, #09daed 1px, transparent 1px)`,
+            backgroundSize: "20px 20px",
+          }}
+        />
+
+        {/* Central Glowing Play Reel Orb */}
+        <div className="relative z-10 w-12 h-12 rounded-full bg-[#09daed]/10 border border-[#09daed]/40 flex items-center justify-center shadow-[0_0_20px_rgba(9,218,237,0.25)] group-hover:scale-110 group-hover:bg-[#09daed] group-hover:text-black transition-all duration-300 text-[#09daed]">
+          <Play className="w-5 h-5 fill-current ml-0.5" />
+        </div>
+
+        {/* Bottom subtle gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent pointer-events-none" />
+      </div>
+    </div>
+  );
+}
+
 export default function Space() {
   const { pitches, loading, hasMore, loadMore, refresh } = usePitches();
   const [searchQuery, setSearchQuery] = useState("");
@@ -216,37 +259,8 @@ export default function Space() {
                     <div className="absolute top-0 left-0 right-0 h-[2px] bg-transparent group-hover:bg-gradient-to-r group-hover:from-[#09daed] group-hover:via-[#7c3aed] group-hover:to-[#09daed] transition-all duration-500 z-20" />
 
                     {/* Cover Image / Video Thumbnail Frame Area */}
-                    <div className="relative h-44 overflow-hidden bg-slate-900">
-                      {pitch.coverImageUrl ? (
-                        <>
-                          <img
-                            src={pitch.coverImageUrl}
-                            alt={pitch.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                            loading="lazy"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-black/20" />
-                        </>
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-[#0b172a] via-[#102a45] to-[#0f172a] flex items-center justify-center relative overflow-hidden">
-                          {/* Background Grid Pattern inside thumbnail */}
-                          <div
-                            className="absolute inset-0 opacity-15"
-                            style={{
-                              backgroundImage: `linear-gradient(#09daed 1px, transparent 1px), linear-gradient(90deg, #09daed 1px, transparent 1px)`,
-                              backgroundSize: "20px 20px",
-                            }}
-                          />
-
-                          {/* Central Glowing Play Reel Orb */}
-                          <div className="relative z-10 w-12 h-12 rounded-full bg-[#09daed]/10 border border-[#09daed]/40 flex items-center justify-center shadow-[0_0_20px_rgba(9,218,237,0.25)] group-hover:scale-110 group-hover:bg-[#09daed] group-hover:text-black transition-all duration-300 text-[#09daed]">
-                            <Play className="w-5 h-5 fill-current ml-0.5" />
-                          </div>
-
-                          {/* Bottom subtle gradient overlay */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent pointer-events-none" />
-                        </div>
-                      )}
+                    <div className="relative">
+                      <PitchThumbnail pitch={pitch} />
 
                       {/* Top Badges Overlay */}
                       <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">

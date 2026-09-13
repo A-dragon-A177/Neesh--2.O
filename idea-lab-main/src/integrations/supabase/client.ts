@@ -2,24 +2,24 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const DEFAULT_SUPABASE_URL = 'https://qqmxnldyocsennypnbic.supabase.co';
+const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxbXhubGR5b2NzZW5ueXBuYmljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzMDY1OTUsImV4cCI6MjA5ODg4MjU5NX0.a5jjzzgOSOU6v3M496EnudPnYcz0Kn3WqLK1LKcp0MY';
 
-if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-  console.error('[Supabase] CRITICAL: Missing environment variables!', {
-    hasUrl: !!SUPABASE_URL,
-    hasKey: !!SUPABASE_PUBLISHABLE_KEY
-  });
-}
+const envUrl = import.meta.env.VITE_SUPABASE_URL;
+const envKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+const SUPABASE_URL = envUrl && !envUrl.includes('dummy') ? envUrl : DEFAULT_SUPABASE_URL;
+const SUPABASE_PUBLISHABLE_KEY = envKey && !envKey.includes('dummy') ? envKey : DEFAULT_SUPABASE_KEY;
 
 // Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
+// Global singleton to prevent multiple GoTrueClient instances under same storage key
+const globalObj = typeof window !== 'undefined' ? (window as any) : (globalThis as any);
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+export const supabase = globalObj.__supabase_client__ || (globalObj.__supabase_client__ = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
     debug: false,
   }
-});
+}));

@@ -156,6 +156,68 @@ app.get('/api/public/projects/:projectId/early-access-price', (req, res) => proj
 app.get('/api/public/projects/:projectId/comments', (req, res) => projectController.getPublicComments(req, res));
 app.get('/api/public/projects/:slug', (req, res) => projectController.getPublicProject(req, res));
 
+import { supabase } from './config/supabase';
+
+app.get('/api/public/pitches', async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit as string) || 20;
+        const offset = parseInt(req.query.offset as string) || 0;
+
+        const { data: promotions } = await supabase
+            .from('blog_promotions')
+            .select('*')
+            .eq('status', 'ACTIVE')
+            .order('created_at', { ascending: false });
+
+        if (!promotions || promotions.length === 0) {
+            return res.json([]);
+        }
+
+        const blogIds = (promotions as any[]).map((p: any) => p.blog_id).filter(Boolean);
+        if (blogIds.length === 0) return res.json([]);
+
+        const [blogsRes, projectsRes, usersRes] = await Promise.all([
+            supabase.from('blogs').select('id, heading, project_id, cover_image_url').in('id', blogIds),
+            supabase.from('projects').select('id, title, slug, one_line_summary, introduction, elevator_pitch_url, elevator_pitch_thumbnail, elevator_pitch_duration, owner_id').not('elevator_pitch_url', 'is', null),
+            supabase.from('users').select('id, name, profile_image_url'),
+        ]);
+
+        const blogs: any[] = blogsRes.data || [];
+        const projects: any[] = projectsRes.data || [];
+        const users: any[] = usersRes.data || [];
+
+        const projectMap = new Map<string, any>(projects.map((p: any) => [p.id, p]));
+        const userMap = new Map<string, any>(users.map((u: any) => [u.id, u]));
+
+        const items: any[] = [];
+        for (const promo of (promotions as any[])) {
+            const blog = blogs.find((b: any) => b.id === promo.blog_id);
+            if (!blog) continue;
+            const project = projectMap.get(blog.project_id);
+            if (!project || !project.elevator_pitch_url) continue;
+
+            const author = project.owner_id ? userMap.get(project.owner_id) : null;
+            items.push({
+                projectId: project.id,
+                title: project.title,
+                oneLineSummary: project.one_line_summary || project.introduction || null,
+                slug: project.slug || project.id,
+                elevatorPitchUrl: project.elevator_pitch_url,
+                elevatorPitchThumbnail: project.elevator_pitch_thumbnail || null,
+                elevatorPitchDuration: project.elevator_pitch_duration || null,
+                coverImageUrl: blog.cover_image_url || null,
+                authorName: author?.name || 'Founder',
+                authorProfileImageUrl: author?.profile_image_url || null,
+            });
+        }
+
+        return res.json(items.slice(offset, offset + limit));
+    } catch (error) {
+        console.error('[PitchController] error fetching pitches:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Blog API routes (authenticated)
 import { BlogController } from './controllers/BlogController';
 const blogController = new BlogController();

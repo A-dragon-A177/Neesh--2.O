@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { randomUUID } from 'crypto';
 import { ValidationEngine } from '../services/ValidationEngine';
-import { buildCustomFieldsFromAnswers } from './BlogController';
+import { buildCustomFieldsFromAnswers, mergeCustomFieldsWithAnswers } from './BlogController';
 
 interface CreateProjectRequest {
     title: string;
@@ -259,7 +259,7 @@ export class ProjectController {
                     if (generatedFields.length > 0) {
                         const { data: existingBlog } = await supabase
                             .from('blogs')
-                            .select('id, custom_fields')
+                            .select('id, heading, introduction, custom_fields')
                             .eq('project_id', project.id)
                             .maybeSingle();
 
@@ -274,6 +274,8 @@ export class ProjectController {
                             }
                         }
 
+                        const mergedFields = mergeCustomFieldsWithAnswers(existingFields, parsedAnswers, project);
+
                         if (!existingBlog) {
                             await supabase.from('blogs').insert({
                                 id: randomUUID(),
@@ -281,15 +283,15 @@ export class ProjectController {
                                 heading: project.title,
                                 introduction: project.one_line_summary || project.introduction || '',
                                 content: '',
-                                custom_fields: JSON.stringify(generatedFields),
+                                custom_fields: JSON.stringify(mergedFields),
                                 created_at: new Date().toISOString(),
                                 updated_at: new Date().toISOString(),
                             });
-                        } else if (!Array.isArray(existingFields) || existingFields.length === 0) {
+                        } else {
                             await supabase.from('blogs').update({
-                                heading: project.title,
-                                introduction: project.one_line_summary || project.introduction || '',
-                                custom_fields: JSON.stringify(generatedFields),
+                                heading: (existingBlog as any).heading || project.title,
+                                introduction: (existingBlog as any).introduction || project.one_line_summary || project.introduction || '',
+                                custom_fields: JSON.stringify(mergedFields),
                                 updated_at: new Date().toISOString(),
                             }).eq('id', existingBlog.id);
                         }

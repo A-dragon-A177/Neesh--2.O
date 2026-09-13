@@ -5,8 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
-import { AuthProvider } from "./contexts/AuthContext";
-import { SubscriptionProvider } from "./contexts/SubscriptionContext";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ProtectedAdminRoute } from "@/components/ProtectedAdminRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -20,31 +20,31 @@ if (BACKEND_URL) {
 }
 
 // Eagerly load only the landing page (critical path)
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
+import Index from "@/pages/Index";
+import NotFound from "@/pages/NotFound";
 
 // Lazy load auth pages — not needed on initial landing page render
-const Login = lazy(() => import("./pages/Login"));
-const Signup = lazy(() => import("./pages/Signup"));
+const Login = lazy(() => import("@/pages/Login"));
+const Signup = lazy(() => import("@/pages/Signup"));
 
 // Lazy load heavier pages for faster initial load
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Project = lazy(() => import("./pages/Project"));
-const BlogPreview = lazy(() => import("./pages/BlogPreview"));
-const PublicBlog = lazy(() => import("./pages/PublicBlog"));
-const FeedbackBuilder = lazy(() => import("./pages/FeedbackBuilder"));
-const Chatbot = lazy(() => import("./pages/Chatbot"));
-const ProfileSettings = lazy(() => import("./pages/ProfileSettings"));
-const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Project = lazy(() => import("@/pages/Project"));
+const BlogPreview = lazy(() => import("@/pages/BlogPreview"));
+const PublicBlog = lazy(() => import("@/pages/PublicBlog"));
+const FeedbackBuilder = lazy(() => import("@/pages/FeedbackBuilder"));
+const Chatbot = lazy(() => import("@/pages/Chatbot"));
+const ProfileSettings = lazy(() => import("@/pages/ProfileSettings"));
+const AdminDashboard = lazy(() => import("@/pages/AdminDashboard"));
 
 // Landing page sub-pages
-const FeaturesPage = lazy(() => import("./pages/FeaturesPage"));
-const SpotlightInfoPage = lazy(() => import("./pages/SpotlightInfoPage"));
-const SimulationPage = lazy(() => import("./pages/SimulationPage"));
-const PricingPage = lazy(() => import("./pages/PricingPage"));
-const PitchFeed = lazy(() => import("./pages/PitchFeed"));
-const Space = lazy(() => import("./pages/Space"));
-const InnovationEcosystem = lazy(() => import("./pages/InnovationEcosystem"));
+const FeaturesPage = lazy(() => import("@/pages/FeaturesPage"));
+const SpotlightInfoPage = lazy(() => import("@/pages/SpotlightInfoPage"));
+const SimulationPage = lazy(() => import("@/pages/SimulationPage"));
+const PricingPage = lazy(() => import("@/pages/PricingPage"));
+const PitchFeed = lazy(() => import("@/pages/PitchFeed"));
+const Space = lazy(() => import("@/pages/Space"));
+const InnovationEcosystem = lazy(() => import("@/pages/InnovationEcosystem"));
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { type CreateProjectInput, type Project, type UpdateProjectInput } from "@/hooks/useProjects";
 import { type UpdateBlogInput, type CustomField } from "@/hooks/useBlogs";
+import { generateBlogCustomFields } from "@/lib/spotlightSections";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import chatbotAvatar from "@/assets/chatbot-avatar.png";
@@ -452,6 +453,8 @@ const CreateProjectWizard = ({
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [answers, setAnswers] = useState<Record<string, any>>({});
+  const answersRef = useRef<Record<string, any>>({});
+  const latestSaveSeq = useRef(0);
   const [chatInput, setChatInput] = useState("");
   const [isAgentTyping, setIsAgentTyping] = useState(false);
 
@@ -484,6 +487,7 @@ const CreateProjectWizard = ({
         try {
           const parsed = JSON.parse(project.validation_answers);
           const initialAnswers = { ...parsed };
+          answersRef.current = initialAnswers;
           setAnswers(initialAnswers);
 
           let firstUnanswered = CHAT_QUESTIONS.length;
@@ -572,42 +576,28 @@ const CreateProjectWizard = ({
 
   const buildValidationAnswersJson = (currentAnswers: Record<string, any>): string => JSON.stringify(currentAnswers);
   const generateCustomFields = (currentAnswers: Record<string, any>): CustomField[] => {
-    const fields: CustomField[] = [];
-    let order = 1;
-
-    const mappings = [
-      { keys: ["problem_story", "problem", "the_problem"], title: "The Problem" },
-      { keys: ["our_solution", "solution", "what_building"], title: "What We're Building" },
-      { keys: ["target_customer", "target_audience", "who_its_for"], title: "Who It's For" },
-      { keys: ["the_hook", "hook"], title: "The Hook" },
-      { keys: ["founder_story", "founderStory", "the_founders_story"], title: "The Founder's Story" },
-      { keys: ["vision", "our_vision"], title: "Our Vision" },
-      { keys: ["call_to_action", "cta", "get_involved"], title: "Get Involved" },
-    ];
-
-    mappings.forEach(m => {
-      let val = "";
-      for (const k of m.keys) {
-        if (currentAnswers[k] && typeof currentAnswers[k] === "string" && currentAnswers[k].trim()) {
-          val = currentAnswers[k].trim();
-          break;
-        }
-      }
-      if (val) {
-        fields.push({ id: crypto.randomUUID(), type: "spotlight_section", sectionTitle: m.title, value: val, order: order++ });
-      }
-    });
-
-    return fields;
+    return generateBlogCustomFields(currentAnswers);
   };
 
   const saveBlog = useCallback(
     async (proj: Project, currentAnswers: Record<string, any>) => {
-      const customFields = generateCustomFields(currentAnswers);
-      await upsertBlog(proj.id, { heading: proj.title, introduction: oneLineDesc, content: "", custom_fields: customFields });
+      const seq = ++latestSaveSeq.current;
+      const customFields = generateBlogCustomFields(currentAnswers);
+      const res = await upsertBlog(proj.id, { heading: proj.title, introduction: oneLineDesc, content: "", custom_fields: customFields });
+      if (seq < latestSaveSeq.current) return null;
+      return res;
     },
     [upsertBlog, oneLineDesc]
   );
+
+  const handleClose = () => {
+    if (createdProject && Object.keys(answersRef.current).length > 0) {
+      saveBlog(createdProject, answersRef.current).catch(err => {
+        console.warn("[CreateProjectWizard] Error saving on close:", err);
+      });
+    }
+    onClose();
+  };
 
   const addAgentMessage = useCallback((text: string) => {
     setIsAgentTyping(true);
@@ -686,6 +676,7 @@ const CreateProjectWizard = ({
       } else {
         updatedAnswers[q.validationKey || q.id] = payload;
       }
+      answersRef.current = updatedAnswers;
       setAnswers(updatedAnswers);
       const validationJson = buildValidationAnswersJson(updatedAnswers);
 
@@ -825,7 +816,7 @@ const CreateProjectWizard = ({
             </div>
           </div>
         </div>
-        <button onClick={onClose} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"><X className="w-5 h-5 text-gray-500" /></button>
+        <button onClick={handleClose} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"><X className="w-5 h-5 text-gray-500" /></button>
       </div>
 
       {/* Progress */}
@@ -942,7 +933,7 @@ const CreateProjectWizard = ({
         animate={{ opacity: 1 }} 
         exit={{ opacity: 0 }}
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={handleClose}
       />
       
       {/* The Floating Center Panel */}
