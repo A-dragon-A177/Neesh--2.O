@@ -156,7 +156,7 @@ export default function Space() {
             </Link>
             <div className="flex items-center gap-2">
               <img 
-                src="/neesh-brand-logo.jpg" 
+                src="/neesh-logo.png" 
                 alt="Neesh AI Logo" 
                 className="h-10 w-auto object-contain" 
               />

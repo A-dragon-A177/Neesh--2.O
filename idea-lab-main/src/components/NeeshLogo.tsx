@@ -18,7 +18,7 @@ export const NeeshLogo = ({ size = "md", showText = true, className = "" }: Nees
       <img 
         src={newLogo} 
         alt="Neesh AI Logo" 
-        className={`${sizeClasses[size]} w-auto object-contain mix-blend-multiply dark:mix-blend-normal`}
+        className={`${sizeClasses[size]} w-auto object-contain`} 
       />
     </div>
   );
