@@ -64,6 +64,8 @@ export class AudienceController {
                 confidenceScore: m.confidence_score || null,
                 engagementScore: m.engagement_score || null,
                 feedbackSummary: m.feedback_text ? m.feedback_text.substring(0, 100) : null,
+                interestOtherText: m.interest_other_text || null,
+                interestTagLabel: m.interest_tag_label || null,
                 firstInteractionAt: m.first_interaction_at,
                 lastInteractionAt: m.last_interaction_at,
                 questionCount: 0,

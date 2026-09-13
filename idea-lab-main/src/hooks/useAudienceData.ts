@@ -14,6 +14,8 @@ interface BackendAudienceMemberSummary {
   confidenceScore: number | null;
   engagementScore: number | null;
   feedbackSummary: string | null;
+  interestOtherText?: string | null;
+  interestTagLabel?: string | null;
   firstInteractionAt: string | null;
   lastInteractionAt: string | null;
   questionCount: number;
@@ -39,6 +41,8 @@ export interface AudienceMember {
   last_interaction_at: string;
   project_id: string;
   feedbackSummary: string | null;
+  interestOtherText?: string | null;
+  interestTagLabel?: string | null;
 }
 
 export interface AggregatedPersonaData {
@@ -107,6 +111,8 @@ export const useAudienceData = (projectId: string | undefined) => {
         last_interaction_at: m.lastInteractionAt || new Date().toISOString(),
         project_id: projectId,
         feedbackSummary: m.feedbackSummary,
+        interestOtherText: m.interestOtherText || null,
+        interestTagLabel: m.interestTagLabel || null,
       }));
 
       setMembers(mappedMembers);
@@ -150,6 +156,8 @@ export const useAudienceData = (projectId: string | undefined) => {
           last_interaction_at: m.lastInteractionAt || new Date().toISOString(),
           project_id: projectId,
           feedbackSummary: m.feedbackSummary,
+          interestOtherText: m.interestOtherText || null,
+          interestTagLabel: m.interestTagLabel || null,
         }));
 
         setMembers(mappedMembers);

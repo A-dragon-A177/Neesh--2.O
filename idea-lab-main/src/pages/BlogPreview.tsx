@@ -2,7 +2,7 @@ import { useParams, Link } from "react-router-dom";
 import { getSpotlightTitle } from "@/lib/spotlightTitles";
 import { buildSectionsFromValidationAnswers, isExcludedDataSection } from "@/lib/spotlightSections";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Image, Share2, Clock, Send, MessageCircle, Copy, Check, Link2, Loader2, Sparkles, Volume2, VolumeX, ArrowRight, Clapperboard, Play, X, Flame, Star, Upload, Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { ChevronLeft, Image, Share2, Clock, Send, MessageCircle, Copy, Check, Link2, Loader2, Sparkles, Volume2, VolumeX, ArrowRight, Clapperboard, Play, X, Flame, Star, Upload, Mail, Lock, Eye, EyeOff, AlertCircle, PenLine } from "lucide-react";
 import { NeeshLogo } from "@/components/NeeshLogo";
 import ReactMarkdown from 'react-markdown';
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
@@ -370,16 +370,22 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
     });
   }, [id, user?.email]);
 
+  const userInteractedWithTagsRef = useRef(false);
+
   // Synchronize selectedTag object once blogData.interestTags is loaded
   useEffect(() => {
+    if (userInteractedWithTagsRef.current) return;
     if (!blogData?.interestTags || blogData.interestTags.length === 0) return;
+    if (!userActivity) return;
 
-    const tagLabel = userActivity?.tagLabel || userActivity?.interestTagLabel;
-    const tagId = userActivity?.tagId || selectedTagId;
+    const tagLabel = userActivity.tagLabel || userActivity.interestTagLabel;
+    const tagId = userActivity.tagId || userActivity.interestTagId;
+    const otherText = userActivity.otherText || userActivity.interestOtherText;
 
-    if (tagId === "other" || tagLabel === "Other") {
+    if (tagId === "other" || tagLabel === "Other" || (!tagId && !tagLabel && otherText)) {
       setSelectedTagId("other");
       setSelectedTag(null);
+      if (otherText) setOtherInterestText(otherText);
       return;
     }
 
@@ -388,6 +394,7 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
       if (match) {
         setSelectedTag(match);
         setSelectedTagId(match.id);
+        if (otherText) setOtherInterestText(otherText);
         return;
       }
     }
@@ -399,9 +406,27 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
       if (match) {
         setSelectedTag(match);
         setSelectedTagId(match.id);
+        if (otherText) setOtherInterestText(otherText);
       }
     }
-  }, [blogData?.interestTags, userActivity, selectedTagId]);
+  }, [blogData?.interestTags, userActivity]);
+
+  // Stable randomized arrangement of interest tags so audience cannot infer priority #1, #2, etc.
+  const displayInterestTags = useMemo(() => {
+    if (!blogData?.interestTags || blogData.interestTags.length === 0) return [];
+    const copy = [...blogData.interestTags];
+    let seed = 1337;
+    const seedKey = `${blogData.id || publicId || id || 'neesh'}_interest_tags`;
+    for (let i = 0; i < seedKey.length; i++) {
+      seed = (seed * 31 + seedKey.charCodeAt(i)) >>> 0;
+    }
+    for (let i = copy.length - 1; i > 0; i--) {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      const j = Math.floor(((seed >>> 0) / 4294967296) * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  }, [blogData?.id, blogData?.interestTags, publicId, id]);
 
   const handleInterestSubmit = async () => {
     if (!user) {
@@ -1436,12 +1461,13 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
                         setShowSignInGate(true);
                         return;
                       }
+                      userInteractedWithTagsRef.current = false;
                       setInterestModalOpen(true);
                     }}
-                    className="px-3.5 py-1 rounded-full text-xs font-extrabold bg-amber-500/25 border border-amber-400/50 text-amber-200 flex items-center gap-1.5 shadow-[0_0_15px_rgba(245,158,11,0.3)] hover:bg-amber-500/40 transition-all cursor-pointer"
+                    className="px-3.5 py-1 rounded-full text-xs font-extrabold bg-[#09daed]/20 border border-[#09daed]/50 text-[#09daed] flex items-center gap-1.5 shadow-[0_0_15px_rgba(9,218,237,0.35)] hover:bg-[#09daed]/30 transition-all cursor-pointer"
                     title="Click to express interest / Neesh It"
                   >
-                    <Flame className="w-4 h-4 text-amber-400 fill-amber-400 animate-pulse" />
+                    <Flame className="w-4 h-4 text-[#09daed] fill-[#09daed] animate-pulse" />
                     <span>Neeshed It:</span>
                     <span className="text-white font-black">{neeshCount}</span>
                   </button>
@@ -1998,7 +2024,7 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
               )}
             </div>
 
-            {/* Golden "I'm Interested" Button Alone */}
+            {/* Glowing Blue "I'm Interested" Button Alone */}
             <div className="max-w-5xl mx-auto px-4 sm:px-6 mb-10 flex justify-center">
               <Button
                 onClick={() => {
@@ -2006,14 +2032,15 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
                     setShowSignInGate(true);
                     return;
                   }
+                  userInteractedWithTagsRef.current = false;
                   setJustSubmitted(false);
                   setInterestModalOpen(true);
                 }}
-                className="w-full sm:w-auto max-w-full h-14 sm:h-16 px-8 sm:px-12 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-500 hover:from-amber-500 hover:to-yellow-600 text-slate-950 font-black shadow-[0_0_35px_rgba(245,158,11,0.5)] border-2 border-amber-300 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 inline-flex items-center justify-center gap-3 sm:gap-4 group cursor-pointer"
+                className="w-full sm:w-auto max-w-full h-14 sm:h-16 px-8 sm:px-12 rounded-2xl bg-gradient-to-r from-[#09daed] via-sky-400 to-blue-500 hover:from-[#08c8d9] hover:via-sky-500 hover:to-blue-600 text-slate-950 font-black shadow-[0_0_35px_rgba(9,218,237,0.55)] border-2 border-cyan-300 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 inline-flex items-center justify-center gap-3 sm:gap-4 group cursor-pointer"
               >
                 <span className="text-base sm:text-lg font-black tracking-tight">I'm Interested</span>
-                <span className="text-xs sm:text-sm px-3.5 py-1.5 rounded-full bg-slate-950 text-amber-400 font-extrabold border border-amber-400/40 shadow-inner flex items-center gap-1.5 shrink-0 whitespace-nowrap">
-                  <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                <span className="text-xs sm:text-sm px-3.5 py-1.5 rounded-full bg-slate-950 text-[#09daed] font-extrabold border border-[#09daed]/40 shadow-inner flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+                  <Flame className="w-3.5 h-3.5 text-[#09daed] fill-[#09daed]" />
                   <span>{neeshCount} Neeshed</span>
                 </span>
               </Button>
@@ -2026,22 +2053,22 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
                 setJustSubmitted(false);
               }
             }}>
-              <DialogContent className="sm:max-w-lg rounded-3xl p-6 md:p-8 bg-card border-amber-500/30">
+              <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl p-6 md:p-8 bg-card border border-[#09daed]/30 shadow-[0_0_40px_rgba(9,218,237,0.15)]">
                 <DialogHeader className="space-y-2">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 text-xl font-bold mx-auto mb-1">
+                  <div className="w-12 h-12 rounded-2xl bg-[#09daed]/10 border border-[#09daed]/25 flex items-center justify-center text-[#09daed] text-xl font-bold mx-auto mb-1 shadow-[0_0_15px_rgba(9,218,237,0.2)]">
                     ✨
                   </div>
                   <DialogTitle className="text-center text-xl md:text-2xl font-bold text-foreground">
                     How are you interested in this project?
                   </DialogTitle>
                   <DialogDescription className="text-center text-sm text-muted-foreground">
-                    Select one of the founder's requested interest areas, or specify your own custom feedback.
+                    Select an interest area or specify your own custom feedback.
                   </DialogDescription>
                 </DialogHeader>
 
                 {justSubmitted ? (
                   <div className="py-8 text-center space-y-4">
-                    <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center mx-auto text-3xl">
+                    <div className="w-16 h-16 rounded-full bg-[#09daed]/20 text-[#09daed] flex items-center justify-center mx-auto text-3xl shadow-[0_0_20px_rgba(9,218,237,0.3)]">
                       {isUpdateSubmission ? "✅" : "🎉"}
                     </div>
                     <h4 className="text-lg font-bold text-foreground">
@@ -2049,15 +2076,15 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
                     </h4>
                     <p className="text-sm text-muted-foreground">
                       {isUpdateSubmission 
-                        ? "Your interest tag selection has been updated and saved to the founder's validated buyers dashboard." 
-                        : "Your interest has been recorded and sent directly to the founder's validated buyers dashboard."}
+                        ? "Your interest tag selection has been updated and saved to the founder's dashboard." 
+                        : "Your interest has been recorded and sent directly to the founder's dashboard."}
                     </p>
                     <Button
                       onClick={() => {
                         setJustSubmitted(false);
                         setInterestModalOpen(false);
                       }}
-                      className="bg-primary text-primary-foreground font-semibold px-6 py-2.5 rounded-xl"
+                      className="bg-gradient-to-r from-[#09daed] to-blue-500 text-slate-950 font-bold px-6 py-2.5 rounded-xl shadow-[0_0_15px_rgba(9,218,237,0.4)]"
                     >
                       Done
                     </Button>
@@ -2065,49 +2092,42 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
                 ) : (
                   <div className="space-y-4 py-2">
                     {hasSubmittedInterest && (
-                      <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-300 text-xs font-semibold text-center">
-                        ✨ You have already expressed interest in this project.
+                      <div className="p-3 rounded-xl bg-[#09daed]/10 border border-[#09daed]/30 text-[#09daed] text-xs font-semibold text-center flex items-center justify-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        You have already expressed interest in this project.
                       </div>
                     )}
 
                     {/* Tags List */}
-                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                      {(blogData?.interestTags || []).map((tag, idx) => {
+                    <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                      {displayInterestTags.map((tag, idx) => {
                         const isSelected = selectedTagId === tag.id || (selectedTag && selectedTag.id === tag.id);
-                        const priority = idx + 1;
-                        const isGold = priority === 1;
-                        const isSilver = priority === 2 || priority === 3;
 
                         return (
                           <button
                             key={tag.id || idx}
                             type="button"
                             onClick={() => {
+                              userInteractedWithTagsRef.current = true;
                               setSelectedTag(tag);
                               setSelectedTagId(tag.id);
                               setOtherInterestText("");
                             }}
-                            className={`w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center justify-between ${
+                            className={`w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center justify-between group ${
                               isSelected
-                                ? "border-amber-500 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
-                                : "border-border/60 hover:border-amber-500/40 bg-muted/20"
+                                ? "border-[#09daed] bg-[#09daed]/10 shadow-[0_0_18px_rgba(9,218,237,0.25)] text-foreground"
+                                : "border-border/60 hover:border-[#09daed]/40 hover:bg-[#09daed]/5 bg-muted/20 text-foreground"
                             }`}
                           >
                             <div className="flex items-center gap-3">
-                              <span
-                                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                                  isGold
-                                    ? "bg-amber-500 text-slate-950"
-                                    : isSilver
-                                    ? "bg-slate-400 text-slate-950"
-                                    : "bg-amber-800 text-white"
-                                }`}
-                              >
-                                #{priority}
-                              </span>
-                              <span className="font-semibold text-foreground text-sm">{tag.label}</span>
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                                isSelected ? "border-[#09daed] bg-[#09daed] text-black" : "border-muted-foreground/40 bg-background group-hover:border-[#09daed]/60"
+                              }`}>
+                                {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                              </div>
+                              <span className="font-semibold text-foreground text-sm sm:text-base">{tag.label}</span>
                             </div>
-                            {isSelected && <Check className="w-5 h-5 text-amber-500 stroke-[3]" />}
+                            {isSelected && <span className="text-xs font-bold text-[#09daed]">Selected</span>}
                           </button>
                         );
                       })}
@@ -2116,42 +2136,47 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
                       <button
                         type="button"
                         onClick={() => {
+                          userInteractedWithTagsRef.current = true;
                           setSelectedTag(null);
                           setSelectedTagId("other");
                         }}
-                        className={`w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center justify-between ${
+                        className={`w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center justify-between group ${
                           selectedTagId === "other"
-                            ? "border-amber-500 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
-                            : "border-border/60 hover:border-amber-500/40 bg-muted/20"
+                            ? "border-[#09daed] bg-[#09daed]/10 shadow-[0_0_18px_rgba(9,218,237,0.25)] text-foreground"
+                            : "border-border/60 hover:border-[#09daed]/40 hover:bg-[#09daed]/5 bg-muted/20 text-foreground"
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <span className="w-6 h-6 rounded-full bg-muted-foreground/20 text-muted-foreground flex items-center justify-center text-xs font-bold">
-                            ?
-                          </span>
-                          <span className="font-semibold text-foreground text-sm">Other (Specify below)</span>
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                            selectedTagId === "other" ? "border-[#09daed] bg-[#09daed] text-black" : "border-muted-foreground/40 bg-background group-hover:border-[#09daed]/60"
+                          }`}>
+                            {selectedTagId === "other" && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                          </div>
+                          <span className="font-semibold text-foreground text-sm sm:text-base">Other (Specify below)</span>
                         </div>
-                        {selectedTagId === "other" && <Check className="w-5 h-5 text-amber-500 stroke-[3]" />}
+                        {selectedTagId === "other" && <span className="text-xs font-bold text-[#09daed]">Selected</span>}
                       </button>
+
+                      {/* Other Text Box */}
+                      {selectedTagId === "other" && (
+                        <div className="pt-2 pb-1 space-y-2 animate-in fade-in duration-200">
+                          <label className="text-xs font-bold text-[#09daed] flex items-center gap-1.5">
+                            <PenLine className="w-3.5 h-3.5" />
+                            Specify how you'd like to collaborate or express interest:
+                          </label>
+                          <Textarea
+                            autoFocus
+                            value={otherInterestText}
+                            onChange={(e) => setOtherInterestText(e.target.value)}
+                            placeholder="e.g. Willing to offer mentorship, strategic partnership, pilot testing, investment..."
+                            className="bg-background text-foreground border-2 border-[#09daed]/50 focus:border-[#09daed] focus:ring-2 focus:ring-[#09daed]/20 rounded-xl min-h-[95px] text-sm leading-relaxed"
+                          />
+                        </div>
+                      )}
                     </div>
 
-                    {/* Other Text Box */}
-                    {selectedTagId === "other" && (
-                      <div className="space-y-1.5 pt-1">
-                        <label className="text-xs font-semibold text-foreground">
-                          Describe how you would like to be interested:
-                        </label>
-                        <Input
-                          value={otherInterestText}
-                          onChange={(e) => setOtherInterestText(e.target.value)}
-                          placeholder="e.g. Willing to offer mentorship, strategic partnership..."
-                          className="bg-background"
-                        />
-                      </div>
-                    )}
-
                     {/* Submit Button */}
-                    <div className="pt-3">
+                    <div className="pt-2">
                       <Button
                         onClick={handleInterestSubmit}
                         disabled={
@@ -2159,7 +2184,7 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
                           (!selectedTag && selectedTagId !== "other") ||
                           (selectedTagId === "other" && !otherInterestText.trim())
                         }
-                        className="w-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-slate-950 font-bold text-base py-6 rounded-2xl shadow-[0_0_20px_rgba(245,158,11,0.3)]"
+                        className="w-full bg-gradient-to-r from-[#09daed] via-sky-400 to-blue-500 hover:from-[#08c8d9] hover:via-sky-500 hover:to-blue-600 text-slate-950 font-bold text-base py-6 rounded-2xl shadow-[0_0_25px_rgba(9,218,237,0.4)] disabled:opacity-50 disabled:pointer-events-none transition-all hover:scale-[1.01] active:scale-[0.99]"
                       >
                         {isSubmittingInterest ? (
                           <Loader2 className="w-5 h-5 animate-spin" />

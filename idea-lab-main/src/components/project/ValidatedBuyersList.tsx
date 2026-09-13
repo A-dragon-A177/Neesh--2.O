@@ -108,19 +108,22 @@ const ValidatedBuyersList = ({ buyers, earlyAccessPrice, compact = false }: Vali
             {/* Right: Interaction Details & Metrics */}
             <div className="flex flex-wrap items-center gap-4 border-t md:border-t-0 pt-3 md:pt-0 border-gray-200/50 md:justify-end">
               {/* Interest Tag Status */}
-              <div className="flex flex-col gap-1 min-w-[140px]">
+              <div className="flex flex-col gap-1 min-w-[140px] max-w-[240px]">
                 <span className="text-[10px] uppercase font-bold tracking-wider text-gray-400">Selected Interest</span>
-                {buyer.interestTagLabel ? (
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+                {buyer.interestOtherText ? (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-[#09daed] bg-[#09daed]/10 px-2 py-0.5 rounded-md border border-[#09daed]/30 w-fit">
+                      <Sparkles className="w-3 h-3" />
+                      Other / Custom
+                    </div>
+                    <p className="text-xs text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-lg border border-border/50 text-left line-clamp-3 break-words" title={buyer.interestOtherText}>
+                      "{buyer.interestOtherText}"
+                    </p>
+                  </div>
+                ) : buyer.interestTagLabel ? (
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#09daed] bg-[#09daed]/10 px-2.5 py-1 rounded-lg border border-[#09daed]/25">
                     <Sparkles className="w-3.5 h-3.5" />
                     {buyer.interestTagLabel}
-                    {buyer.interestTagPriority && (
-                      <span className="text-[9px] opacity-75 font-mono">#{buyer.interestTagPriority}</span>
-                    )}
-                  </div>
-                ) : buyer.interestOtherText ? (
-                  <div className="text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-md truncate max-w-[160px]" title={buyer.interestOtherText}>
-                    Other: {buyer.interestOtherText}
                   </div>
                 ) : buyer.hasExplicitIntent ? (
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">

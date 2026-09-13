@@ -20,9 +20,11 @@ import {
   Mail,
   MessageSquare,
   Loader2,
+  PenLine,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAudienceData, type AudienceMember, type AggregatedPersonaData } from "@/hooks/useAudienceData";
+import { useValidatedBuyers } from "@/hooks/useValidatedBuyers";
 import { useNotifications, type ClusterSummary } from "@/hooks/useNotifications";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -58,9 +60,55 @@ const AudienceInsights = ({ projectId }: AudienceInsightsProps) => {
     unansweredCount,
   } = useNotifications(projectId);
 
+  const { data: buyersData } = useValidatedBuyers(projectId);
+
   const [selectedPersona, setSelectedPersona] = useState<PersonaType | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [activeView, setActiveView] = useState<"overview" | "members">("overview");
+
+  // Aggregate audience members who submitted custom interest notes ("Other" option)
+  const customInterestNotes = useMemo(() => {
+    const list: Array<{
+      id: string;
+      name: string;
+      email: string;
+      occupation: string | null;
+      interestOtherText: string;
+      lastInteractionAt: string | null;
+    }> = [];
+
+    (buyersData?.buyers || []).forEach((b) => {
+      if (b.interestOtherText && b.interestOtherText.trim()) {
+        list.push({
+          id: b.id,
+          name: b.name,
+          email: b.email,
+          occupation: b.occupation,
+          interestOtherText: b.interestOtherText.trim(),
+          lastInteractionAt: b.lastInteractionAt,
+        });
+      }
+    });
+
+    members.forEach((m) => {
+      if (
+        m.interestOtherText &&
+        m.interestOtherText.trim() &&
+        !list.some((x) => x.email === m.email || x.id === m.id)
+      ) {
+        list.push({
+          id: m.id,
+          name: m.name,
+          email: m.email,
+          occupation: m.occupation,
+          interestOtherText: m.interestOtherText.trim(),
+          lastInteractionAt: m.last_interaction_at,
+        });
+      }
+    });
+
+    return list;
+  }, [buyersData?.buyers, members]);
 
   // Map clusters to personas for detailed insights
   const aggregatedPersonas = useMemo(() => {
@@ -425,6 +473,72 @@ const AudienceInsights = ({ projectId }: AudienceInsightsProps) => {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Custom Interest Inquiries / Other Submissions */}
+      <div className="bg-card rounded-2xl border border-border/30 p-6 shadow-card space-y-4 font-sans">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#09daed]/10 border border-[#09daed]/25 flex items-center justify-center text-[#09daed] shadow-[0_0_12px_rgba(9,218,237,0.2)]">
+              <PenLine className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-foreground text-lg font-display flex items-center gap-2">
+                Custom Interest Inquiries & Proposals
+                {customInterestNotes.length > 0 && (
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#09daed]/15 text-[#09daed] font-mono font-bold border border-[#09daed]/30">
+                    {customInterestNotes.length}
+                  </span>
+                )}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Detailed notes and custom collaboration proposals submitted by audience members who selected "Other"
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {customInterestNotes.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+            {customInterestNotes.map((note, idx) => (
+              <div
+                key={note.id || idx}
+                className="rounded-2xl border border-border/40 bg-muted/20 hover:bg-muted/30 p-4 space-y-3 transition-all shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#09daed] to-blue-500 text-slate-950 font-black text-xs flex items-center justify-center shrink-0">
+                      {note.name?.charAt(0)?.toUpperCase() || "U"}
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-foreground line-clamp-1">{note.name || "Anonymous Supporter"}</h4>
+                      <p className="text-xs text-muted-foreground line-clamp-1">{note.email || note.occupation || "Audience Member"}</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#09daed]/10 text-[#09daed] font-bold border border-[#09daed]/25 shrink-0">
+                    Other / Custom
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-background/90 border border-border/40 text-sm text-foreground leading-relaxed italic whitespace-pre-wrap">
+                  "{note.interestOtherText}"
+                </div>
+
+                {note.lastInteractionAt && (
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/20">
+                    <span>Date Submitted:</span>
+                    <span>{new Date(note.lastInteractionAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-8 text-center rounded-xl bg-muted/10 border border-dashed border-border/50 text-muted-foreground">
+            <p className="text-sm font-medium">No custom interest writings submitted yet.</p>
+            <p className="text-xs mt-1">When audience members select "Other" in your Spotlight and provide custom notes, their writings will appear right here.</p>
+          </div>
+        )}
       </div>
     </div>
   );
