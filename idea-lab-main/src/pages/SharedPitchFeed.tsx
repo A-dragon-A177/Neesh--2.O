@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   Volume2, VolumeX, Share2, BookOpen, ArrowRight, X, Loader2, Play, Pause,
-  Clapperboard, ChevronDown, Sparkles, ArrowLeft, Flame
+  Clapperboard, ChevronDown, ChevronUp, Sparkles, ArrowLeft, Flame
 } from "lucide-react";
 import { usePitches, type PitchFeedItem } from "@/hooks/usePitches";
 import { NeeshLogo } from "@/components/NeeshLogo";
@@ -187,10 +187,10 @@ const VideoPlayer = ({
           playing ? "opacity-0 group-hover:opacity-100" : "opacity-100"
         }`}
       >
-        <div className="w-20 h-20 rounded-full bg-white/25 backdrop-blur-md flex items-center justify-center shadow-xl border border-white/40 transition-transform hover:scale-110">
+        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/95 text-cyan-600 backdrop-blur-md flex items-center justify-center border-2 border-cyan-400/80 shadow-[0_0_25px_rgba(9,218,237,0.4)] transition-all hover:scale-110 active:scale-95 group-hover:border-cyan-300">
           {playing
-            ? <Pause className="w-8 h-8 text-white fill-white" />
-            : <Play className="w-8 h-8 text-white fill-white ml-1" />
+            ? <Pause className="w-8 h-8 text-cyan-600 fill-cyan-500" />
+            : <Play className="w-8 h-8 text-cyan-600 fill-cyan-500 ml-1" />
           }
         </div>
       </button>
@@ -200,16 +200,16 @@ const VideoPlayer = ({
         {/* Mute toggle */}
         <button
           onClick={toggleMute}
-          className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/50 transition-colors shadow-sm border border-white/20"
+          className="w-10 h-10 rounded-full bg-white/90 hover:bg-white text-cyan-700 backdrop-blur-md flex items-center justify-center transition-colors shadow-md border border-cyan-200"
         >
-          {muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+          {muted ? <VolumeX className="w-5 h-5 text-cyan-700" /> : <Volume2 className="w-5 h-5 text-cyan-700" />}
         </button>
       </div>
 
       {/* Progress bar */}
-      <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/20 z-30">
+      <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-cyan-950/20 z-30">
         <div
-          className="h-full bg-gradient-to-r from-[#09daed] to-[#6366f1] transition-all duration-200"
+          className="h-full bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 transition-all duration-200 shadow-[0_0_8px_rgba(9,218,237,0.7)]"
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -342,19 +342,19 @@ const PitchCard = ({
       
       {/* ─── Mobile View (Full Screen Reels Layout) ─── */}
       <div className="w-full h-full relative block md:hidden bg-black overflow-hidden select-none">
-        {/* 1. Top Header (White round buttons, Black icons, Centered Title) */}
-        <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-3 bg-black/50 backdrop-blur-md border-b border-white/20">
-          {/* Left: Back button (White background, Black arrow) */}
+        {/* 1. Top Header with Frosted White background & Blue/Cyan accents */}
+        <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-3 bg-white/90 backdrop-blur-md border-b border-cyan-200/80 shadow-sm">
+          {/* Left: Back button (White/Cyan theme) */}
           <Link
             to="/space"
-            className="w-9 h-9 rounded-full bg-white hover:bg-white/90 text-black border border-white flex items-center justify-center transition-all shadow-md shrink-0"
+            className="w-9 h-9 rounded-full bg-cyan-50 hover:bg-cyan-100 text-cyan-700 border border-cyan-200 flex items-center justify-center transition-all shadow-sm shrink-0 active:scale-95"
             title="Back to Space"
           >
-            <ArrowLeft className="w-5 h-5 text-black" />
+            <ArrowLeft className="w-4.5 h-4.5 text-cyan-700" />
           </Link>
 
           {/* Center: Title */}
-          <h2 className="text-white font-black text-base sm:text-lg truncate max-w-[200px] sm:max-w-xs text-center mx-auto drop-shadow px-2 tracking-tight">
+          <h2 className="text-slate-900 font-extrabold text-base sm:text-lg truncate max-w-[200px] sm:max-w-xs text-center mx-auto px-2 tracking-tight">
             {card.title}
           </h2>
 
@@ -372,7 +372,7 @@ const PitchCard = ({
           />
         </div>
 
-        {/* 3. Action Buttons on Right (White background, Black icons) */}
+        {/* 3. Action Buttons on Right with White & Cyan Glassmorphism */}
         <div className="absolute bottom-20 right-3 z-30 flex flex-col items-center gap-4">
           {/* Flame Emoji Button */}
           <button
@@ -380,10 +380,10 @@ const PitchCard = ({
             className="flex flex-col items-center gap-0.5 group cursor-pointer"
             title="Express Interest"
           >
-            <div className="w-10 h-10 rounded-full bg-white hover:bg-white/90 backdrop-blur-md flex items-center justify-center border border-white text-black group-hover:scale-105 transition-all shadow-lg">
-              <span className="text-lg">🔥</span>
+            <div className="w-11 h-11 rounded-full bg-white/95 hover:bg-white backdrop-blur-md flex items-center justify-center border border-cyan-200 text-cyan-700 group-hover:border-cyan-400 group-hover:scale-110 active:scale-95 transition-all shadow-lg shadow-cyan-950/15">
+              <span className="text-xl">🔥</span>
             </div>
-            <span className="text-white text-[10px] font-black drop-shadow">{neeshCount}</span>
+            <span className="text-white text-[10px] font-black drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">{neeshCount}</span>
           </button>
 
           {/* Share Button */}
@@ -392,10 +392,10 @@ const PitchCard = ({
             className="flex flex-col items-center gap-0.5 group cursor-pointer"
             title="Share pitch"
           >
-            <div className="w-10 h-10 rounded-full bg-white hover:bg-white/90 backdrop-blur-md flex items-center justify-center border border-white text-black group-hover:scale-105 transition-all shadow-lg">
-              <Share2 className="w-4.5 h-4.5 text-black" />
+            <div className="w-11 h-11 rounded-full bg-white/95 hover:bg-white backdrop-blur-md flex items-center justify-center border border-cyan-200 text-cyan-700 group-hover:border-cyan-400 group-hover:scale-110 active:scale-95 transition-all shadow-lg shadow-cyan-950/15">
+              <Share2 className="w-5 h-5 text-cyan-600 group-hover:text-blue-600 transition-colors" />
             </div>
-            <span className="text-white text-[9px] font-bold drop-shadow">{copied ? "Copied!" : "Share"}</span>
+            <span className="text-white text-[10px] font-extrabold drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">{copied ? "Copied!" : "Share"}</span>
           </button>
 
           {/* Open Spotlight Button */}
@@ -404,69 +404,72 @@ const PitchCard = ({
             className="flex flex-col items-center gap-0.5 group cursor-pointer"
             title="Open Spotlight"
           >
-            <div className="w-10 h-10 rounded-full bg-white hover:bg-white/90 backdrop-blur-md flex items-center justify-center border border-white text-black group-hover:scale-105 transition-all shadow-lg">
-              <BookOpen className="w-4.5 h-4.5 text-black" />
+            <div className="w-11 h-11 rounded-full bg-white/95 hover:bg-white backdrop-blur-md flex items-center justify-center border border-cyan-200 text-cyan-700 group-hover:border-cyan-400 group-hover:scale-110 active:scale-95 transition-all shadow-lg shadow-cyan-950/15">
+              <BookOpen className="w-5 h-5 text-cyan-600 group-hover:text-blue-600 transition-colors" />
             </div>
-            <span className="text-white text-[9px] font-bold drop-shadow">Spotlight</span>
+            <span className="text-white text-[10px] font-extrabold drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Spotlight</span>
           </button>
         </div>
 
-        {/* 4. Transparent Bottom Bar (Increased size footer) */}
+        {/* 4. Frosted White & Blue Bottom Bar */}
         <div
-          className="absolute bottom-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-3.5 sm:py-4 bg-black/60 backdrop-blur-md border-t border-white/20 cursor-pointer"
+          className="absolute bottom-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-3 sm:py-3.5 bg-white/90 backdrop-blur-xl border-t border-cyan-200/80 shadow-[0_-4px_24px_rgba(9,218,237,0.15)] cursor-pointer select-none transition-all hover:bg-white/95"
           onClick={() => setShowDetailsSheet(true)}
         >
           {/* Founder Profile Avatar + Name */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-white text-black font-black text-base flex items-center justify-center border border-white shadow-md shrink-0 aspect-square">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 via-sky-500 to-blue-600 text-white font-black text-base flex items-center justify-center border-2 border-white shadow-md shadow-cyan-500/20 shrink-0 aspect-square overflow-hidden">
               {card.authorName?.[0]?.toUpperCase() || "N"}
             </div>
             <div className="text-left min-w-0">
-              <p className="text-white font-extrabold text-sm sm:text-base leading-none truncate max-w-[130px] sm:max-w-[170px]">{card.authorName}</p>
-              <p className="text-white/70 text-xs font-semibold mt-1">Founder</p>
+              <p className="text-slate-900 font-extrabold text-sm sm:text-base leading-tight truncate max-w-[130px] sm:max-w-[170px]">{card.authorName}</p>
+              <p className="text-cyan-600 text-xs font-bold mt-0.5">Founder</p>
             </div>
           </div>
 
-          {/* White Handle Line in Center */}
+          {/* Cyan Handle Line in Center */}
           <div className="flex flex-col items-center gap-1">
-            <div className="w-14 h-1.5 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.9)] animate-pulse" />
-            <span className="text-[9px] text-white/80 font-bold tracking-wide uppercase">Tap for details</span>
+            <div className="w-12 h-1.5 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 shadow-[0_0_12px_rgba(9,218,237,0.6)] animate-pulse" />
+            <span className="text-[9px] text-cyan-700 font-extrabold tracking-wider uppercase flex items-center gap-0.5">
+              <ChevronUp className="w-3 h-3 text-cyan-600 inline" /> Tap for details
+            </span>
           </div>
 
           {/* Placeholder for symmetry */}
           <div className="w-20" />
         </div>
 
-        {/* Expandable Project Details Drawer */}
+        {/* Expandable Project Details Drawer (White & Blue Theme) */}
         {showDetailsSheet && (
           <div className="fixed inset-0 z-50 flex items-end justify-center">
             <div
-              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+              className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
               onClick={() => setShowDetailsSheet(false)}
             />
-            <div className="relative w-full max-w-lg mx-auto bg-black text-white border-t border-white/30 rounded-t-3xl p-6 space-y-4 shadow-2xl z-10 max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom duration-300">
-              <div className="flex items-center justify-between border-b border-white/20 pb-3">
+            <div className="relative w-full max-w-lg mx-auto bg-white text-slate-900 border-t-2 border-cyan-400/60 rounded-t-3xl p-6 space-y-4 shadow-2xl shadow-cyan-950/20 z-10 max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom duration-300">
+              <div className="w-12 h-1.5 rounded-full bg-slate-200 mx-auto -mt-2 mb-1" />
+              <div className="flex items-center justify-between border-b border-cyan-100 pb-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-white text-black font-extrabold text-sm flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 via-sky-500 to-blue-600 text-white font-extrabold text-sm flex items-center justify-center shadow-md shadow-cyan-500/20">
                     {card.authorName?.[0]?.toUpperCase() || "N"}
                   </div>
                   <div>
-                    <p className="text-white text-sm font-bold leading-none">{card.authorName}</p>
-                    <p className="text-white/60 text-xs mt-0.5">Founder</p>
+                    <p className="text-slate-900 text-sm font-extrabold leading-none">{card.authorName}</p>
+                    <p className="text-cyan-600 text-xs font-semibold mt-1">Founder</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowDetailsSheet(false)}
-                  className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center hover:bg-white/90 transition-colors border border-white"
+                  className="w-8 h-8 rounded-full bg-cyan-50 hover:bg-cyan-100 text-cyan-700 flex items-center justify-center transition-colors border border-cyan-200 active:scale-95"
                 >
-                  <X className="w-4 h-4 text-black" />
+                  <X className="w-4 h-4 text-cyan-700" />
                 </button>
               </div>
 
               <div className="space-y-2">
-                <h2 className="text-xl font-bold text-white tracking-tight">{card.title}</h2>
+                <h2 className="text-xl font-black text-slate-900 tracking-tight">{card.title}</h2>
                 {card.hook && (
-                  <p className="text-sm text-white/80 font-medium leading-relaxed">
+                  <p className="text-sm text-slate-600 font-medium leading-relaxed bg-cyan-50/50 p-3.5 rounded-xl border border-cyan-100/60">
                     {card.hook}
                   </p>
                 )}
@@ -478,11 +481,11 @@ const PitchCard = ({
                     setShowDetailsSheet(false);
                     onSpotlightOpen();
                   }}
-                  className="w-full h-12 bg-white text-black hover:bg-white/90 font-extrabold rounded-2xl text-base shadow-lg flex items-center justify-center gap-2"
+                  className="w-full h-12 bg-gradient-to-r from-cyan-500 via-sky-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-extrabold rounded-2xl text-base shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2 transition-all"
                 >
-                  <BookOpen className="w-5 h-5 text-black" />
+                  <BookOpen className="w-5 h-5 text-white" />
                   <span>Open Spotlight</span>
-                  <ArrowRight className="w-4 h-4 text-black" />
+                  <ArrowRight className="w-4 h-4 text-white" />
                 </button>
               </div>
             </div>
@@ -815,11 +818,11 @@ const SharedPitchFeed = ({ projectId }: SharedPitchFeedProps) => {
         )}
       </div>
 
-      {/* Scroll hint (first card only) */}
+      {/* Scroll hint (first card only, desktop only to avoid mobile footer collision) */}
       {activeIndex === 0 && feedCards.length > 1 && !spotlightProjectId && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-1 text-foreground/40 animate-bounce pointer-events-none">
-          <span className="text-[10px] uppercase tracking-[0.2em] font-semibold">More pitches</span>
-          <ChevronDown className="w-5 h-5 text-[#6366f1]" />
+        <div className="hidden md:flex fixed bottom-8 left-1/2 -translate-x-1/2 z-30 flex-col items-center gap-1 pointer-events-none">
+          <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-cyan-600">More pitches</span>
+          <ChevronDown className="w-5 h-5 text-cyan-500 animate-bounce" />
         </div>
       )}
 
