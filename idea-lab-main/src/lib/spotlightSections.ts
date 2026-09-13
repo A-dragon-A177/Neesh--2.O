@@ -59,162 +59,82 @@ export function buildSectionsFromValidationAnswers(
     return "";
   };
 
-  // 1. The Problem
+  // 1. The Problem (Typed Answer)
   const problemVal = getStringVal("problem_story", "problem", "the_problem", "problemDescription");
   if (problemVal) {
     results.push({ title: "The Problem", sectionTitle: "The Problem", value: problemVal });
   }
 
-  // 2. What We're Building (Our Solution)
+  // 2. What We're Building / Solution (Typed Answer)
   const solutionVal = getStringVal("our_solution", "solution", "what_building", "solutionDescription");
   if (solutionVal) {
     results.push({ title: "What We're Building", sectionTitle: "What We're Building", value: solutionVal });
   }
 
-  // 3. Value Advantage & Economics (CVP Reality Check)
-  const cvpAlt = getStringVal("cvp_input_a");
-  const cvpMetric = getStringVal("cvp_input_b");
-  const cvpAltCost = getStringVal("cvp_input_c");
-  const cvpOurCost = getStringVal("cvp_input_d");
-  const cvpValidation = getStringVal("cvp_input_e");
-
-  if (cvpAlt || cvpAltCost || cvpOurCost || cvpMetric) {
-    const lines: string[] = [];
-    if (cvpAlt) lines.push(`• Alternative Solution: ${cvpAlt}`);
-    if (cvpMetric) lines.push(`• Core Value Driver: ${cvpMetric}`);
-    if (cvpAltCost && cvpOurCost) {
-      lines.push(`• Cost Comparison: $${cvpAltCost} (Alternative) vs $${cvpOurCost} (Our Solution)`);
-    } else if (cvpAltCost) {
-      lines.push(`• Alternative Cost: $${cvpAltCost}`);
-    } else if (cvpOurCost) {
-      lines.push(`• Solution Cost: $${cvpOurCost}`);
-    }
-    if (cvpValidation) lines.push(`• Validation Status: ${cvpValidation}`);
-
-    if (lines.length > 0) {
-      results.push({
-        title: "Value Advantage & Economics",
-        sectionTitle: "Value Advantage & Economics",
-        value: lines.join("\n"),
-      });
-    }
-  }
-
-  // 4. Who It's For (Target Customer)
+  // 3. Who It's For / Target Customer (Typed Answer)
   const targetVal = getStringVal("target_customer", "target_audience", "idealCustomer", "who_its_for");
   if (targetVal) {
     results.push({ title: "Who It's For", sectionTitle: "Who It's For", value: targetVal });
   }
 
-  // 5. Market Opportunity & Dynamics (Market Reality Check)
-  const marketHabit = getStringVal("market_input_a");
-  const marketSpend = getStringVal("market_input_b");
-  const marketPrice = getStringVal("market_input_c1");
-  const marketConcentration = getStringVal("market_input_c2");
-  const marketGeo = getStringVal("market_input_d");
-
-  if (marketHabit || marketSpend || marketPrice || marketGeo || marketConcentration) {
-    const lines: string[] = [];
-    if (marketHabit) lines.push(`• Customer Urgency: ${marketHabit}`);
-    if (marketSpend) lines.push(`• Willingness to Pay: ${marketSpend}`);
-    if (marketPrice) lines.push(`• Target Pricing: $${marketPrice}/yr`);
-    if (marketGeo || marketConcentration) {
-      const geoPart = [marketGeo, marketConcentration ? `(${marketConcentration})` : ""].filter(Boolean).join(" ");
-      lines.push(`• Market Profile: ${geoPart}`);
-    }
-
-    if (lines.length > 0) {
-      results.push({
-        title: "Market Opportunity & Dynamics",
-        sectionTitle: "Market Opportunity & Dynamics",
-        value: lines.join("\n"),
-      });
-    }
-  }
-
-  // 6. The Hook (Surprising Insight)
+  // 4. The Hook / Surprising Insight (Typed Answer)
   const hookVal = getStringVal("the_hook", "hook", "keyInsight", "surprisingInsight");
   if (hookVal) {
     results.push({ title: "The Hook", sectionTitle: "The Hook", value: hookVal });
   }
 
-  // 7. Customer Acquisition & Trust (Acquisition Reality Check)
-  const acqAccess = getStringVal("acq_input_a");
-  const acqChannel = getStringVal("acq_input_b");
-  const acqRep = getStringVal("acq_input_c");
-
-  if (acqAccess || acqChannel || acqRep) {
-    const lines: string[] = [];
-    if (acqAccess) lines.push(`• Customer Access: ${acqAccess}`);
-    if (acqChannel) lines.push(`• Growth Engine: ${acqChannel}`);
-    if (acqRep) lines.push(`• Industry Authority: ${acqRep}`);
-
-    if (lines.length > 0) {
-      results.push({
-        title: "Customer Acquisition & Trust",
-        sectionTitle: "Customer Acquisition & Trust",
-        value: lines.join("\n"),
-      });
-    }
-  }
-
-  // 8. Defensibility & Moat (Defensibility Reality Check)
-  const defMoat = getStringVal("def_input_a");
-  const defTech = getStringVal("def_input_b");
-  const defStrategy = getStringVal("def_input_c");
-
-  if (defMoat || defTech || defStrategy) {
-    const lines: string[] = [];
-    if (defMoat) lines.push(`• Core Advantage: ${defMoat}`);
-    if (defTech) lines.push(`• Technical Barrier: ${defTech}`);
-    if (defStrategy) lines.push(`• Defense Strategy: ${defStrategy}`);
-
-    if (lines.length > 0) {
-      results.push({
-        title: "Defensibility & Moat",
-        sectionTitle: "Defensibility & Moat",
-        value: lines.join("\n"),
-      });
-    }
-  }
-
-  // 9. The Founder's Story
+  // 5. The Founder's Story (Typed Answer)
   const founderVal = getStringVal("founder_story", "founderStory", "motivation", "the_founders_story");
   if (founderVal) {
     results.push({ title: "The Founder's Story", sectionTitle: "The Founder's Story", value: founderVal });
   }
 
-  // 10. Execution & Build Readiness (Buildability Reality Check)
-  const buildStability = getStringVal("build_input_a");
-  const buildStage = getStringVal("build_input_b");
-
-  if (buildStability || buildStage) {
-    const lines: string[] = [];
-    if (buildStability) lines.push(`• Team Execution Capacity: ${buildStability}`);
-    if (buildStage) lines.push(`• Current Milestone: ${buildStage}`);
-
-    if (lines.length > 0) {
-      results.push({
-        title: "Execution & Build Readiness",
-        sectionTitle: "Execution & Build Readiness",
-        value: lines.join("\n"),
-      });
-    }
-  }
-
-  // 11. Our Vision
+  // 6. Our Vision (Typed Answer)
   const visionVal = getStringVal("vision", "longTermVision", "our_vision");
   if (visionVal) {
     results.push({ title: "Our Vision", sectionTitle: "Our Vision", value: visionVal });
   }
 
-  // 12. Get Involved (Call to Action)
+  // 7. Get Involved / Call to Action (Typed Answer)
   const ctaVal = getStringVal("call_to_action", "cta", "get_involved", "nextSteps");
   if (ctaVal) {
     results.push({ title: "Get Involved", sectionTitle: "Get Involved", value: ctaVal });
   }
 
   return results;
+}
+
+/**
+ * Detects whether a section is one of the 5 reality check / math / data sections
+ * that must be excluded from Spotlight and Spotlight Editor.
+ */
+export function isExcludedDataSection(titleOrVal?: string | null): boolean {
+  if (!titleOrVal) return false;
+  const t = titleOrVal.toLowerCase();
+  return (
+    t.includes("value advantage") ||
+    t.includes("cvp") ||
+    t.includes("cost comparison") ||
+    t.includes("market opportunity") ||
+    t.includes("market sizing") ||
+    t.includes("market dynamics") ||
+    t.includes("customer urgency") ||
+    t.includes("target pricing") ||
+    t.includes("customer acquisition") ||
+    t.includes("acquisition data") ||
+    t.includes("growth engine") ||
+    t.includes("defensibility & moat") ||
+    t.includes("defensibility") ||
+    t.includes("moat data") ||
+    t.includes("core advantage") ||
+    t.includes("technical barrier") ||
+    t.includes("defense strategy") ||
+    t.includes("execution & build") ||
+    t.includes("build readiness") ||
+    t.includes("buildability") ||
+    t.includes("team execution") ||
+    t.includes("current milestone")
+  );
 }
 
 /**
@@ -301,6 +221,11 @@ export function mergeSectionsWithValidationAnswers(params: {
       } else {
         const rawSecTitle = field.sectionTitle || field.title || "";
         const val = (field.value || field.content || "").trim();
+
+        // Filter out the 5 math and data sections (only typed narrative answers allowed)
+        if (isExcludedDataSection(rawSecTitle) || isExcludedDataSection(field.title) || isExcludedDataSection(val)) {
+          return;
+        }
 
         // Filter out empty placeholder "Content" block
         if (rawSecTitle.toLowerCase() === "content" && !val) {

@@ -1,6 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import { getSpotlightTitle } from "@/lib/spotlightTitles";
-import { buildSectionsFromValidationAnswers } from "@/lib/spotlightSections";
+import { buildSectionsFromValidationAnswers, isExcludedDataSection } from "@/lib/spotlightSections";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, Image, Share2, Clock, Send, MessageCircle, Copy, Check, Link2, Loader2, Sparkles, Volume2, VolumeX, ArrowRight, Clapperboard, Play, X, Flame, Star, Upload, Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { NeeshLogo } from "@/components/NeeshLogo";
@@ -599,6 +599,9 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
                 });
               } else if (field.value && typeof field.value === "string" && field.value.trim().length > 0) {
                 const rawTitle = field.sectionTitle || field.title || "";
+                if (isExcludedDataSection(rawTitle) || isExcludedDataSection(field.title) || isExcludedDataSection(field.value)) {
+                  return;
+                }
                 if (rawTitle.toLowerCase() === "content" && !field.value.trim()) {
                   return;
                 }

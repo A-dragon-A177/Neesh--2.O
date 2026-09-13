@@ -149,6 +149,33 @@ public class BlogService {
         }
     }
 
+    public static boolean isExcludedDataSection(String titleOrVal) {
+        if (titleOrVal == null || titleOrVal.trim().isEmpty()) return false;
+        String t = titleOrVal.toLowerCase();
+        return t.contains("value advantage") ||
+               t.contains("cvp") ||
+               t.contains("cost comparison") ||
+               t.contains("market opportunity") ||
+               t.contains("market sizing") ||
+               t.contains("market dynamics") ||
+               t.contains("customer urgency") ||
+               t.contains("target pricing") ||
+               t.contains("customer acquisition") ||
+               t.contains("acquisition data") ||
+               t.contains("growth engine") ||
+               t.contains("defensibility & moat") ||
+               t.contains("defensibility") ||
+               t.contains("moat data") ||
+               t.contains("core advantage") ||
+               t.contains("technical barrier") ||
+               t.contains("defense strategy") ||
+               t.contains("execution & build") ||
+               t.contains("build readiness") ||
+               t.contains("buildability") ||
+               t.contains("team execution") ||
+               t.contains("current milestone");
+    }
+
     public List<Map<String, Object>> mergeCustomFields(List<Map<String, Object>> existingFields, String validationAnswersJson) {
         List<Map<String, Object>> generated = generateCustomFieldsFromAnswers(validationAnswersJson);
         if (existingFields == null || existingFields.isEmpty()) {
@@ -162,6 +189,11 @@ public class BlogService {
             if (field == null) continue;
             String title = (String) field.getOrDefault("sectionTitle", field.getOrDefault("title", ""));
             String value = (String) field.getOrDefault("value", field.getOrDefault("content", ""));
+
+            // Filter out the 5 math and data sections (only typed narrative answers allowed)
+            if (isExcludedDataSection(title) || isExcludedDataSection(value)) {
+                continue;
+            }
 
             // Filter out empty placeholder "Content" block
             if (title != null && title.equalsIgnoreCase("Content") && (value == null || value.trim().isEmpty())) {
@@ -218,131 +250,43 @@ public class BlogService {
                 return "";
             };
 
-            // 1. The Problem
+            // 1. The Problem (Typed Answer)
             String problem = getString.apply(new String[]{"problem_story", "problem", "the_problem", "problemDescription"});
             if (!problem.isEmpty()) {
                 fields.add(createSectionField("The Problem", problem, order++));
             }
 
-            // 2. What We're Building
+            // 2. What We're Building (Typed Answer)
             String solution = getString.apply(new String[]{"our_solution", "solution", "what_building", "solutionDescription"});
             if (!solution.isEmpty()) {
                 fields.add(createSectionField("What We're Building", solution, order++));
             }
 
-            // 3. Value Advantage & Economics (CVP Reality Check)
-            String cvpAlt = getString.apply(new String[]{"cvp_input_a"});
-            String cvpMetric = getString.apply(new String[]{"cvp_input_b"});
-            String cvpAltCost = getString.apply(new String[]{"cvp_input_c"});
-            String cvpOurCost = getString.apply(new String[]{"cvp_input_d"});
-            String cvpValidation = getString.apply(new String[]{"cvp_input_e"});
-
-            if (!cvpAlt.isEmpty() || !cvpMetric.isEmpty() || !cvpAltCost.isEmpty() || !cvpOurCost.isEmpty()) {
-                List<String> lines = new java.util.ArrayList<>();
-                if (!cvpAlt.isEmpty()) lines.add("• Alternative Solution: " + cvpAlt);
-                if (!cvpMetric.isEmpty()) lines.add("• Core Value Driver: " + cvpMetric);
-                if (!cvpAltCost.isEmpty() && !cvpOurCost.isEmpty()) {
-                    lines.add("• Cost Comparison: $" + cvpAltCost + " (Alternative) vs $" + cvpOurCost + " (Our Solution)");
-                } else if (!cvpAltCost.isEmpty()) {
-                    lines.add("• Alternative Cost: $" + cvpAltCost);
-                } else if (!cvpOurCost.isEmpty()) {
-                    lines.add("• Solution Cost: $" + cvpOurCost);
-                }
-                if (!cvpValidation.isEmpty()) lines.add("• Validation Status: " + cvpValidation);
-                if (!lines.isEmpty()) {
-                    fields.add(createSectionField("Value Advantage & Economics", String.join("\n", lines), order++));
-                }
-            }
-
-            // 4. Who It's For
+            // 3. Who It's For (Typed Answer)
             String target = getString.apply(new String[]{"target_customer", "target_audience", "idealCustomer", "who_its_for"});
             if (!target.isEmpty()) {
                 fields.add(createSectionField("Who It's For", target, order++));
             }
 
-            // 5. Market Opportunity & Dynamics
-            String marketHabit = getString.apply(new String[]{"market_input_a"});
-            String marketSpend = getString.apply(new String[]{"market_input_b"});
-            String marketPrice = getString.apply(new String[]{"market_input_c1"});
-            String marketConcentration = getString.apply(new String[]{"market_input_c2"});
-            String marketGeo = getString.apply(new String[]{"market_input_d"});
-
-            if (!marketHabit.isEmpty() || !marketSpend.isEmpty() || !marketPrice.isEmpty() || !marketGeo.isEmpty() || !marketConcentration.isEmpty()) {
-                List<String> lines = new java.util.ArrayList<>();
-                if (!marketHabit.isEmpty()) lines.add("• Customer Urgency: " + marketHabit);
-                if (!marketSpend.isEmpty()) lines.add("• Willingness to Pay: " + marketSpend);
-                if (!marketPrice.isEmpty()) lines.add("• Target Pricing: $" + marketPrice + "/yr");
-                if (!marketGeo.isEmpty() || !marketConcentration.isEmpty()) {
-                    String geoPart = marketGeo + (!marketConcentration.isEmpty() ? " (" + marketConcentration + ")" : "");
-                    lines.add("• Market Profile: " + geoPart.trim());
-                }
-                if (!lines.isEmpty()) {
-                    fields.add(createSectionField("Market Opportunity & Dynamics", String.join("\n", lines), order++));
-                }
-            }
-
-            // 6. The Hook
+            // 4. The Hook (Typed Answer)
             String hook = getString.apply(new String[]{"the_hook", "hook", "keyInsight", "surprisingInsight"});
             if (!hook.isEmpty()) {
                 fields.add(createSectionField("The Hook", hook, order++));
             }
 
-            // 7. Customer Acquisition & Trust
-            String acqAccess = getString.apply(new String[]{"acq_input_a"});
-            String acqChannel = getString.apply(new String[]{"acq_input_b"});
-            String acqRep = getString.apply(new String[]{"acq_input_c"});
-
-            if (!acqAccess.isEmpty() || !acqChannel.isEmpty() || !acqRep.isEmpty()) {
-                List<String> lines = new java.util.ArrayList<>();
-                if (!acqAccess.isEmpty()) lines.add("• Customer Access: " + acqAccess);
-                if (!acqChannel.isEmpty()) lines.add("• Growth Engine: " + acqChannel);
-                if (!acqRep.isEmpty()) lines.add("• Industry Authority: " + acqRep);
-                if (!lines.isEmpty()) {
-                    fields.add(createSectionField("Customer Acquisition & Trust", String.join("\n", lines), order++));
-                }
-            }
-
-            // 8. Defensibility & Moat
-            String defMoat = getString.apply(new String[]{"def_input_a"});
-            String defTech = getString.apply(new String[]{"def_input_b"});
-            String defStrategy = getString.apply(new String[]{"def_input_c"});
-
-            if (!defMoat.isEmpty() || !defTech.isEmpty() || !defStrategy.isEmpty()) {
-                List<String> lines = new java.util.ArrayList<>();
-                if (!defMoat.isEmpty()) lines.add("• Core Advantage: " + defMoat);
-                if (!defTech.isEmpty()) lines.add("• Technical Barrier: " + defTech);
-                if (!defStrategy.isEmpty()) lines.add("• Defense Strategy: " + defStrategy);
-                if (!lines.isEmpty()) {
-                    fields.add(createSectionField("Defensibility & Moat", String.join("\n", lines), order++));
-                }
-            }
-
-            // 9. The Founder's Story
+            // 5. The Founder's Story (Typed Answer)
             String founder = getString.apply(new String[]{"founder_story", "founderStory", "motivation", "the_founders_story"});
             if (!founder.isEmpty()) {
                 fields.add(createSectionField("The Founder's Story", founder, order++));
             }
 
-            // 10. Execution & Build Readiness
-            String buildStability = getString.apply(new String[]{"build_input_a"});
-            String buildStage = getString.apply(new String[]{"build_input_b"});
-
-            if (!buildStability.isEmpty() || !buildStage.isEmpty()) {
-                List<String> lines = new java.util.ArrayList<>();
-                if (!buildStability.isEmpty()) lines.add("• Team Execution Capacity: " + buildStability);
-                if (!buildStage.isEmpty()) lines.add("• Current Milestone: " + buildStage);
-                if (!lines.isEmpty()) {
-                    fields.add(createSectionField("Execution & Build Readiness", String.join("\n", lines), order++));
-                }
-            }
-
-            // 11. Our Vision
+            // 6. Our Vision (Typed Answer)
             String vision = getString.apply(new String[]{"vision", "longTermVision", "our_vision"});
             if (!vision.isEmpty()) {
                 fields.add(createSectionField("Our Vision", vision, order++));
             }
 
-            // 12. Get Involved
+            // 7. Get Involved (Typed Answer)
             String cta = getString.apply(new String[]{"call_to_action", "cta", "get_involved", "nextSteps"});
             if (!cta.isEmpty()) {
                 fields.add(createSectionField("Get Involved", cta, order++));
