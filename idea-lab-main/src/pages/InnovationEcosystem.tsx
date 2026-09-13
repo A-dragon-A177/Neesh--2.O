@@ -50,10 +50,10 @@ export const InnovationEcosystem: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-4xl sm:text-5xl md:text-7xl font-extrabold tracking-tight leading-[1.15] text-white font-['Plus_Jakarta_Sans']"
+            className="text-4xl sm:text-5xl md:text-7xl font-extrabold tracking-tight leading-[1.15] text-white font-sans"
           >
             One ecosystem. <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#09daed] via-sky-400 to-blue-500 font-['Plus_Jakarta_Sans'] font-black">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#09daed] via-sky-400 to-blue-500 font-sans font-black">
               Every opportunity
             </span>{' '}
             a startup needs.
@@ -66,7 +66,7 @@ export const InnovationEcosystem: React.FC = () => {
             className="text-lg sm:text-xl md:text-2xl text-slate-200 font-['Inter'] font-medium max-w-3xl mx-auto leading-relaxed px-2"
           >
             Founders come to build. People come to discover. <br className="hidden sm:block" />
-            <span className="text-[#09daed] underline decoration-[#09daed]/50 font-bold font-['Plus_Jakarta_Sans']">
+            <span className="text-[#09daed] underline decoration-[#09daed]/50 font-bold font-sans">
               Opportunities happen in between.
             </span>
           </motion.p>
@@ -79,7 +79,7 @@ export const InnovationEcosystem: React.FC = () => {
           >
             <button
               onClick={() => navigate('/signup')}
-              className="w-[88%] sm:w-auto px-5 sm:px-8 py-3.5 sm:py-4 rounded-xl bg-[#09daed] hover:bg-[#08c8d9] text-black font-['Plus_Jakarta_Sans'] font-extrabold text-sm sm:text-base tracking-wide uppercase shadow-[0_0_35px_rgba(9,218,237,0.5)] transition-all hover:scale-105 flex items-center justify-center gap-2"
+              className="w-[88%] sm:w-auto px-5 sm:px-8 py-3.5 sm:py-4 rounded-xl bg-[#09daed] hover:bg-[#08c8d9] text-black font-sans font-extrabold text-sm sm:text-base tracking-wide uppercase shadow-[0_0_35px_rgba(9,218,237,0.5)] transition-all hover:scale-105 flex items-center justify-center gap-2"
             >
               Launch Your Idea Into Orbit <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
@@ -89,7 +89,7 @@ export const InnovationEcosystem: React.FC = () => {
                 const el = document.getElementById('pillars-section');
                 el?.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="w-[88%] sm:w-auto px-5 sm:px-6 py-3.5 sm:py-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 font-['Plus_Jakarta_Sans'] font-bold text-sm sm:text-base transition-colors flex items-center justify-center gap-2"
+              className="w-[88%] sm:w-auto px-5 sm:px-6 py-3.5 sm:py-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 font-sans font-bold text-sm sm:text-base transition-colors flex items-center justify-center gap-2"
             >
               <Compass className="w-4 h-4 sm:w-5 sm:h-5 text-[#09daed]" />
               Explore Ecosystem
@@ -118,7 +118,7 @@ export const InnovationEcosystem: React.FC = () => {
             READY TO JOIN THE GRAVITATIONAL CORE?
           </div>
 
-          <h2 className="text-2xl sm:text-3xl md:text-5xl font-extrabold text-white font-['Plus_Jakarta_Sans']">
+          <h2 className="text-2xl sm:text-3xl md:text-5xl font-extrabold text-white font-sans">
             Build Together, Not Alone.
           </h2>
 
@@ -129,7 +129,7 @@ export const InnovationEcosystem: React.FC = () => {
           <div>
             <button
               onClick={() => navigate('/signup')}
-              className="w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 rounded-2xl bg-gradient-to-r from-[#09daed] via-sky-400 to-blue-500 text-black font-['Plus_Jakarta_Sans'] font-black text-base sm:text-lg uppercase tracking-wider shadow-[0_0_50px_rgba(9,218,237,0.6)] hover:scale-105 transition-transform"
+              className="w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 rounded-2xl bg-gradient-to-r from-[#09daed] via-sky-400 to-blue-500 text-black font-sans font-black text-base sm:text-lg uppercase tracking-wider shadow-[0_0_50px_rgba(9,218,237,0.6)] hover:scale-105 transition-transform"
             >
               Enter Neesh AI Ecosystem
             </button>

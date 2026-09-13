@@ -127,9 +127,9 @@ export const OpportunityNetworkSimulator: React.FC = () => {
             The 7 Pillars of Ecosystem Gravity
           </div>
 
-          <h2 className="text-2xl sm:text-3xl md:text-5xl font-extrabold tracking-tight text-white font-['Plus_Jakarta_Sans']">
-            Founders enter with an <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#09daed] via-sky-400 to-blue-500 font-['Plus_Jakarta_Sans']">Idea</span>. <br />
-            They leave with an <span className="text-[#09daed] underline decoration-[#09daed]/50 font-['Plus_Jakarta_Sans']">Empire</span>.
+          <h2 className="text-2xl sm:text-3xl md:text-5xl font-extrabold tracking-tight text-white font-sans">
+            Founders enter with an <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#09daed] via-sky-400 to-blue-500 font-sans">Idea</span>. <br />
+            They leave with an <span className="text-[#09daed] underline decoration-[#09daed]/50 font-sans">Empire</span>.
           </h2>
 
           <p className="text-slate-300 text-sm sm:text-base md:text-lg font-['Inter']">
@@ -164,7 +164,7 @@ export const OpportunityNetworkSimulator: React.FC = () => {
                     <Icon className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: pillar.color }} />
                   </div>
 
-                  <span className="text-[10px] sm:text-xs md:text-sm font-semibold tracking-wide text-white font-['Plus_Jakarta_Sans']">
+                  <span className="text-[10px] sm:text-xs md:text-sm font-semibold tracking-wide text-white font-sans">
                     {pillar.title}
                   </span>
 
@@ -206,7 +206,7 @@ export const OpportunityNetworkSimulator: React.FC = () => {
                 </div>
 
                 <div>
-                  <h3 className="text-xl sm:text-2xl md:text-4xl font-bold text-white mb-1 sm:mb-2 font-['Plus_Jakarta_Sans']">
+                  <h3 className="text-xl sm:text-2xl md:text-4xl font-bold text-white mb-1 sm:mb-2 font-sans">
                     {activePillar.title}
                   </h3>
                   <p className="text-sm sm:text-base md:text-xl font-medium font-['Inter']" style={{ color: activePillar.color }}>

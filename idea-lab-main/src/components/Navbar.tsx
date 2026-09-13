@@ -173,7 +173,7 @@ export default function Navbar() {
                       }`}>
                         <Icon className={`w-5 h-5 ${isActive ? "text-[#09daed]" : "text-slate-700"}`} />
                       </div>
-                      <span className={`text-base font-['Plus_Jakarta_Sans'] ${isActive ? "font-bold text-[#09daed]" : "font-semibold text-slate-900"}`}>
+                      <span className={`text-base font-sans ${isActive ? "font-bold text-[#09daed]" : "font-semibold text-slate-900"}`}>
                         {item.label}
                       </span>
                       {isActive && (

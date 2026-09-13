@@ -73,7 +73,7 @@ export const OrbitalJourneyTimeline: React.FC = () => {
           <div className="text-[10px] sm:text-xs font-mono text-[#09daed] tracking-widest uppercase">
             ORBITAL EVOLUTION TIMELINE
           </div>
-          <h2 className="text-2xl sm:text-3xl md:text-5xl font-extrabold text-white font-['Plus_Jakarta_Sans']">
+          <h2 className="text-2xl sm:text-3xl md:text-5xl font-extrabold text-white font-sans">
             From <span className="text-[#09daed]">Spark</span> to <span className="text-sky-400">Supernova</span>
           </h2>
           <p className="text-slate-300 text-sm sm:text-base md:text-lg font-['Inter']">
@@ -118,7 +118,7 @@ export const OrbitalJourneyTimeline: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="text-sm sm:text-base font-bold text-white mb-0.5 sm:mb-1 font-['Plus_Jakarta_Sans']">{phase.title}</div>
+                  <div className="text-sm sm:text-base font-bold text-white mb-0.5 sm:mb-1 font-sans">{phase.title}</div>
                   <div className="text-[10px] sm:text-xs text-slate-400 line-clamp-1 font-['Inter']">{phase.subtitle}</div>
                 </button>
               );
@@ -145,7 +145,7 @@ export const OrbitalJourneyTimeline: React.FC = () => {
                   >
                     PHASE {activePhase.phaseNum} // {activePhase.subtitle}
                   </span>
-                  <h3 className="text-2xl sm:text-3xl font-extrabold text-white font-['Plus_Jakarta_Sans']">{activePhase.title}</h3>
+                  <h3 className="text-2xl sm:text-3xl font-extrabold text-white font-sans">{activePhase.title}</h3>
                 </div>
 
                 <div className="flex items-center gap-2">

@@ -41,7 +41,7 @@ export const LiveOpportunityCollision: React.FC = () => {
           <div className="text-[10px] sm:text-xs font-mono text-[#09daed] tracking-widest uppercase">
             LIVE ECOSYSTEM MATCHMAKER
           </div>
-          <h2 className="text-2xl sm:text-3xl md:text-5xl font-extrabold text-white font-['Plus_Jakarta_Sans']">
+          <h2 className="text-2xl sm:text-3xl md:text-5xl font-extrabold text-white font-sans">
             Experience Opportunity Gravitational Collision
           </h2>
           <p className="text-slate-300 text-xs sm:text-sm md:text-base font-['Inter']">
@@ -52,7 +52,7 @@ export const LiveOpportunityCollision: React.FC = () => {
         {/* Simulator Card */}
         <div className="rounded-xl sm:rounded-2xl border border-[#09daed]/30 bg-slate-900/90 p-5 sm:p-8 md:p-12 shadow-[0_0_50px_rgba(0,0,0,0.9)] space-y-6 sm:space-y-8 relative overflow-hidden">
           {/* Top Role Selector Tabs */}
-          <div className="flex rounded-xl bg-slate-950 border border-slate-800 p-1 sm:p-1.5 max-w-md mx-auto font-['Plus_Jakarta_Sans']">
+          <div className="flex rounded-xl bg-slate-950 border border-slate-800 p-1 sm:p-1.5 max-w-md mx-auto font-sans">
             <button
               onClick={() => handleToggleRole('founder')}
               className={`flex-1 py-2.5 sm:py-3 px-2 sm:px-4 rounded-lg text-[11px] sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 sm:gap-2 ${
@@ -108,7 +108,7 @@ export const LiveOpportunityCollision: React.FC = () => {
             <button
               onClick={handleRunSimulation}
               disabled={isSimulating}
-              className="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl bg-gradient-to-r from-[#09daed] via-sky-400 to-blue-500 text-black font-['Plus_Jakarta_Sans'] font-extrabold text-sm sm:text-base md:text-lg tracking-wide uppercase shadow-[0_0_30px_rgba(9,218,237,0.4)] hover:scale-105 active:scale-95 transition-transform flex items-center justify-center gap-2 sm:gap-3 mx-auto"
+              className="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl bg-gradient-to-r from-[#09daed] via-sky-400 to-blue-500 text-black font-sans font-extrabold text-sm sm:text-base md:text-lg tracking-wide uppercase shadow-[0_0_30px_rgba(9,218,237,0.4)] hover:scale-105 active:scale-95 transition-transform flex items-center justify-center gap-2 sm:gap-3 mx-auto"
             >
               {isSimulating ? (
                 <>
@@ -142,17 +142,17 @@ export const LiveOpportunityCollision: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
                   <div className="p-3 sm:p-4 rounded-lg bg-slate-900/80 border border-slate-800">
                     <span className="text-[10px] sm:text-xs font-mono text-[#09daed] block mb-1">FOUND PILOT COHORT</span>
-                    <div className="text-white font-bold text-sm sm:text-base font-['Plus_Jakarta_Sans']">340+ Verified Alpha Testers</div>
+                    <div className="text-white font-bold text-sm sm:text-base font-sans">340+ Verified Alpha Testers</div>
                     <div className="text-slate-400 text-[10px] sm:text-xs mt-1 font-['Inter']">Ready to test early product builds immediately.</div>
                   </div>
                   <div className="p-3 sm:p-4 rounded-lg bg-slate-900/80 border border-slate-800">
                     <span className="text-[10px] sm:text-xs font-mono text-sky-400 block mb-1">FOUND SYNDICATE INVESTOR</span>
-                    <div className="text-white font-bold text-sm sm:text-base font-['Plus_Jakarta_Sans']">$250K Seed Match</div>
+                    <div className="text-white font-bold text-sm sm:text-base font-sans">$250K Seed Match</div>
                     <div className="text-slate-400 text-[10px] sm:text-xs mt-1 font-['Inter']">Matched with 2 domain-focused angel syndicates.</div>
                   </div>
                   <div className="p-3 sm:p-4 rounded-lg bg-slate-900/80 border border-slate-800">
                     <span className="text-[10px] sm:text-xs font-mono text-blue-400 block mb-1">FOUND CO-FOUNDER</span>
-                    <div className="text-white font-bold text-sm sm:text-base font-['Plus_Jakarta_Sans']">Lead AI Engineer</div>
+                    <div className="text-white font-bold text-sm sm:text-base font-sans">Lead AI Engineer</div>
                     <div className="text-slate-400 text-[10px] sm:text-xs mt-1 font-['Inter']">96% skill-gap match score looking for your exact vision.</div>
                   </div>
                 </div>
@@ -160,17 +160,17 @@ export const LiveOpportunityCollision: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
                   <div className="p-3 sm:p-4 rounded-lg bg-slate-900/80 border border-slate-800">
                     <span className="text-[10px] sm:text-xs font-mono text-[#09daed] block mb-1">HIGH-TRACTION STARTUP</span>
-                    <div className="text-white font-bold text-sm sm:text-base font-['Plus_Jakarta_Sans']">Aether Quantum AI</div>
+                    <div className="text-white font-bold text-sm sm:text-base font-sans">Aether Quantum AI</div>
                     <div className="text-slate-400 text-[10px] sm:text-xs mt-1 font-['Inter']">+140% weekly pilot user growth trajectory.</div>
                   </div>
                   <div className="p-3 sm:p-4 rounded-lg bg-slate-900/80 border border-slate-800">
                     <span className="text-[10px] sm:text-xs font-mono text-sky-400 block mb-1">DECK & METRICS DEEP-DIVE</span>
-                    <div className="text-white font-bold text-sm sm:text-base font-['Plus_Jakarta_Sans']">Live Data Escrow</div>
+                    <div className="text-white font-bold text-sm sm:text-base font-sans">Live Data Escrow</div>
                     <div className="text-slate-400 text-[10px] sm:text-xs mt-1 font-['Inter']">Full access to telemetry, session duration & retention.</div>
                   </div>
                   <div className="p-3 sm:p-4 rounded-lg bg-slate-900/80 border border-slate-800">
                     <span className="text-[10px] sm:text-xs font-mono text-blue-400 block mb-1">WARM FOUNDER ACCESS</span>
-                    <div className="text-white font-bold text-sm sm:text-base font-['Plus_Jakarta_Sans']">Direct Founder Chat</div>
+                    <div className="text-white font-bold text-sm sm:text-base font-sans">Direct Founder Chat</div>
                     <div className="text-slate-400 text-[10px] sm:text-xs mt-1 font-['Inter']">Instant invite to private project channel.</div>
                   </div>
                 </div>
@@ -185,7 +185,7 @@ export const LiveOpportunityCollision: React.FC = () => {
                       navigate('/space');
                     }
                   }}
-                  className="w-full sm:w-auto px-6 py-2.5 rounded-lg bg-[#09daed] hover:bg-[#08c8d9] text-black font-bold text-sm font-['Plus_Jakarta_Sans'] flex items-center justify-center gap-2 transition-colors shadow-[0_0_20px_rgba(9,218,237,0.3)] hover:scale-105"
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-lg bg-[#09daed] hover:bg-[#08c8d9] text-black font-bold text-sm font-sans flex items-center justify-center gap-2 transition-colors shadow-[0_0_20px_rgba(9,218,237,0.3)] hover:scale-105"
                 >
                   Enter The Ecosystem <ArrowRight className="w-4 h-4" />
                 </button>
