@@ -215,7 +215,12 @@ public class AudienceService {
         }
         if (request.feedbackText() != null && !request.feedbackText().isBlank()) {
             String newText = request.feedbackText().trim();
-            if (member.getFeedbackText() != null && !member.getFeedbackText().isBlank()) {
+            String source = (request.feedbackSource() != null && !request.feedbackSource().isBlank())
+                    ? request.feedbackSource()
+                    : "Form";
+            if ("Form".equalsIgnoreCase(source)) {
+                member.setFeedbackText(newText);
+            } else if (member.getFeedbackText() != null && !member.getFeedbackText().isBlank()) {
                 if (!member.getFeedbackText().contains(newText)) {
                     member.setFeedbackText(member.getFeedbackText() + "\n" + newText);
                 }
@@ -456,9 +461,18 @@ public class AudienceService {
     @Transactional(readOnly = true)
     public AudienceDTOs.InterestCheckResponse checkUserInterest(UUID projectId, String email) {
         return memberRepository.findByProjectIdAndEmail(projectId, email)
-                .filter(m -> m.getInterestedAt() != null)
-                .map(m -> new AudienceDTOs.InterestCheckResponse(true, m.getInterestTagLabel()))
-                .orElse(new AudienceDTOs.InterestCheckResponse(false, null));
+                .map(m -> new AudienceDTOs.InterestCheckResponse(
+                        m.getInterestedAt() != null || m.getInterestTagLabel() != null,
+                        m.getInterestTagLabel(),
+                        m.getInterestTagId(),
+                        m.getInterestOtherText(),
+                        m.getFeedbackText(),
+                        m.getFeedbackSubmittedAt() != null ? m.getFeedbackSubmittedAt().toString() : null,
+                        m.getOccupation(),
+                        m.getName(),
+                        m.getFeedbackText() != null || m.getFeedbackSubmittedAt() != null
+                ))
+                .orElse(new AudienceDTOs.InterestCheckResponse(false, null, null, null, null, null, null, null, false));
     }
 
     /**

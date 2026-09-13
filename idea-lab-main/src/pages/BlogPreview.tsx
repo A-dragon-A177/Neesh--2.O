@@ -228,14 +228,33 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
 
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [hasSubmittedFeedback, setHasSubmittedFeedback] = useState(false);
   const [interestModalOpen, setInterestModalOpen] = useState(false);
   const [selectedTag, setSelectedTag] = useState<{ id: string; label: string; priority: number } | null>(null);
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [otherInterestText, setOtherInterestText] = useState("");
   const [isSubmittingInterest, setIsSubmittingInterest] = useState(false);
   const [hasSubmittedInterest, setHasSubmittedInterest] = useState(false);
   const [justSubmitted, setJustSubmitted] = useState(false);
   const [isUpdateSubmission, setIsUpdateSubmission] = useState(false);
   const [neeshCount, setNeeshCount] = useState<number>(0);
+  const [userActivity, setUserActivity] = useState<{
+    alreadySubmitted?: boolean;
+    interested?: boolean;
+    tagLabel?: string | null;
+    interestTagLabel?: string | null;
+    tagId?: string | null;
+    interestTagId?: string | null;
+    tagPriority?: number | null;
+    otherText?: string | null;
+    interestOtherText?: string | null;
+    hasSubmittedFeedback?: boolean;
+    hasFeedback?: boolean;
+    feedbackText?: string | null;
+    feedbackSubmittedAt?: string | null;
+    name?: string | null;
+    occupation?: string | null;
+  } | null>(null);
 
   const fetchNeeshCount = useCallback(async () => {
     if (!id) return;
@@ -253,34 +272,157 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
     fetchNeeshCount();
   }, [fetchNeeshCount]);
 
-  // Check if logged-in user has already submitted interest
+  // Check if logged-in user has already submitted interest or feedback
   useEffect(() => {
     if (!id || !user?.email) return;
-    apiClient.get<{ alreadySubmitted: boolean; tagLabel: string | null }>(
-      `/api/public/projects/${id}/check-interest?email=${encodeURIComponent(user.email)}`,
-      { skipAuth: true }
-    ).then(res => {
-      if (res?.alreadySubmitted) {
-        setHasSubmittedInterest(true);
-        if (res.tagLabel && blogData?.interestTags) {
-          const match = blogData.interestTags.find(t => t.label === res.tagLabel);
-          if (match) {
-            setSelectedTag(match);
+
+    const emailKey = user.email.toLowerCase();
+
+    // 1. Fast-path: read from localStorage for instant restoration
+    try {
+      const cachedInterest = localStorage.getItem(`neesh_interest_${id}_${emailKey}`);
+      if (cachedInterest) {
+        const parsed = JSON.parse(cachedInterest);
+        if (parsed.tagId || parsed.tagLabel || parsed.otherText) {
+          setHasSubmittedInterest(true);
+          if (parsed.tagId === "other" || parsed.tagLabel === "Other") {
+            setSelectedTagId("other");
+            setSelectedTag(null);
+            if (parsed.otherText) setOtherInterestText(parsed.otherText);
+          } else if (parsed.tagId) {
+            setSelectedTagId(parsed.tagId);
           }
         }
       }
-    }).catch(() => {});
-  }, [id, user?.email, blogData?.interestTags]);
+
+      const cachedFeedback = localStorage.getItem(`neesh_feedback_${id}_${emailKey}`);
+      if (cachedFeedback) {
+        const parsedFb = JSON.parse(cachedFeedback);
+        if (parsedFb && typeof parsedFb === "object" && Object.keys(parsedFb).length > 0) {
+          setHasSubmittedFeedback(true);
+          setFeedbackValues(prev => ({ ...parsedFb, ...prev }));
+        }
+      }
+    } catch (e) {
+      // Ignore JSON parse errors
+    }
+
+    // 2. Fetch authoritative state from backend API
+    apiClient.get<any>(
+      `/api/public/projects/${id}/check-interest?email=${encodeURIComponent(user.email)}`,
+      { skipAuth: true }
+    ).then(res => {
+      if (!res) return;
+      setUserActivity(res);
+
+      const isInterested = Boolean(res.alreadySubmitted || res.interested);
+      if (isInterested) {
+        setHasSubmittedInterest(true);
+        const tagLabel = res.tagLabel || res.interestTagLabel;
+        const tagId = res.tagId || res.interestTagId;
+        const otherText = res.otherText || res.interestOtherText;
+
+        if (tagId === "other" || tagLabel === "Other" || (!tagId && !tagLabel && otherText)) {
+          setSelectedTagId("other");
+          setSelectedTag(null);
+          if (otherText) setOtherInterestText(otherText);
+        } else if (tagId) {
+          setSelectedTagId(tagId);
+          if (otherText) setOtherInterestText(otherText);
+        } else if (otherText) {
+          setOtherInterestText(otherText);
+        }
+      }
+
+      const hasFb = Boolean(res.hasSubmittedFeedback || res.hasFeedback || res.feedbackText);
+      if (hasFb) {
+        setHasSubmittedFeedback(true);
+        if (res.name) {
+          setFeedbackValues(prev => ({ ...prev, '__name__': prev['__name__'] || res.name }));
+        }
+        if (res.occupation) {
+          setFeedbackValues(prev => ({ ...prev, '__occupation__': prev['__occupation__'] || res.occupation }));
+        }
+        if (res.feedbackText) {
+          const lines = String(res.feedbackText).split('\n');
+          const restored: Record<string, any> = {};
+          lines.forEach(line => {
+            const colonIdx = line.indexOf(':');
+            if (colonIdx > 0) {
+              const label = line.substring(0, colonIdx).trim().toLowerCase();
+              const val = line.substring(colonIdx + 1).trim();
+              if (label.includes("rate") || label.includes("experience")) {
+                const starMatch = val.match(/\d+/);
+                restored['rating'] = starMatch ? starMatch[0] : val;
+              } else if (label.includes("comment") || label.includes("feedback") || label.includes("thought")) {
+                restored['comments'] = val;
+              }
+              restored[label] = val;
+            } else if (line.trim()) {
+              restored['comments'] = line.trim();
+            }
+          });
+          setFeedbackValues(prev => ({ ...restored, ...prev }));
+        }
+      }
+    }).catch(err => {
+      console.warn("Could not check user activity:", err);
+    });
+  }, [id, user?.email]);
+
+  // Synchronize selectedTag object once blogData.interestTags is loaded
+  useEffect(() => {
+    if (!blogData?.interestTags || blogData.interestTags.length === 0) return;
+
+    const tagLabel = userActivity?.tagLabel || userActivity?.interestTagLabel;
+    const tagId = userActivity?.tagId || selectedTagId;
+
+    if (tagId === "other" || tagLabel === "Other") {
+      setSelectedTagId("other");
+      setSelectedTag(null);
+      return;
+    }
+
+    if (tagId) {
+      const match = blogData.interestTags.find(t => t.id === tagId);
+      if (match) {
+        setSelectedTag(match);
+        setSelectedTagId(match.id);
+        return;
+      }
+    }
+
+    if (tagLabel) {
+      const match = blogData.interestTags.find(
+        t => t.label.trim().toLowerCase() === tagLabel.trim().toLowerCase()
+      );
+      if (match) {
+        setSelectedTag(match);
+        setSelectedTagId(match.id);
+      }
+    }
+  }, [blogData?.interestTags, userActivity, selectedTagId]);
 
   const handleInterestSubmit = async () => {
     if (!user) {
       setShowSignInGate(true);
       return;
     }
-    if (!selectedTag && !otherInterestText.trim()) {
+
+    const isOther = selectedTagId === "other";
+    if (!selectedTag && !isOther) {
       toast({
         title: "Selection required",
         description: "Please select an interest option or specify custom details.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isOther && !otherInterestText.trim()) {
+      toast({
+        title: "Details required",
+        description: "Please describe how you would like to be interested.",
         variant: "destructive",
       });
       return;
@@ -296,11 +438,20 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
       const res = await apiClient.post<{ alreadySubmitted?: boolean }>(`/api/public/projects/${id}/interest`, {
         name: displayName,
         email: userEmail,
-        tagId: selectedTag?.id || "other",
-        tagLabel: selectedTag ? selectedTag.label : "Other",
-        tagPriority: selectedTag ? selectedTag.priority : 99,
-        otherText: otherInterestText.trim() || undefined,
+        tagId: isOther ? "other" : (selectedTag?.id || "other"),
+        tagLabel: isOther ? "Other" : (selectedTag ? selectedTag.label : "Other"),
+        tagPriority: isOther ? 99 : (selectedTag ? selectedTag.priority : 99),
+        otherText: isOther ? otherInterestText.trim() : undefined,
       }, { skipAuth: true });
+
+      try {
+        localStorage.setItem(`neesh_interest_${id}_${userEmail.toLowerCase()}`, JSON.stringify({
+          tagId: isOther ? "other" : selectedTag?.id,
+          tagLabel: isOther ? "Other" : selectedTag?.label,
+          otherText: isOther ? otherInterestText.trim() : "",
+          submittedAt: new Date().toISOString()
+        }));
+      } catch (e) {}
 
       const isUpdate = Boolean(res?.alreadySubmitted || wasAlreadySubmitted);
       setIsUpdateSubmission(isUpdate);
@@ -445,7 +596,7 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
 
     setSubmittingFeedback(true);
     try {
-      await apiClient.post(`/api/public/projects/${id}/feedback`, {
+      const res = await apiClient.post<{ alreadySubmitted?: boolean }>(`/api/public/projects/${id}/feedback`, {
         name,
         email,
         occupation: occupation || undefined,
@@ -453,7 +604,18 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
         feedbackSource: 'Form',
       }, { skipAuth: true });
 
-      toast({ title: "Thank you! 🎉", description: "Your feedback has been submitted successfully." });
+      try {
+        localStorage.setItem(`neesh_feedback_${id}_${email.toLowerCase()}`, JSON.stringify(feedbackValues));
+      } catch (e) {}
+
+      const wasAlreadySubmitted = hasSubmittedFeedback || Boolean(res?.alreadySubmitted);
+      setHasSubmittedFeedback(true);
+      toast({
+        title: wasAlreadySubmitted ? "Feedback Updated! ✅" : "Thank you! 🎉",
+        description: wasAlreadySubmitted
+          ? "Your feedback answers have been updated successfully."
+          : "Your feedback has been submitted successfully."
+      });
       setFeedbackSubmitted(true);
       setTimeout(() => {
         setFeedbackSubmitted(false);
@@ -464,7 +626,7 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
     } finally {
       setSubmittingFeedback(false);
     }
-  }, [id, feedbackValues, submittingFeedback, user, authLoading, blogData?.sections]);
+  }, [id, feedbackValues, submittingFeedback, user, authLoading, blogData?.sections, hasSubmittedFeedback]);
 
   const heroRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -1409,6 +1571,11 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
                               <p className="text-muted-foreground">{section.feedbackDescription}</p>
                             )}
                           </div>
+                          {hasSubmittedFeedback && (
+                            <div className="p-3 rounded-xl bg-primary/10 border border-primary/30 text-primary text-xs font-semibold text-center">
+                              ✨ You have already submitted feedback for this project. You can review and update your answers below.
+                            </div>
+                          )}
                           <div className="space-y-6">
                             {/* If feedbackFields does NOT already include Name/Email/Role, show identity fields */}
                             {(!section.feedbackFields || section.feedbackFields.length === 0 || !section.feedbackFields.some(f => (f.label || "").toLowerCase().includes("name"))) && (
@@ -1671,6 +1838,8 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
                                   <Loader2 className="w-4 h-4 animate-spin" />
                                   Submitting...
                                 </>
+                              ) : hasSubmittedFeedback ? (
+                                "Update Feedback"
                               ) : (
                                 "Submit Feedback"
                               )}
@@ -1883,7 +2052,7 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
                     {/* Tags List */}
                     <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                       {(blogData?.interestTags || []).map((tag, idx) => {
-                        const isSelected = selectedTag?.id === tag.id;
+                        const isSelected = selectedTagId === tag.id || (selectedTag && selectedTag.id === tag.id);
                         const priority = idx + 1;
                         const isGold = priority === 1;
                         const isSilver = priority === 2 || priority === 3;
@@ -1894,6 +2063,7 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
                             type="button"
                             onClick={() => {
                               setSelectedTag(tag);
+                              setSelectedTagId(tag.id);
                               setOtherInterestText("");
                             }}
                             className={`w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center justify-between ${
@@ -1924,9 +2094,12 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
                       {/* "Other" Option */}
                       <button
                         type="button"
-                        onClick={() => setSelectedTag(null)}
+                        onClick={() => {
+                          setSelectedTag(null);
+                          setSelectedTagId("other");
+                        }}
                         className={`w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center justify-between ${
-                          selectedTag === null
+                          selectedTagId === "other"
                             ? "border-amber-500 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
                             : "border-border/60 hover:border-amber-500/40 bg-muted/20"
                         }`}
@@ -1937,12 +2110,12 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
                           </span>
                           <span className="font-semibold text-foreground text-sm">Other (Specify below)</span>
                         </div>
-                        {selectedTag === null && <Check className="w-5 h-5 text-amber-500 stroke-[3]" />}
+                        {selectedTagId === "other" && <Check className="w-5 h-5 text-amber-500 stroke-[3]" />}
                       </button>
                     </div>
 
                     {/* Other Text Box */}
-                    {selectedTag === null && (
+                    {selectedTagId === "other" && (
                       <div className="space-y-1.5 pt-1">
                         <label className="text-xs font-semibold text-foreground">
                           Describe how you would like to be interested:
@@ -1960,7 +2133,11 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
                     <div className="pt-3">
                       <Button
                         onClick={handleInterestSubmit}
-                        disabled={isSubmittingInterest || (!selectedTag && !otherInterestText.trim())}
+                        disabled={
+                          isSubmittingInterest ||
+                          (!selectedTag && selectedTagId !== "other") ||
+                          (selectedTagId === "other" && !otherInterestText.trim())
+                        }
                         className="w-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-slate-950 font-bold text-base py-6 rounded-2xl shadow-[0_0_20px_rgba(245,158,11,0.3)]"
                       >
                         {isSubmittingInterest ? (

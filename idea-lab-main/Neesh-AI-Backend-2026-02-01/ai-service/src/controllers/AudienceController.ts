@@ -96,7 +96,7 @@ export class AudienceController {
 
             const { data: existing, error: findError } = await supabase
                 .from('audience_members')
-                .select('id, feedback_text, occupation, engagement_score, name')
+                .select('*')
                 .eq('project_id', projectId)
                 .eq('email', resolvedEmail)
                 .maybeSingle();
@@ -107,7 +107,10 @@ export class AudienceController {
 
             if (existing) {
                 let updatedFeedbackText = rawText || null;
-                if (existing.feedback_text && rawText) {
+                if (rawSource === 'Form') {
+                    // When submitting form feedback, replace with latest user answers
+                    updatedFeedbackText = rawText || existing.feedback_text || null;
+                } else if (existing.feedback_text && rawText) {
                     if (!existing.feedback_text.includes(rawText)) {
                         updatedFeedbackText = `${existing.feedback_text}\n${rawText}`;
                     } else {
@@ -159,7 +162,7 @@ export class AudienceController {
                 }
             }
 
-            res.json({ success: true });
+            res.json({ success: true, alreadySubmitted: Boolean(existing?.feedback_submitted_at || existing?.feedback_text) });
         } catch (error) {
             console.error('[AudienceController] submitPublicFeedback error:', error);
             res.status(500).json({ error: 'Internal server error' });
@@ -199,6 +202,7 @@ export class AudienceController {
 
             const alreadySubmitted = Boolean(existing?.interested_at);
             let memberId = existing?.id;
+            const isPilot = (tagPriority === 1) || (tagLabel && String(tagLabel).toLowerCase().includes('pilot'));
 
             const updatePayload: any = {
                 name: resolvedName,
@@ -211,7 +215,8 @@ export class AudienceController {
                 interested_at: now,
                 last_interaction_at: now,
                 engagement_score: Math.max(existing?.engagement_score || 0, tagPriority === 1 ? 75 : 50),
-                confidence_score: Math.max(existing?.confidence_score || 0, 0.7)
+                confidence_score: Math.max(existing?.confidence_score || 0, 0.7),
+                ...(isPilot ? { in_pilot_cohort: true, pilot_enrolled_at: existing?.pilot_enrolled_at || now } : {})
             };
 
             if (existing) {
@@ -298,32 +303,77 @@ export class AudienceController {
             const email = (req.query.email as string)?.trim()?.toLowerCase();
 
             if (!email) {
-                return res.json({ interested: false, interestTagLabel: null });
+                return res.json({
+                    alreadySubmitted: false,
+                    interested: false,
+                    tagLabel: null,
+                    interestTagLabel: null,
+                    hasSubmittedFeedback: false,
+                    hasFeedback: false
+                });
             }
 
             const { data: member, error } = await supabase
                 .from('audience_members')
-                .select('interested_at, interest_tag_label')
+                .select('*')
                 .eq('project_id', projectId)
                 .eq('email', email)
                 .maybeSingle();
 
             if (error) {
                 console.error('[AudienceController] Error checking user interest:', error);
-                return res.json({ interested: false, interestTagLabel: null });
-            }
-
-            if (member && member.interested_at) {
                 return res.json({
-                    interested: true,
-                    interestTagLabel: member.interest_tag_label || null
+                    alreadySubmitted: false,
+                    interested: false,
+                    tagLabel: null,
+                    interestTagLabel: null,
+                    hasSubmittedFeedback: false,
+                    hasFeedback: false
                 });
             }
 
-            return res.json({ interested: false, interestTagLabel: null });
+            if (!member) {
+                return res.json({
+                    alreadySubmitted: false,
+                    interested: false,
+                    tagLabel: null,
+                    interestTagLabel: null,
+                    hasSubmittedFeedback: false,
+                    hasFeedback: false
+                });
+            }
+
+            const hasInterest = Boolean(member.interested_at || member.interest_tag_label || member.has_explicit_intent);
+            const hasFb = Boolean(member.feedback_text || member.feedback_submitted_at);
+
+            return res.json({
+                alreadySubmitted: hasInterest,
+                interested: hasInterest,
+                tagId: member.interest_tag_id || null,
+                interestTagId: member.interest_tag_id || null,
+                tagLabel: member.interest_tag_label || null,
+                interestTagLabel: member.interest_tag_label || null,
+                tagPriority: member.interest_tag_priority ?? null,
+                otherText: member.interest_other_text || null,
+                interestOtherText: member.interest_other_text || null,
+                hasSubmittedFeedback: hasFb,
+                hasFeedback: hasFb,
+                feedbackText: member.feedback_text || null,
+                feedbackSubmittedAt: member.feedback_submitted_at || null,
+                occupation: member.occupation || null,
+                name: member.name || null,
+                inPilotCohort: Boolean(member.in_pilot_cohort)
+            });
         } catch (error) {
             console.error('[AudienceController] checkUserInterest error:', error);
-            return res.json({ interested: false, interestTagLabel: null });
+            return res.json({
+                alreadySubmitted: false,
+                interested: false,
+                tagLabel: null,
+                interestTagLabel: null,
+                hasSubmittedFeedback: false,
+                hasFeedback: false
+            });
         }
     }
 

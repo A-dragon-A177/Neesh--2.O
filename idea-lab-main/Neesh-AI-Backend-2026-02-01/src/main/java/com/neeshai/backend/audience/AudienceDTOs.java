@@ -276,6 +276,13 @@ public class AudienceDTOs {
 
         public record InterestCheckResponse(
                         boolean alreadySubmitted,
-                        String tagLabel) {
+                        String tagLabel,
+                        String tagId,
+                        String otherText,
+                        String feedbackText,
+                        String feedbackSubmittedAt,
+                        String occupation,
+                        String name,
+                        boolean hasFeedback) {
         }
 }
