@@ -849,13 +849,34 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
             elevatorPitchUrl: pitchUrl,
             elevatorPitchThumbnail: pitchThumbnail,
             elevatorPitchDuration: pitchDuration,
-            earlyAccessPrice: project?.earlyAccessPrice ?? project?.early_access_price ?? null,
-            interestTags: blog?.interest_tags && blog.interest_tags.length > 0 ? blog.interest_tags : [
-              { id: "1", label: "Pilot Users", priority: 1, color: "#FFD700" },
-              { id: "2", label: "Investment", priority: 2, color: "#C0C0C0" },
-              { id: "3", label: "Crowdfunding", priority: 3, color: "#CD7F32" },
-              { id: "4", label: "Join Team", priority: 4, color: "#94A3B8" },
-            ],
+            interestTags: (() => {
+              const raw = blog?.interest_tags || (blog as any)?.interestTags;
+              let tagsList: any[] | null = null;
+              if (Array.isArray(raw) && raw.length > 0) {
+                tagsList = raw;
+              } else if (typeof raw === "string") {
+                try {
+                  const parsed = JSON.parse(raw);
+                  if (Array.isArray(parsed) && parsed.length > 0) tagsList = parsed;
+                } catch {
+                  tagsList = null;
+                }
+              }
+              if (tagsList && tagsList.length > 0) {
+                return tagsList.map((t: any, idx: number) => ({
+                  id: t?.id ? String(t.id) : String(idx + 1),
+                  label: typeof t === "string" ? t : (t?.label || t?.name || `Option ${idx + 1}`),
+                  priority: typeof t?.priority === "number" ? t.priority : idx + 1,
+                  color: t?.color,
+                }));
+              }
+              return [
+                { id: "1", label: "Pilot Users", priority: 1, color: "#FFD700" },
+                { id: "2", label: "Investment", priority: 2, color: "#C0C0C0" },
+                { id: "3", label: "Crowdfunding", priority: 3, color: "#CD7F32" },
+                { id: "4", label: "Join Team", priority: 4, color: "#94A3B8" },
+              ];
+            })(),
           });
 
           if (defaultView) {

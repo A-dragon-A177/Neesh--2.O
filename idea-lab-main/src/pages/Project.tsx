@@ -150,7 +150,7 @@ const Project = () => {
     { id: "3", label: "Crowdfunding", priority: 3, color: "#CD7F32" },
     { id: "4", label: "Join Team", priority: 4, color: "#94A3B8" },
   ]);
-  const [newTagInput, setNewTagInput] = useState("");
+  const [isSavingTags, setIsSavingTags] = useState(false);
 
   // Load project from database
   useEffect(() => {
@@ -174,8 +174,15 @@ const Project = () => {
     const loadBlog = async () => {
       if (!id || !project) return;
       const blog = await getBlog(id);
-      if (blog && blog.interest_tags && blog.interest_tags.length > 0) {
-        setInterestTags(blog.interest_tags);
+      const rawTags = blog?.interest_tags || (blog as any)?.interestTags;
+      if (rawTags && Array.isArray(rawTags) && rawTags.length > 0) {
+        const normalized = rawTags.map((t: any, i: number) => ({
+          id: t?.id ? String(t.id) : String(i + 1),
+          label: typeof t === "string" ? t : (t?.label || t?.name || `Tag ${i + 1}`),
+          priority: typeof t?.priority === "number" ? t.priority : i + 1,
+          color: t?.color,
+        }));
+        setInterestTags(normalized);
       }
 
       const loadedSections = mergeSectionsWithValidationAnswers({
@@ -190,6 +197,69 @@ const Project = () => {
     };
     loadBlog();
   }, [id, project?.id, project?.validation_answers, project?.industry]);
+
+  const handleSaveTags = async (updatedTags: Array<{ id: string; label: string; priority: number; color?: string }>) => {
+    setInterestTags(updatedTags);
+    if (!id) return;
+    setIsSavingTags(true);
+    try {
+      const introSection = sections.find(s => s.id === "1");
+      const contentSection = sections.find(s => s.id === "2");
+      const customSections = sections.filter(s => s.id !== "1" && s.id !== "2");
+
+      const customFields = customSections.map((s, index) => {
+        if (s.type === "feedback") {
+          return {
+            id: s.id,
+            type: "feedback",
+            title: s.feedbackTitle || s.title,
+            description: s.feedbackDescription || s.content,
+            fields: s.feedbackFields || [],
+            order: index,
+          };
+        }
+        if (s.type === "image") {
+          return {
+            id: s.id,
+            type: "image",
+            value: s.imageUrl || s.content || "",
+            order: index,
+          };
+        }
+        if (s.type === "video") {
+          return {
+            id: s.id,
+            type: "video",
+            value: s.videoUrl || s.content || "",
+            order: index,
+          };
+        }
+        return {
+          id: s.id,
+          type: s.type,
+          value: s.content,
+          order: index,
+          sectionTitle: s.sectionTitle || s.title,
+        };
+      });
+
+      const blogData = {
+        heading: project?.title,
+        cover_image_url: coverImage || undefined,
+        introduction: introSection?.content || "",
+        content: contentSection?.content || "",
+        custom_fields: customFields,
+        interest_tags: updatedTags,
+      };
+
+      await upsertBlog(id, blogData);
+    } catch (err) {
+      console.error("Failed to auto-save interest tags:", err);
+      toast.error("Failed to auto-save interest tags");
+    } finally {
+      setIsSavingTags(false);
+    }
+  };
 
   const handleSaveBlog = async () => {
     if (!id) return;
@@ -368,12 +438,18 @@ const Project = () => {
             </button>
             {activeTab === "blog" && (
               <>
-                <Link to={`/project/${id}/preview`}>
-                  <Button variant="outline" size="sm" className="gap-1 h-8 px-2 text-xs">
-                    <Eye className="w-3.5 h-3.5" />
-                    <span className="hidden xs:inline">Preview</span>
-                  </Button>
-                </Link>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 h-8 px-2 text-xs"
+                  onClick={async () => {
+                    await handleSaveBlog();
+                    navigate(`/project/${id}/preview`);
+                  }}
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span className="hidden xs:inline">Preview</span>
+                </Button>
                 <Button
                   size="sm"
                   className="h-8 px-3 text-xs"
@@ -440,16 +516,18 @@ const Project = () => {
           <div className="flex items-center gap-3">
             {activeTab === "blog" && (
               <>
-                <Link to={`/project/${id}/preview`}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2"
-                  >
-                    <Eye className="w-4 h-4" />
-                    Preview
-                  </Button>
-                </Link>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={async () => {
+                    await handleSaveBlog();
+                    navigate(`/project/${id}/preview`);
+                  }}
+                >
+                  <Eye className="w-4 h-4" />
+                  Preview
+                </Button>
                 <Button
                   size="sm"
                   onClick={handleSaveBlog}
@@ -599,6 +677,8 @@ const Project = () => {
               }}
               interestTags={interestTags}
               setInterestTags={setInterestTags}
+              onSaveTags={handleSaveTags}
+              isSavingTags={isSavingTags}
             />
           )}
 

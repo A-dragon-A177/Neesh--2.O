@@ -78,7 +78,14 @@ export const useBlogs = () => {
       introduction: backendData.introduction,
       content: backendData.content,
       custom_fields: backendData.customFields || [],
-      interest_tags: backendData.interestTags || [],
+      interest_tags: (() => {
+        const raw = backendData.interestTags || (backendData as any).interest_tags;
+        if (Array.isArray(raw)) return raw;
+        if (typeof raw === "string") {
+          try { return JSON.parse(raw); } catch (e) { return []; }
+        }
+        return [];
+      })(),
       chatbot_name: backendData.chatbotName || null,
       welcome_message: backendData.welcomeMessage || null,
       primary_color: backendData.primaryColor || null,

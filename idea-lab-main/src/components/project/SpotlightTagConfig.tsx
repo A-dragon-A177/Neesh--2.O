@@ -9,7 +9,10 @@ import {
   ChevronUp,
   ChevronDown,
   Check,
+  Save,
+  Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 
 export interface TagItem {
   id: string;
@@ -21,41 +24,146 @@ export interface TagItem {
 interface SpotlightTagConfigProps {
   interestTags: TagItem[];
   setInterestTags: (tags: TagItem[]) => void;
+  onSaveTags?: (tags: TagItem[]) => Promise<void> | void;
+  isSaving?: boolean;
 }
 
 export default function SpotlightTagConfig({
-  interestTags,
+  interestTags = [],
   setInterestTags,
+  onSaveTags,
+  isSaving = false,
 }: SpotlightTagConfigProps) {
   const [newTagInput, setNewTagInput] = useState("");
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
 
-  const handleAddTag = () => {
-    if (!newTagInput.trim()) return;
+  const handleAddTag = async () => {
+    const trimmed = newTagInput.trim();
+    if (!trimmed) {
+      toast.error("Please enter a tag name");
+      return;
+    }
+
+    const currentTags = Array.isArray(interestTags) ? interestTags : [];
+    const exists = currentTags.some(
+      (t) => (t.label || "").trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (exists) {
+      toast.error(`"${trimmed}" tag already exists`);
+      return;
+    }
+
     const newTag: TagItem = {
-      id: String(Date.now()),
-      label: newTagInput.trim(),
-      priority: interestTags.length + 1,
+      id: "tag-" + Date.now(),
+      label: trimmed,
+      priority: currentTags.length + 1,
     };
-    setInterestTags([...interestTags, newTag]);
+
+    const updated = [...currentTags, newTag];
+    setInterestTags(updated);
     setNewTagInput("");
+
+    if (onSaveTags) {
+      try {
+        await onSaveTags(updated);
+      } catch (e) {
+        console.error("Failed to auto-save added tag:", e);
+      }
+    } else {
+      toast.success(`Tag "${trimmed}" added!`);
+    }
+  };
+
+  const handleSaveEdit = async (idx: number) => {
+    const trimmed = editingName.trim();
+    if (!trimmed) {
+      setEditingTagId(null);
+      return;
+    }
+
+    const currentTags = Array.isArray(interestTags) ? [...interestTags] : [];
+    currentTags[idx] = { ...currentTags[idx], label: trimmed };
+    setInterestTags(currentTags);
+    setEditingTagId(null);
+
+    if (onSaveTags) {
+      try {
+        await onSaveTags(currentTags);
+      } catch (e) {
+        console.error("Failed to auto-save edited tag:", e);
+      }
+    } else {
+      toast.success("Tag updated!");
+    }
+  };
+
+  const handleMoveTag = async (idx: number, direction: "up" | "down") => {
+    const currentTags = Array.isArray(interestTags) ? [...interestTags] : [];
+    const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= currentTags.length) return;
+
+    const temp = currentTags[idx];
+    currentTags[idx] = currentTags[targetIdx];
+    currentTags[targetIdx] = temp;
+    const reordered = currentTags.map((t, i) => ({ ...t, priority: i + 1 }));
+    setInterestTags(reordered);
+
+    if (onSaveTags) {
+      try {
+        await onSaveTags(reordered);
+      } catch (e) {
+        console.error("Failed to auto-save reordered tags:", e);
+      }
+    }
+  };
+
+  const handleDeleteTag = async (idx: number) => {
+    const currentTags = Array.isArray(interestTags) ? [...interestTags] : [];
+    const filtered = currentTags.filter((_, i) => i !== idx);
+    const reordered = filtered.map((t, i) => ({ ...t, priority: i + 1 }));
+    setInterestTags(reordered);
+
+    if (onSaveTags) {
+      try {
+        await onSaveTags(reordered);
+      } catch (e) {
+        console.error("Failed to auto-save deleted tag:", e);
+      }
+    } else {
+      toast.success("Tag removed");
+    }
   };
 
   return (
     <div className="bg-card rounded-2xl border border-border/30 p-6 shadow-card space-y-6">
-      <div className="flex items-center justify-between border-b border-border/40 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
             <Users className="w-5 h-5 text-amber-500" />
           </div>
           <div>
-            <h3 className="font-display font-semibold text-lg">Audience Interest Tags</h3>
+            <h3 className="font-display font-semibold text-lg text-foreground">
+              Audience Interest Tags
+            </h3>
             <p className="text-sm text-muted-foreground">
               Define priority options visitors choose when expressing interest
             </p>
           </div>
         </div>
+        {onSaveTags && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onSaveTags(interestTags)}
+            disabled={isSaving}
+            className="gap-2 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 self-start sm:self-auto font-medium"
+          >
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            <span>Save Tags</span>
+          </Button>
+        )}
       </div>
 
       {/* Priority Legend */}
@@ -94,13 +202,23 @@ export default function SpotlightTagConfig({
       {/* Add New Tag */}
       <div className="flex gap-2">
         <Input
-          placeholder="Add custom interest tag (e.g. Early Access, Partner)..."
+          placeholder="Add custom interest tag (e.g. Early Access, Partner, Investor)..."
           value={newTagInput}
           onChange={(e) => setNewTagInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddTag())}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleAddTag();
+            }
+          }}
           className="h-10 text-sm bg-background"
         />
-        <Button onClick={handleAddTag} className="h-10 px-4 gap-1.5 shrink-0">
+        <Button
+          type="button"
+          onClick={handleAddTag}
+          disabled={!newTagInput.trim() || isSaving}
+          className="h-10 px-4 gap-1.5 shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+        >
           <Plus className="w-4 h-4" /> Add Tag
         </Button>
       </div>
@@ -152,25 +270,14 @@ export default function SpotlightTagConfig({
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
                               e.preventDefault();
-                              if (editingName.trim()) {
-                                const updated = [...interestTags];
-                                updated[idx] = { ...updated[idx], label: editingName.trim() };
-                                setInterestTags(updated);
-                              }
-                              setEditingTagId(null);
+                              handleSaveEdit(idx);
                             }
                           }}
                         />
                         <Button
+                          type="button"
                           size="sm"
-                          onClick={() => {
-                            if (editingName.trim()) {
-                              const updated = [...interestTags];
-                              updated[idx] = { ...updated[idx], label: editingName.trim() };
-                              setInterestTags(updated);
-                            }
-                            setEditingTagId(null);
-                          }}
+                          onClick={() => handleSaveEdit(idx)}
                           className="h-8 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg"
                         >
                           <Check className="w-4 h-4" />
@@ -191,60 +298,44 @@ export default function SpotlightTagConfig({
                   <div className="flex items-center gap-1 shrink-0">
                     {!isEditingThis && (
                       <Button
+                        type="button"
                         variant="ghost"
                         size="icon"
                         onClick={() => {
                           setEditingTagId(`tag-${tag.id || idx}`);
                           setEditingName(tag.label);
                         }}
-                        className="h-8 w-8 rounded-lg text-slate-500 hover:text-slate-900"
+                        className="h-8 w-8 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
                         title="Edit tag label"
                       >
                         <Pencil className="w-4 h-4" />
                       </Button>
                     )}
                     <Button
+                      type="button"
                       variant="ghost"
                       size="icon"
                       disabled={idx === 0}
-                      onClick={() => {
-                        if (idx === 0) return;
-                        const updated = [...interestTags];
-                        const temp = updated[idx];
-                        updated[idx] = updated[idx - 1];
-                        updated[idx - 1] = temp;
-                        const reordered = updated.map((t, i) => ({ ...t, priority: i + 1 }));
-                        setInterestTags(reordered);
-                      }}
+                      onClick={() => handleMoveTag(idx, "up")}
                       className="h-8 w-8 rounded-lg"
                     >
                       <ChevronUp className="w-4 h-4" />
                     </Button>
                     <Button
+                      type="button"
                       variant="ghost"
                       size="icon"
                       disabled={idx === interestTags.length - 1}
-                      onClick={() => {
-                        if (idx === interestTags.length - 1) return;
-                        const updated = [...interestTags];
-                        const temp = updated[idx];
-                        updated[idx] = updated[idx + 1];
-                        updated[idx + 1] = temp;
-                        const reordered = updated.map((t, i) => ({ ...t, priority: i + 1 }));
-                        setInterestTags(reordered);
-                      }}
+                      onClick={() => handleMoveTag(idx, "down")}
                       className="h-8 w-8 rounded-lg"
                     >
                       <ChevronDown className="w-4 h-4" />
                     </Button>
                     <Button
+                      type="button"
                       variant="ghost"
                       size="icon"
-                      onClick={() => {
-                        const filtered = interestTags.filter((_, i) => i !== idx);
-                        const reordered = filtered.map((t, i) => ({ ...t, priority: i + 1 }));
-                        setInterestTags(reordered);
-                      }}
+                      onClick={() => handleDeleteTag(idx)}
                       className="h-8 w-8 rounded-lg text-destructive hover:text-destructive"
                     >
                       <Trash2 className="w-4 h-4" />

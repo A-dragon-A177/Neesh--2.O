@@ -224,7 +224,7 @@ export class BlogController {
             const needsUpdate = !blog || JSON.stringify(currentFields) !== JSON.stringify(mergedFields);
 
             if (needsUpdate) {
-                const blogData = {
+                const blogData: any = {
                     project_id: projectId,
                     heading: blog?.heading || project.title || '',
                     cover_image_url: blog?.cover_image_url || '',
@@ -233,6 +233,9 @@ export class BlogController {
                     custom_fields: JSON.stringify(mergedFields),
                     updated_at: new Date().toISOString(),
                 };
+                if (blog?.interest_tags) {
+                    blogData.interest_tags = typeof blog.interest_tags === 'string' ? blog.interest_tags : JSON.stringify(blog.interest_tags);
+                }
 
                 if (blog) {
                     const { data: updated } = await supabase
@@ -384,7 +387,7 @@ export class BlogController {
                 const needsUpdate = !blog || JSON.stringify(currentFields) !== JSON.stringify(mergedFields);
 
                 if (needsUpdate) {
-                    const blogData = {
+                    const blogData: any = {
                         project_id: projectId,
                         heading: blog?.heading || project.title || '',
                         cover_image_url: blog?.cover_image_url || '',
@@ -393,6 +396,9 @@ export class BlogController {
                         custom_fields: JSON.stringify(mergedFields),
                         updated_at: new Date().toISOString(),
                     };
+                    if (blog?.interest_tags) {
+                        blogData.interest_tags = typeof blog.interest_tags === 'string' ? blog.interest_tags : JSON.stringify(blog.interest_tags);
+                    }
 
                     if (blog) {
                         const { data: updated } = await supabase

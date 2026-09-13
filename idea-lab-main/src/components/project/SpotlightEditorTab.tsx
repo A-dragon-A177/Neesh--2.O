@@ -58,6 +58,8 @@ interface SpotlightEditorTabProps {
   onSectionVideoUpload: (sectionId: string, file: File) => void;
   interestTags: TagItem[];
   setInterestTags: (tags: TagItem[]) => void;
+  onSaveTags?: (tags: TagItem[]) => Promise<void> | void;
+  isSavingTags?: boolean;
 }
 
 export default function SpotlightEditorTab({
@@ -73,6 +75,8 @@ export default function SpotlightEditorTab({
   onSectionVideoUpload,
   interestTags,
   setInterestTags,
+  onSaveTags,
+  isSavingTags,
 }: SpotlightEditorTabProps) {
   const addSection = (type: "text" | "image" | "video") => {
     const titleMap = {
@@ -376,6 +380,8 @@ export default function SpotlightEditorTab({
       <SpotlightTagConfig
         interestTags={interestTags}
         setInterestTags={setInterestTags}
+        onSaveTags={onSaveTags}
+        isSaving={isSavingTags}
       />
     </div>
   );
