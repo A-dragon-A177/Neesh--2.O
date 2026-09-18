@@ -558,26 +558,42 @@ export class AudienceController {
         try {
             const { projectId } = req.params;
 
+            const { data: project } = await supabase
+                .from('projects')
+                .select('pitch_view_count')
+                .eq('id', projectId)
+                .maybeSingle();
+
+            const rawPitchViews = project?.pitch_view_count ? Number(project.pitch_view_count) : 0;
+
             const { data: members } = await supabase
                 .from('audience_members')
-                .select('id, interested_at, feedback_text')
+                .select('id, interested_at, feedback_text, feedback_submitted_at')
                 .eq('project_id', projectId);
 
-            const interestClicks = (members || []).filter(m => Boolean(m.interested_at)).length;
-            const feedbackSubmissions = (members || []).filter(m => Boolean(m.feedback_text && m.feedback_text.trim())).length;
+            const memberList = members || [];
+            const interestClicks = memberList.filter(m => Boolean(m.interested_at)).length;
+            const feedbackSubmissions = memberList.filter(m => Boolean((m.feedback_text && m.feedback_text.trim()) || m.feedback_submitted_at)).length;
 
-            const memberIds = (members || []).map(m => m.id);
-            let chatbotInteractions = 0;
+            const memberIds = memberList.map(m => m.id);
+            let audQCount = 0;
             if (memberIds.length > 0) {
                 const { count } = await supabase
                     .from('audience_questions')
                     .select('*', { count: 'exact', head: true })
-                    .in('audience_member_id', memberIds);
-                chatbotInteractions = count || 0;
+                    .in('audience_id', memberIds);
+                audQCount = count || 0;
             }
 
-            const spotlightOpens = (members || []).length;
-            const pitchViews = Math.max(spotlightOpens, interestClicks + feedbackSubmissions);
+            const { data: clusters } = await supabase
+                .from('question_clusters')
+                .select('total_ask_count')
+                .eq('project_id', projectId);
+            const clusterQCount = (clusters || []).reduce((sum: number, c: any) => sum + (c.total_ask_count || 1), 0);
+
+            const chatbotInteractions = Math.max(audQCount, clusterQCount);
+            const spotlightOpens = Math.max(rawPitchViews, Math.max(memberList.length, chatbotInteractions));
+            const pitchViews = Math.max(rawPitchViews, spotlightOpens);
 
             return res.json({
                 pitchViews,
@@ -605,6 +621,31 @@ export class AudienceController {
                 conversionRate: 0,
                 history: []
             });
+        }
+    }
+
+    /**
+     * POST /api/public/projects/:projectId/record-pitch-view
+     */
+    async recordPitchView(req: Request, res: Response) {
+        try {
+            const { projectId } = req.params;
+            const { data: p } = await supabase
+                .from('projects')
+                .select('pitch_view_count')
+                .eq('id', projectId)
+                .maybeSingle();
+
+            const current = p?.pitch_view_count ? Number(p.pitch_view_count) : 0;
+            await supabase
+                .from('projects')
+                .update({ pitch_view_count: current + 1 })
+                .eq('id', projectId);
+
+            return res.json({ success: true, pitchViews: current + 1 });
+        } catch (error) {
+            console.error('[AudienceController] recordPitchView error:', error);
+            return res.status(500).json({ error: 'Failed to record pitch view' });
         }
     }
 }

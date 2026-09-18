@@ -122,7 +122,13 @@ const PitchCard = ({ pitch, isActive, onBlogOpen }: PitchCardProps) => {
       if (p !== undefined) {
         p.then(() => setPlaying(true)).catch(() => setPlaying(false));
       }
-      apiClient.post(`/api/public/projects/${pitch.projectId}/record-pitch-view`, {}, { skipAuth: true }).catch(() => {});
+      apiClient.post(`/api/public/projects/${pitch.projectId}/record-pitch-view`, {}, { skipAuth: true }).catch(() => {
+        supabase.from("projects" as any).select("pitch_view_count").eq("id", pitch.projectId).maybeSingle().then(({ data }) => {
+          if (data) {
+            supabase.from("projects" as any).update({ pitch_view_count: (Number(data.pitch_view_count) || 0) + 1 }).eq("id", pitch.projectId).then(() => {});
+          }
+        }).catch(() => {});
+      });
     } else {
       video.pause();
       setPlaying(false);

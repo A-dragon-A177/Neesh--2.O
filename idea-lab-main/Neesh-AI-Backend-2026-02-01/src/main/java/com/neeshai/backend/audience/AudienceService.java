@@ -491,6 +491,8 @@ public class AudienceService {
 
         int spotlightOpens = Math.max(pitchViews, Math.max(members.size(), (int) questionCount));
 
+        int totalPitchViews = Math.max(pitchViews, spotlightOpens);
+
         int chatbotInteractions = (int) questionCount;
 
         int interestClicks = (int) members.stream()
@@ -502,7 +504,7 @@ public class AudienceService {
                 .count();
 
         return new AudienceDTOs.SpotlightAnalyticsResponse(
-                pitchViews, spotlightOpens, chatbotInteractions, interestClicks, feedbackSubmissions);
+                totalPitchViews, spotlightOpens, chatbotInteractions, interestClicks, feedbackSubmissions);
     }
 
     /**

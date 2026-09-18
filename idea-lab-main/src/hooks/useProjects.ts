@@ -235,7 +235,7 @@ export const useProjects = () => {
         console.warn("[useProjects] Backend fetch failed or blocked by CORS, falling back to direct Supabase query:", backendErr);
         const { data: supaProjects, error: supaErr } = await supabase
           .from("projects" as any)
-          .select("*")
+          .select("*, audience_members(count), question_clusters(count)")
           .eq("owner_id", user.id)
           .eq("deleted", false)
           .order("created_at", { ascending: false });
@@ -244,33 +244,44 @@ export const useProjects = () => {
           throw supaErr;
         }
 
-        backendProjects = (supaProjects || []).map((p: any) => ({
-          id: p.id,
-          title: p.title || "Untitled Project",
-          slug: p.slug || p.id,
-          oneLineSummary: p.one_line_summary,
-          introduction: p.introduction,
-          description: p.description,
-          status: p.status || "DRAFT",
-          industry: p.industry,
-          startupStage: p.startup_stage,
-          validationAnswers: p.validation_answers,
-          validationReport: p.validation_report,
-          onboardingCompleted: p.onboarding_completed,
-          chatbotName: p.chatbot_name,
-          welcomeMessage: p.welcome_message,
-          primaryColor: p.primary_color,
-          botAvatarUrl: p.bot_avatar_url,
-          elevatorPitchUrl: p.elevator_pitch_url,
-          elevatorPitchThumbnail: p.elevator_pitch_thumbnail,
-          elevatorPitchDuration: p.elevator_pitch_duration,
-          earlyAccessPrice: p.early_access_price,
-          timerDeadline: p.timer_deadline,
-          stage3Deadline: p.stage3_deadline,
-          audienceViewCount: p.audience_view_count,
-          createdAt: p.created_at,
-          updatedAt: p.updated_at,
-        }));
+        backendProjects = (supaProjects || []).map((p: any) => {
+          const pitchViews = Number(p.pitch_view_count) || 0;
+          const membersCount = Array.isArray(p.audience_members) && p.audience_members[0]?.count != null
+            ? Number(p.audience_members[0].count)
+            : 0;
+          const questionsCount = Array.isArray(p.question_clusters) && p.question_clusters[0]?.count != null
+            ? Number(p.question_clusters[0].count)
+            : 0;
+          const totalAudienceViews = Math.max(pitchViews, membersCount, questionsCount);
+
+          return {
+            id: p.id,
+            title: p.title || "Untitled Project",
+            slug: p.slug || p.id,
+            oneLineSummary: p.one_line_summary,
+            introduction: p.introduction,
+            description: p.description,
+            status: p.status || "DRAFT",
+            industry: p.industry,
+            startupStage: p.startup_stage,
+            validationAnswers: p.validation_answers,
+            validationReport: p.validation_report,
+            onboardingCompleted: p.onboarding_completed,
+            chatbotName: p.chatbot_name,
+            welcomeMessage: p.welcome_message,
+            primaryColor: p.primary_color,
+            botAvatarUrl: p.bot_avatar_url,
+            elevatorPitchUrl: p.elevator_pitch_url,
+            elevatorPitchThumbnail: p.elevator_pitch_thumbnail,
+            elevatorPitchDuration: p.elevator_pitch_duration,
+            earlyAccessPrice: p.early_access_price,
+            timerDeadline: p.timer_deadline,
+            stage3Deadline: p.stage3_deadline,
+            audienceViewCount: totalAudienceViews,
+            createdAt: p.created_at,
+            updatedAt: p.updated_at,
+          };
+        });
       }
 
       // Filter out any soft-deleted projects so they are never displayed or queried
@@ -367,8 +378,56 @@ export const useProjects = () => {
       console.log("[useProjects] Got project:", backendProject);
       return transformProject(backendProject);
     } catch (err) {
-      console.error("[useProjects] Error fetching project:", err);
-      return null;
+      console.warn("[useProjects] Error fetching project from backend, trying Supabase:", err);
+      try {
+        const { data: supaP, error: supaErr } = await supabase
+          .from("projects" as any)
+          .select("*, audience_members(count), question_clusters(count)")
+          .eq("id", id)
+          .single();
+
+        if (supaErr || !supaP) return null;
+
+        const pitchViews = Number(supaP.pitch_view_count) || 0;
+        const membersCount = Array.isArray(supaP.audience_members) && supaP.audience_members[0]?.count != null
+          ? Number(supaP.audience_members[0].count)
+          : 0;
+        const questionsCount = Array.isArray(supaP.question_clusters) && supaP.question_clusters[0]?.count != null
+          ? Number(supaP.question_clusters[0].count)
+          : 0;
+        const totalAudienceViews = Math.max(pitchViews, membersCount, questionsCount);
+
+        return transformProject({
+          id: supaP.id,
+          title: supaP.title || "Untitled Project",
+          slug: supaP.slug || supaP.id,
+          oneLineSummary: supaP.one_line_summary,
+          introduction: supaP.introduction,
+          description: supaP.description,
+          status: supaP.status || "DRAFT",
+          industry: supaP.industry,
+          startupStage: supaP.startup_stage,
+          validationAnswers: supaP.validation_answers,
+          validationReport: supaP.validation_report,
+          onboardingCompleted: supaP.onboarding_completed,
+          chatbotName: supaP.chatbot_name,
+          welcomeMessage: supaP.welcome_message,
+          primaryColor: supaP.primary_color,
+          botAvatarUrl: supaP.bot_avatar_url,
+          elevatorPitchUrl: supaP.elevator_pitch_url,
+          elevatorPitchThumbnail: supaP.elevator_pitch_thumbnail,
+          elevatorPitchDuration: supaP.elevator_pitch_duration,
+          earlyAccessPrice: supaP.early_access_price,
+          timerDeadline: supaP.timer_deadline,
+          stage3Deadline: supaP.stage3_deadline,
+          audienceViewCount: totalAudienceViews,
+          createdAt: supaP.created_at,
+          updatedAt: supaP.updated_at,
+        });
+      } catch (fallbackErr) {
+        console.error("[useProjects] Supabase fallback failed for getProject:", fallbackErr);
+        return null;
+      }
     }
   };
 
@@ -380,8 +439,65 @@ export const useProjects = () => {
       console.log("[useProjects] Got public project:", backendProject);
       return transformProject(backendProject);
     } catch (err) {
-      console.error("[useProjects] Error fetching public project:", err);
-      return null;
+      console.warn("[useProjects] Error fetching public project, trying Supabase:", err);
+      try {
+        const query = supabase
+          .from("projects" as any)
+          .select("*, audience_members(count), question_clusters(count)");
+
+        // Try slug first, otherwise try id match
+        let { data: supaP } = await query.eq("slug", slug).maybeSingle();
+        if (!supaP) {
+          const res = await supabase
+            .from("projects" as any)
+            .select("*, audience_members(count), question_clusters(count)")
+            .eq("id", slug)
+            .maybeSingle();
+          supaP = res.data;
+        }
+
+        if (!supaP) return null;
+
+        const pitchViews = Number(supaP.pitch_view_count) || 0;
+        const membersCount = Array.isArray(supaP.audience_members) && supaP.audience_members[0]?.count != null
+          ? Number(supaP.audience_members[0].count)
+          : 0;
+        const questionsCount = Array.isArray(supaP.question_clusters) && supaP.question_clusters[0]?.count != null
+          ? Number(supaP.question_clusters[0].count)
+          : 0;
+        const totalAudienceViews = Math.max(pitchViews, membersCount, questionsCount);
+
+        return transformProject({
+          id: supaP.id,
+          title: supaP.title || "Untitled Project",
+          slug: supaP.slug || supaP.id,
+          oneLineSummary: supaP.one_line_summary,
+          introduction: supaP.introduction,
+          description: supaP.description,
+          status: supaP.status || "DRAFT",
+          industry: supaP.industry,
+          startupStage: supaP.startup_stage,
+          validationAnswers: supaP.validation_answers,
+          validationReport: supaP.validation_report,
+          onboardingCompleted: supaP.onboarding_completed,
+          chatbotName: supaP.chatbot_name,
+          welcomeMessage: supaP.welcome_message,
+          primaryColor: supaP.primary_color,
+          botAvatarUrl: supaP.bot_avatar_url,
+          elevatorPitchUrl: supaP.elevator_pitch_url,
+          elevatorPitchThumbnail: supaP.elevator_pitch_thumbnail,
+          elevatorPitchDuration: supaP.elevator_pitch_duration,
+          earlyAccessPrice: supaP.early_access_price,
+          timerDeadline: supaP.timer_deadline,
+          stage3Deadline: supaP.stage3_deadline,
+          audienceViewCount: totalAudienceViews,
+          createdAt: supaP.created_at,
+          updatedAt: supaP.updated_at,
+        });
+      } catch (fallbackErr) {
+        console.error("[useProjects] Supabase fallback failed for getPublicProject:", fallbackErr);
+        return null;
+      }
     }
   };
 

@@ -668,6 +668,42 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
     return () => clearTimeout(timer);
   }, [loading]);
 
+  // Automatic Spotlight & Pitch View Tracking (deduplicated per session)
+  useEffect(() => {
+    if (!id) return;
+    const viewKey = `viewed_spotlight_${id}`;
+    if (sessionStorage.getItem(viewKey)) return;
+    sessionStorage.setItem(viewKey, "true");
+
+    const resolvedId = id.includes("-") && id.length > 36 && id.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+      ? id.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)![0]
+      : id;
+
+    // 1. Fire view tracking to backend API
+    apiClient.post(`/api/public/projects/${resolvedId}/record-pitch-view`, {}, { skipAuth: true }).catch(() => {});
+
+    // 2. Direct Supabase increment as resilient guarantee
+    (async () => {
+      try {
+        const { data: p } = await supabase
+          .from("projects" as any)
+          .select("id, pitch_view_count")
+          .or(`id.eq.${resolvedId},slug.eq.${id}`)
+          .maybeSingle();
+
+        if (p?.id) {
+          const currentCount = Number(p.pitch_view_count) || 0;
+          await supabase
+            .from("projects" as any)
+            .update({ pitch_view_count: currentCount + 1 })
+            .eq("id", p.id);
+        }
+      } catch (err) {
+        console.warn("[BlogPreview] Direct view tracking failed:", err);
+      }
+    })();
+  }, [id]);
+
   // Fetch blog data from the database — only depends on `id`, NOT `coverImage`
   // coverImage from localStorage is used as a fallback at render time, not as a trigger.
   useEffect(() => {

@@ -549,18 +549,76 @@ const ProjectOverview = ({
   useEffect(() => {
     if (!projectId) return;
 
-    const fetchAnalytics = () => {
-      apiClient.get<{
-        pitchViews: number;
-        spotlightOpens: number;
-        chatbotInteractions: number;
-        interestClicks: number;
-        feedbackSubmissions: number;
-      }>(`/api/projects/${projectId}/spotlight-analytics`)
-        .then(res => {
-          if (res) setSpotlightAnalytics(res);
-        })
-        .catch(err => console.warn("[SpotlightAnalytics] fetch error:", err));
+    const fetchAnalytics = async () => {
+      try {
+        const res = await apiClient.get<{
+          pitchViews: number;
+          spotlightOpens: number;
+          chatbotInteractions: number;
+          interestClicks: number;
+          feedbackSubmissions: number;
+        }>(`/api/projects/${projectId}/spotlight-analytics`);
+        if (res && typeof res.pitchViews === "number") {
+          setSpotlightAnalytics(res);
+          return;
+        }
+      } catch (err) {
+        console.warn("[SpotlightAnalytics] Backend fetch failed, falling back to direct Supabase query:", err);
+      }
+
+      // Direct Supabase fallback calculation
+      try {
+        const { data: p } = await supabase
+          .from("projects" as any)
+          .select("pitch_view_count")
+          .eq("id", projectId)
+          .maybeSingle();
+        const rawPitchViews = p?.pitch_view_count ? Number(p.pitch_view_count) : 0;
+
+        const { data: members } = await supabase
+          .from("audience_members" as any)
+          .select("id, interested_at, feedback_text, feedback_submitted_at")
+          .eq("project_id", projectId);
+
+        const memberList = members || [];
+        const interestClicks = memberList.filter((m: any) => Boolean(m.interested_at)).length;
+        const feedbackSubmissions = memberList.filter((m: any) =>
+          Boolean((m.feedback_text && m.feedback_text.trim()) || m.feedback_submitted_at)
+        ).length;
+
+        const memberIds = memberList.map((m: any) => m.id);
+        let audQCount = 0;
+        if (memberIds.length > 0) {
+          const { count } = await supabase
+            .from("audience_questions" as any)
+            .select("*", { count: "exact", head: true })
+            .in("audience_id", memberIds);
+          audQCount = count || 0;
+        }
+
+        const { data: clusters } = await supabase
+          .from("question_clusters" as any)
+          .select("total_ask_count")
+          .eq("project_id", projectId);
+        const clusterQCount = (clusters || []).reduce(
+          (sum: number, c: any) => sum + (c.total_ask_count || 1),
+          0
+        );
+
+        const chatbotInteractions = Math.max(audQCount, clusterQCount);
+        const spotlightOpens = Math.max(rawPitchViews, Math.max(memberList.length, chatbotInteractions));
+        const pitchViews = Math.max(rawPitchViews, spotlightOpens);
+
+        setSpotlightAnalytics({
+          pitchViews,
+          spotlightOpens,
+          chatbotInteractions,
+          interestClicks,
+          feedbackSubmissions,
+        });
+      } catch (supaErr) {
+        console.error("[SpotlightAnalytics] Supabase fallback query error:", supaErr);
+      }
     };
 
     fetchAnalytics();
@@ -920,13 +978,12 @@ const ProjectOverview = ({
             nextSteps={aiSummary.nextSteps}
             validationStage={validationStage}
           />
-        </div>
         <div>
           <AudienceAcquisitionFunnel
-            visitors={audienceStats.totalMembers}
-            readers={Math.max(1, Math.round(audienceStats.totalMembers * 0.78))}
-            chatInteractions={totalQuestions}
-            feedbackCount={totalFeedback}
+            visitors={spotlightAnalytics?.spotlightOpens ?? audienceStats.totalMembers}
+            readers={Math.max(1, Math.round((spotlightAnalytics?.spotlightOpens ?? audienceStats.totalMembers) * 0.78))}
+            chatInteractions={spotlightAnalytics?.chatbotInteractions ?? totalQuestions}
+            feedbackCount={spotlightAnalytics?.feedbackSubmissions ?? totalFeedback}
           />
         </div>
       </div>

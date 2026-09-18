@@ -305,6 +305,7 @@ app.put('/api/audience/questions/:questionId/answer', (req, res) => audienceCont
 
 // Spotlight analytics endpoint (dynamic calculated from real audience interactions)
 app.get('/api/projects/:projectId/spotlight-analytics', (req, res) => audienceController.getSpotlightAnalytics(req, res));
+app.post('/api/public/projects/:projectId/record-pitch-view', (req, res) => audienceController.recordPitchView(req, res));
 
 // Links stub routes
 app.get('/api/projects/:projectId/links', (req, res) => {

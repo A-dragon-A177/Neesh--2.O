@@ -325,7 +325,13 @@ const PitchCard = ({
 
   useEffect(() => {
     if (isActive) {
-      apiClient.post(`/api/public/projects/${card.projectId}/record-pitch-view`, {}, { skipAuth: true }).catch(() => {});
+      apiClient.post(`/api/public/projects/${card.projectId}/record-pitch-view`, {}, { skipAuth: true }).catch(() => {
+        supabase.from("projects" as any).select("pitch_view_count").eq("id", card.projectId).maybeSingle().then(({ data }) => {
+          if (data) {
+            supabase.from("projects" as any).update({ pitch_view_count: (Number(data.pitch_view_count) || 0) + 1 }).eq("id", card.projectId).then(() => {});
+          }
+        }).catch(() => {});
+      });
     }
   }, [isActive, card.projectId]);
 
