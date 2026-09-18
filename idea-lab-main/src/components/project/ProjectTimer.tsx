@@ -84,18 +84,21 @@ export const ProjectTimer: React.FC<ProjectTimerProps> = ({
   className = "",
   onTimerExpired,
 }) => {
-  const isProjectClosed = isClosed || status?.toUpperCase() === "CLOSED";
-  const isStage3 = isStage3Active || status?.toUpperCase() === "STAGE3_ACTIVE";
-  const isLocked = status?.toUpperCase() === "LOCKED";
-  const meetsRequirements = goldCount >= 5 && silverCount >= 10 && bronzeCount >= 15;
-
-  // Choose appropriate deadline: stage3Deadline for Stage 3, otherwise regular Stage 2 deadline
-  const activeDeadline = isStage3 ? stage3Deadline : deadline;
-  const defaultHours = isStage3 ? 200 : 20;
+  const rawStage3 = isStage3Active || status?.toUpperCase() === "STAGE3_ACTIVE";
+  const activeDeadline = rawStage3 ? stage3Deadline : deadline;
+  const defaultHours = rawStage3 ? 200 : 20;
 
   const [timeLeft, setTimeLeft] = useState<TimeRemaining>(() =>
     calculateTimeRemaining(activeDeadline, createdAt, defaultHours)
   );
+
+  const meetsRequirements = goldCount >= 5 && silverCount >= 10 && bronzeCount >= 15;
+  const isStage3 = rawStage3;
+  const isStage3Expired = isStage3 && timeLeft.isExpired;
+  const isStage2Expired = !isStage3 && timeLeft.isExpired && !meetsRequirements;
+
+  const isProjectClosed = isClosed || status?.toUpperCase() === "CLOSED" || isStage3Expired;
+  const isLocked = status?.toUpperCase() === "LOCKED" || isStage2Expired;
 
   useEffect(() => {
     const current = calculateTimeRemaining(activeDeadline, createdAt, defaultHours);
@@ -298,10 +301,10 @@ export const ProjectTimer: React.FC<ProjectTimerProps> = ({
     }
     return (
       <div
-        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shadow-sm ${className}`}
+        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-500 border border-rose-500/20 shadow-sm ${className}`}
       >
-        <AlertCircle className="w-3.5 h-3.5" />
-        <span>Sprint Completed</span>
+        <Lock className="w-3.5 h-3.5" />
+        <span>Validation Locked</span>
       </div>
     );
   }

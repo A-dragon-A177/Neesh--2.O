@@ -642,8 +642,12 @@ const ProjectOverview = ({
 
   const validationStage = useMemo(() => computeValidationStage(totalInteractions), [totalInteractions]);
   const isStage3Active = projectData.status?.toUpperCase() === "STAGE3_ACTIVE";
-  const isClosed = projectData.status?.toUpperCase() === "CLOSED";
+  const isStage3Expired = Boolean(projectData.stage3Deadline && new Date(projectData.stage3Deadline).getTime() <= Date.now());
+  const isTimerExpired = Boolean(projectData.timerDeadline && new Date(projectData.timerDeadline).getTime() <= Date.now());
   const meetsSprintGoals = (buyersData?.goldCount || 0) >= 5 && (buyersData?.silverCount || 0) >= 10 && (buyersData?.bronzeCount || 0) >= 15;
+
+  const isClosed = projectData.status?.toUpperCase() === "CLOSED" || (isStage3Active && isStage3Expired);
+  const isLocked = projectData.status?.toUpperCase() === "LOCKED" || (!isStage3Active && !isClosed && isTimerExpired && !meetsSprintGoals);
   const healthScores = useMemo(
     () => computeHealthScores(totalFeedback, uniqueOccupations, totalQuestions, unansweredQuestions),
     [totalFeedback, uniqueOccupations, totalQuestions, unansweredQuestions]
@@ -978,6 +982,7 @@ const ProjectOverview = ({
             nextSteps={aiSummary.nextSteps}
             validationStage={validationStage}
           />
+        </div>
         <div>
           <AudienceAcquisitionFunnel
             visitors={spotlightAnalytics?.spotlightOpens ?? audienceStats.totalMembers}
@@ -1138,7 +1143,7 @@ const ProjectOverview = ({
                           deadline={projectData.timerDeadline}
                           createdAt={projectData.createdAt}
                           stage3Deadline={projectData.stage3Deadline}
-                          status={projectData.status}
+                          status={isLocked ? "LOCKED" : isClosed ? "CLOSED" : projectData.status}
                           goldCount={buyersData?.goldCount || 0}
                           silverCount={buyersData?.silverCount || 0}
                           bronzeCount={buyersData?.bronzeCount || 0}

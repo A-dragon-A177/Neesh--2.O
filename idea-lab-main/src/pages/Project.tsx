@@ -47,12 +47,46 @@ const Project = () => {
   const [searchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const { profile } = useProfile();
-  const { getProject, updateProject, deleteProject, unlockProject } = useProjects();
+  const { getProject, updateProject, deleteProject, unlockProject, lockProject, closeProject } = useProjects();
   const { getBlog, upsertBlog } = useBlogs();
   const { data: buyersData, refetch: refetchBuyers } = useValidatedBuyers(id);
 
   const [project, setProject] = useState<ProjectType | null>(null);
   const [projectLoading, setProjectLoading] = useState(true);
+
+  // Compute effective locked/closed states based on timer deadlines
+  const isStage3 = project?.status?.toUpperCase() === "STAGE3_ACTIVE";
+  const meetsRequirements = (buyersData?.goldCount || 0) >= 5 && (buyersData?.silverCount || 0) >= 10 && (buyersData?.bronzeCount || 0) >= 15;
+  const isTimerExpired = Boolean(project?.timer_deadline && new Date(project.timer_deadline).getTime() <= Date.now());
+  const isStage3Expired = Boolean(project?.stage3_deadline && new Date(project.stage3_deadline).getTime() <= Date.now());
+
+  const isEffectivelyClosed = project?.status?.toUpperCase() === "CLOSED" || (isStage3 && isStage3Expired);
+  const isEffectivelyLocked = project?.status?.toUpperCase() === "LOCKED" || (!isStage3 && !isEffectivelyClosed && isTimerExpired && !meetsRequirements);
+  const isAccessBlocked = isEffectivelyLocked || isEffectivelyClosed;
+
+  const handleTimerExpired = useCallback(async () => {
+    if (!project || !id) return;
+    const isStage3Proj = project.status?.toUpperCase() === "STAGE3_ACTIVE";
+    const passed = (buyersData?.goldCount || 0) >= 5 && (buyersData?.silverCount || 0) >= 10 && (buyersData?.bronzeCount || 0) >= 15;
+
+    if (isStage3Proj) {
+      setProject(prev => prev ? { ...prev, status: "CLOSED" } : null);
+      await closeProject(id);
+    } else if (!passed) {
+      setProject(prev => prev ? { ...prev, status: "LOCKED" } : null);
+      await lockProject(id);
+    }
+  }, [project, id, buyersData, closeProject, lockProject]);
+
+  useEffect(() => {
+    if (!project || !id) return;
+    if (isEffectivelyLocked && project.status?.toUpperCase() !== "LOCKED") {
+      lockProject(id);
+    } else if (isEffectivelyClosed && project.status?.toUpperCase() !== "CLOSED") {
+      closeProject(id);
+    }
+  }, [project?.status, id, isEffectivelyLocked, isEffectivelyClosed, lockProject, closeProject]);
+
   const [activeTab, setActiveTab] = useState<"overview" | "blog" | "knowledge" | "inbox" | "elevator-pitch" | "chatbot" | "audience">(() => {
     const tab = searchParams.get('tab');
     if (tab && ['overview', 'blog', 'knowledge', 'inbox', 'elevator-pitch', 'chatbot', 'audience'].includes(tab)) {
@@ -416,10 +450,11 @@ const Project = () => {
               deadline={project.timer_deadline}
               createdAt={project.created_at}
               stage3Deadline={project.stage3_deadline}
-              status={project.status}
+              status={isEffectivelyLocked ? "LOCKED" : isEffectivelyClosed ? "CLOSED" : project.status}
               goldCount={buyersData?.goldCount || 0}
               silverCount={buyersData?.silverCount || 0}
               bronzeCount={buyersData?.bronzeCount || 0}
+              onTimerExpired={handleTimerExpired}
               variant="compact"
             />
             <button
@@ -471,10 +506,11 @@ const Project = () => {
               deadline={project.timer_deadline}
               createdAt={project.created_at}
               stage3Deadline={project.stage3_deadline}
-              status={project.status}
+              status={isEffectivelyLocked ? "LOCKED" : isEffectivelyClosed ? "CLOSED" : project.status}
               goldCount={buyersData?.goldCount || 0}
               silverCount={buyersData?.silverCount || 0}
               bronzeCount={buyersData?.bronzeCount || 0}
+              onTimerExpired={handleTimerExpired}
               variant="header"
             />
             <Button
@@ -764,11 +800,11 @@ const Project = () => {
       />
 
       {/* Fullscreen blocking modal — portals to document.body, covers entire viewport */}
-      {(project.status?.toUpperCase() === "LOCKED" || project.status?.toUpperCase() === "CLOSED") && (
+      {isAccessBlocked && project && (
         <ProjectLockedOverlay
           projectId={id || ""}
           projectTitle={project.title}
-          isClosed={project.status?.toUpperCase() === "CLOSED"}
+          isClosed={isEffectivelyClosed}
           goldCount={buyersData?.goldCount || 0}
           silverCount={buyersData?.silverCount || 0}
           bronzeCount={buyersData?.bronzeCount || 0}

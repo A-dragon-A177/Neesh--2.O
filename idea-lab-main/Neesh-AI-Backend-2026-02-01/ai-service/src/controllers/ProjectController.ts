@@ -482,22 +482,25 @@ export class ProjectController {
                 return res.status(404).json({ error: 'Project not found' });
             }
 
-            if (project.status?.toUpperCase() === 'CLOSED') {
-                return res.status(403).json({
-                    error: 'Forbidden',
-                    message: 'This project is permanently CLOSED and cannot be reopened.'
-                });
-            }
+            const isStage3 = project.status?.toUpperCase() === 'CLOSED' || 
+                             project.status?.toUpperCase() === 'STAGE3_ACTIVE' || 
+                             Boolean(project.stage3_deadline);
 
-            // Grant a new 20-hour cycle upon unlock and restore status to DRAFT
-            const newDeadline = new Date(Date.now() + 20 * 60 * 60 * 1000).toISOString();
+            const updatePayload = isStage3
+                ? {
+                    status: 'STAGE3_ACTIVE',
+                    stage3_deadline: new Date(Date.now() + 200 * 60 * 60 * 1000).toISOString(),
+                    updated_at: new Date().toISOString()
+                }
+                : {
+                    status: 'DRAFT',
+                    timer_deadline: new Date(Date.now() + 20 * 60 * 60 * 1000).toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+
             const { data: updatedProject, error: updateError } = await supabase
                 .from('projects')
-                .update({
-                    status: 'DRAFT',
-                    timer_deadline: newDeadline,
-                    updated_at: new Date().toISOString()
-                })
+                .update(updatePayload)
                 .eq('id', id)
                 .select('*')
                 .single();
@@ -511,6 +514,32 @@ export class ProjectController {
             return res.json(this.transformPublicProject(updatedProject));
         } catch (error) {
             console.error('[ProjectController] unlockProject error:', error);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+
+    async lockProject(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            console.log('[ProjectController] Locking project:', id);
+
+            const { data: updatedProject, error: updateError } = await supabase
+                .from('projects')
+                .update({
+                    status: 'LOCKED',
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', id)
+                .select('*')
+                .single();
+
+            if (updateError || !updatedProject) {
+                return res.status(500).json({ error: 'Failed to lock project' });
+            }
+
+            return res.json(this.transformPublicProject(updatedProject));
+        } catch (error) {
+            console.error('[ProjectController] lockProject error:', error);
             return res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -570,6 +599,12 @@ export class ProjectController {
             if (isExpired && !meetsRequirements && currentStatus.toUpperCase() !== 'LOCKED' && currentStatus.toUpperCase() !== 'STAGE3_ACTIVE' && currentStatus.toUpperCase() !== 'CLOSED') {
                 currentStatus = 'LOCKED';
                 await supabase.from('projects').update({ status: 'LOCKED' }).eq('id', id);
+            }
+
+            // Auto-close Stage 3 project if 200-hour Pilot MVP timer has expired
+            if (currentStatus.toUpperCase() === 'STAGE3_ACTIVE' && project.stage3_deadline && now.getTime() > new Date(project.stage3_deadline).getTime()) {
+                currentStatus = 'CLOSED';
+                await supabase.from('projects').update({ status: 'CLOSED' }).eq('id', id);
             }
 
             const isStage3Active = currentStatus.toUpperCase() === 'STAGE3_ACTIVE';

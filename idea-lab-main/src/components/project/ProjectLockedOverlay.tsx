@@ -114,15 +114,15 @@ export const ProjectLockedOverlay: React.FC<ProjectLockedOverlayProps> = ({
             {/* Title and message */}
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 mb-1">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-300 bg-slate-800 px-3.5 py-1 rounded-full border border-slate-700">
-                  Stage 3 Concluded · Permanently Archived
+                <span className="text-xs font-bold uppercase tracking-wider text-purple-300 bg-purple-950/60 px-3.5 py-1 rounded-full border border-purple-800">
+                  Stage 3 Concluded · Pilot MVP Locked
                 </span>
               </div>
               <h2 className="text-xl sm:text-3xl font-display font-bold text-foreground">
-                {projectTitle} is Concluded & Closed
+                {projectTitle} Stage 3 is Currently Locked
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground max-w-lg mx-auto leading-relaxed font-sans">
-                The 200-hour Pilot MVP window for this project has officially ended. This project has completed its lifecycle on Neesh AI and is permanently archived in read-only mode. It cannot be reopened.
+                The 200-hour Pilot MVP sprint for this project has closed. To continue testing prototypes, engaging your pilot cohort, and viewing AI validation reports, unlock a fresh 200-hour window below.
               </p>
             </div>
 
@@ -166,21 +166,37 @@ export const ProjectLockedOverlay: React.FC<ProjectLockedOverlayProps> = ({
               </div>
             </div>
 
-            {/* Permanent Archive Notice */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-slate-900/40 border border-slate-700/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
-              <div className="space-y-0.5 w-full sm:w-auto">
-                <span className="text-sm font-bold text-foreground flex items-center justify-center sm:justify-start gap-2">
-                  <Lock className="w-4 h-4 text-slate-400" />
-                  Read-Only Archive Mode
-                </span>
+            {/* Free in Beta Banner for Stage 3 Unlock */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-purple-500/10 border border-purple-500/30 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+              <div className="space-y-1 w-full sm:w-auto">
+                <div className="flex items-center justify-center sm:justify-start gap-2">
+                  <BetaBadge variant="glow" type="beta" />
+                  <span className="text-sm font-bold text-foreground">Free during 2.0 Beta!</span>
+                </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  All feedback, blog sections, and audience questions remain accessible for reference.
+                  All Pro upgrades and project unlocks are 100% free while Neesh AI is in Beta.
                 </p>
               </div>
-              <div className="w-full sm:w-auto shrink-0 flex justify-center">
-                <span className="w-full sm:w-auto text-center text-xs font-bold px-4 py-2 rounded-xl bg-slate-800 text-slate-300 border border-slate-700 block sm:inline-block">
-                  Closed (No Re-open)
-                </span>
+              <div className="w-full sm:w-auto shrink-0">
+                <Button
+                  type="button"
+                  onClick={handleUnlockClick}
+                  disabled={isUnlocking}
+                  size="lg"
+                  className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold shadow-lg shadow-purple-600/25 px-6 py-2.5 rounded-xl gap-2 justify-center"
+                >
+                  {isUnlocking ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Unlocking Stage 3...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      <span>Unlock Stage 3 Window (200h) ⚡</span>
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
           </div>

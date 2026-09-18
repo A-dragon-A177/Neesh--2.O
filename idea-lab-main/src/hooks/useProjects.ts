@@ -120,36 +120,93 @@ export interface UpdateProjectInput {
   early_access_price?: number | null;
 }
 
+export const computeEffectiveProjectStatus = (
+  rawStatus?: string | null,
+  timerDeadline?: string | null,
+  stage3Deadline?: string | null
+): string => {
+  const current = (rawStatus || "DRAFT").toUpperCase();
+  const now = Date.now();
+
+  // If already in Stage 3 Pilot MVP
+  if (current === "STAGE3_ACTIVE") {
+    if (stage3Deadline && new Date(stage3Deadline).getTime() <= now) {
+      return "CLOSED";
+    }
+    return "STAGE3_ACTIVE";
+  }
+
+  // If already permanently closed/archived
+  if (current === "CLOSED") {
+    return "CLOSED";
+  }
+
+  // If explicitly locked
+  if (current === "LOCKED") {
+    return "LOCKED";
+  }
+
+  // If Stage 2 timer deadline has expired -> LOCKED!
+  if (timerDeadline && new Date(timerDeadline).getTime() <= now) {
+    return "LOCKED";
+  }
+
+  return current;
+};
+
 // Transform backend response to frontend format
-const transformProject = (backendProject: BackendProject): Project => ({
-  id: backendProject.id,
-  owner_id: "", // Not returned by backend, but not needed in frontend
-  title: backendProject.title,
-  slug: backendProject.slug,
-  one_line_summary: backendProject.oneLineSummary,
-  introduction: backendProject.introduction,
-  description: backendProject.description,
-  status: backendProject.status,
-  industry: backendProject.industry,
-  startup_stage: backendProject.startupStage,
-  validation_answers: backendProject.validationAnswers,
-  validation_report: backendProject.validationReport,
-  onboarding_completed: backendProject.onboardingCompleted || false,
-  chatbot_name: backendProject.chatbotName,
-  welcome_message: backendProject.welcomeMessage,
-  primary_color: backendProject.primaryColor,
-  bot_avatar_url: backendProject.botAvatarUrl,
-  elevator_pitch_url: backendProject.elevatorPitchUrl,
-  elevator_pitch_thumbnail: backendProject.elevatorPitchThumbnail,
-  elevator_pitch_duration: backendProject.elevatorPitchDuration,
-  early_access_price: backendProject.earlyAccessPrice,
-  timer_deadline: backendProject.timerDeadline || null,
-  stage3_deadline: backendProject.stage3Deadline || null,
-  audience_view_count: backendProject.audienceViewCount ?? 0,
-  deleted: false,
-  created_at: backendProject.createdAt,
-  updated_at: backendProject.updatedAt,
-});
+const transformProject = (backendProject: BackendProject): Project => {
+  const effectiveStatus = computeEffectiveProjectStatus(
+    backendProject.status,
+    backendProject.timerDeadline,
+    backendProject.stage3Deadline
+  );
+
+  // If status in database is outdated compared to effective status, sync in background
+  if (backendProject.id && effectiveStatus !== (backendProject.status || "DRAFT").toUpperCase()) {
+    supabase
+      .from("projects" as any)
+      .update({ status: effectiveStatus, updated_at: new Date().toISOString() })
+      .eq("id", backendProject.id)
+      .then(({ error }: any) => {
+        if (error) {
+          console.warn(`[useProjects] Background status sync to ${effectiveStatus} failed for ${backendProject.id}:`, error);
+        } else {
+          console.log(`[useProjects] Auto-synced status to ${effectiveStatus} for ${backendProject.id}`);
+        }
+      });
+  }
+
+  return {
+    id: backendProject.id,
+    owner_id: "", // Not returned by backend, but not needed in frontend
+    title: backendProject.title,
+    slug: backendProject.slug,
+    one_line_summary: backendProject.oneLineSummary,
+    introduction: backendProject.introduction,
+    description: backendProject.description,
+    status: effectiveStatus,
+    industry: backendProject.industry,
+    startup_stage: backendProject.startupStage,
+    validation_answers: backendProject.validationAnswers,
+    validation_report: backendProject.validationReport,
+    onboarding_completed: backendProject.onboardingCompleted || false,
+    chatbot_name: backendProject.chatbotName,
+    welcome_message: backendProject.welcomeMessage,
+    primary_color: backendProject.primaryColor,
+    bot_avatar_url: backendProject.botAvatarUrl,
+    elevator_pitch_url: backendProject.elevatorPitchUrl,
+    elevator_pitch_thumbnail: backendProject.elevatorPitchThumbnail,
+    elevator_pitch_duration: backendProject.elevatorPitchDuration,
+    early_access_price: backendProject.earlyAccessPrice,
+    timer_deadline: backendProject.timerDeadline || null,
+    stage3_deadline: backendProject.stage3Deadline || null,
+    audience_view_count: backendProject.audienceViewCount ?? 0,
+    deleted: false,
+    created_at: backendProject.createdAt,
+    updated_at: backendProject.updatedAt,
+  };
+};
 
 // Transform frontend input to backend format
 const transformCreateInput = (input: CreateProjectInput) => ({
@@ -504,19 +561,33 @@ export const useProjects = () => {
   const unlockProject = async (id: string): Promise<Project | null> => {
     try {
       console.log("[useProjects] Unlocking project:", id);
+      const existing = projects.find(p => p.id === id);
+      const isStage3Project =
+        existing?.status?.toUpperCase() === "CLOSED" ||
+        existing?.status?.toUpperCase() === "STAGE3_ACTIVE" ||
+        Boolean(existing?.stage3_deadline);
+
       let backendProject: BackendProject | null = null;
       try {
         backendProject = await apiClient.post<BackendProject>(`/api/projects/${id}/unlock`);
       } catch (backendErr) {
         console.warn("[useProjects] Backend unlock failed, updating directly via Supabase:", backendErr);
-        const newDeadline = new Date(Date.now() + 20 * 60 * 60 * 1000).toISOString();
+
+        const updatePayload = isStage3Project
+          ? {
+              status: "STAGE3_ACTIVE",
+              stage3_deadline: new Date(Date.now() + 200 * 60 * 60 * 1000).toISOString(),
+              updated_at: new Date().toISOString(),
+            }
+          : {
+              status: "DRAFT",
+              timer_deadline: new Date(Date.now() + 20 * 60 * 60 * 1000).toISOString(),
+              updated_at: new Date().toISOString(),
+            };
+
         const { data: supaProject, error: supaErr } = await supabase
           .from("projects" as any)
-          .update({
-            status: "DRAFT",
-            timer_deadline: newDeadline,
-            updated_at: new Date().toISOString()
-          })
+          .update(updatePayload)
           .eq("id", id)
           .select("*")
           .single();
@@ -524,17 +595,102 @@ export const useProjects = () => {
         if (supaErr || !supaProject) {
           throw backendErr || supaErr;
         }
-        backendProject = supaProject as any;
+
+        backendProject = {
+          id: supaProject.id,
+          title: supaProject.title,
+          slug: supaProject.slug,
+          oneLineSummary: supaProject.one_line_summary,
+          introduction: supaProject.introduction,
+          description: supaProject.description,
+          status: supaProject.status,
+          industry: supaProject.industry,
+          startupStage: supaProject.startup_stage,
+          validationAnswers: supaProject.validation_answers,
+          validationReport: supaProject.validation_report,
+          onboardingCompleted: supaProject.onboarding_completed,
+          chatbotName: supaProject.chatbot_name,
+          welcomeMessage: supaProject.welcome_message,
+          primaryColor: supaProject.primary_color,
+          botAvatarUrl: supaProject.bot_avatar_url,
+          elevatorPitchUrl: supaProject.elevator_pitch_url,
+          elevatorPitchThumbnail: supaProject.elevator_pitch_thumbnail,
+          elevatorPitchDuration: supaProject.elevator_pitch_duration,
+          earlyAccessPrice: supaProject.early_access_price,
+          timerDeadline: supaProject.timer_deadline,
+          stage3Deadline: supaProject.stage3_deadline,
+          audienceViewCount: supaProject.pitch_view_count,
+          createdAt: supaProject.created_at,
+          updatedAt: supaProject.updated_at,
+        };
       }
 
       const updated = transformProject(backendProject!);
-      setProjects(prev => prev.map(p => p.id === id ? updated : p));
-      toast.success("Project unlocked successfully! 🚀");
+      setProjects(prev => prev.map(p => (p.id === id ? updated : p)));
+      toast.success(
+        isStage3Project
+          ? "🎉 Stage 3 Pilot window unlocked! (Fresh 200-hour window granted)"
+          : "🎉 Project unlocked successfully! (Fresh 20-hour cycle granted)"
+      );
       return updated;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to unlock project";
       toast.error(message);
       console.error("[useProjects] Error unlocking project:", err);
+      return null;
+    }
+  };
+
+  const lockProject = async (id: string): Promise<Project | null> => {
+    try {
+      console.log("[useProjects] Locking project:", id);
+      const { data: supaProject, error: supaErr } = await supabase
+        .from("projects" as any)
+        .update({
+          status: "LOCKED",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .select("*")
+        .single();
+
+      if (supaErr || !supaProject) {
+        console.error("[useProjects] Error locking project in Supabase:", supaErr);
+        return null;
+      }
+
+      const updated = transformProject(supaProject as any);
+      setProjects(prev => prev.map(p => (p.id === id ? updated : p)));
+      return updated;
+    } catch (err) {
+      console.error("[useProjects] Error locking project:", err);
+      return null;
+    }
+  };
+
+  const closeProject = async (id: string): Promise<Project | null> => {
+    try {
+      console.log("[useProjects] Closing project:", id);
+      const { data: supaProject, error: supaErr } = await supabase
+        .from("projects" as any)
+        .update({
+          status: "CLOSED",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .select("*")
+        .single();
+
+      if (supaErr || !supaProject) {
+        console.error("[useProjects] Error closing project in Supabase:", supaErr);
+        return null;
+      }
+
+      const updated = transformProject(supaProject as any);
+      setProjects(prev => prev.map(p => (p.id === id ? updated : p)));
+      return updated;
+    } catch (err) {
+      console.error("[useProjects] Error closing project:", err);
       return null;
     }
   };
@@ -560,6 +716,8 @@ export const useProjects = () => {
     getProject,
     getPublicProject,
     unlockProject,
+    lockProject,
+    closeProject,
     getTimerStatus,
   };
 };

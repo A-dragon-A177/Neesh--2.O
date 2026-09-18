@@ -573,6 +573,18 @@ const Dashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProjects.map((project) => {
               const coverImage = getProjectCoverImage(project.id) || coverImages[project.id] || null;
+
+              const isStage3 = project.status?.toUpperCase() === "STAGE3_ACTIVE";
+              const isTimerExpired = Boolean(project.timer_deadline && new Date(project.timer_deadline).getTime() <= Date.now());
+              const isStage3Expired = Boolean(project.stage3_deadline && new Date(project.stage3_deadline).getTime() <= Date.now());
+
+              let effectiveStatus = (project.status || "draft").toLowerCase();
+              if (project.status?.toUpperCase() === "CLOSED" || (isStage3 && isStage3Expired)) {
+                effectiveStatus = "closed";
+              } else if (project.status?.toUpperCase() === "LOCKED" || (!isStage3 && isTimerExpired)) {
+                effectiveStatus = "locked";
+              }
+
               return (
                 <Link
                   key={project.id}
@@ -608,7 +620,7 @@ const Dashboard = () => {
                           deadline={project.timer_deadline}
                           stage3Deadline={project.stage3_deadline}
                           createdAt={project.created_at}
-                          status={project.status}
+                          status={effectiveStatus.toUpperCase()}
                           variant="compact"
                         />
                       </div>
@@ -638,8 +650,8 @@ const Dashboard = () => {
                             <p>Copy shareable link</p>
                           </TooltipContent>
                         </Tooltip>
-                        <span className={`text-xs font-semibold px-3 py-1.5 rounded-full capitalize backdrop-blur-sm ${statusStyles[project.status.toLowerCase() as keyof typeof statusStyles] || "status-draft"}`}>
-                          {project.status.toLowerCase()}
+                        <span className={`text-xs font-semibold px-3 py-1.5 rounded-full capitalize backdrop-blur-sm ${statusStyles[effectiveStatus as keyof typeof statusStyles] || "status-draft"}`}>
+                          {effectiveStatus}
                         </span>
                       </div>
                     </div>
