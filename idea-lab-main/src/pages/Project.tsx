@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { getSpotlightTitle } from "@/lib/spotlightTitles";
 import { mergeSectionsWithValidationAnswers } from "@/lib/spotlightSections";
