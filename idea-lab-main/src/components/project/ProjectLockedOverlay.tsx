@@ -91,7 +91,7 @@ export const ProjectLockedOverlay: React.FC<ProjectLockedOverlayProps> = ({
         ref={overlayRef}
         tabIndex={-1}
         onKeyDown={handleKeyDown}
-        className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 outline-none overflow-y-auto"
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 outline-none overflow-y-auto overflow-x-hidden"
         role="dialog"
         aria-modal="true"
         aria-label={`${projectTitle} is Concluded & Closed`}
@@ -100,10 +100,12 @@ export const ProjectLockedOverlay: React.FC<ProjectLockedOverlayProps> = ({
         <div className="absolute inset-0 bg-black/60 backdrop-blur-md" aria-hidden="true" />
 
         {/* Floating card */}
-        <div className="relative z-10 w-full max-w-2xl my-auto max-h-[90vh] overflow-y-auto p-4 sm:p-8 rounded-2xl sm:rounded-3xl bg-card/95 border-2 border-slate-700/50 backdrop-blur-xl shadow-2xl">
-          {/* Background ambient glow */}
-          <div className="absolute -top-24 -right-24 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-slate-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 w-full max-w-2xl my-auto max-h-[90vh] overflow-y-auto overflow-x-hidden custom-scrollbar p-4 sm:p-8 rounded-2xl sm:rounded-3xl bg-card/95 border-2 border-slate-700/50 backdrop-blur-xl shadow-2xl">
+          {/* Background ambient glow - strictly clipped to card boundaries to avoid unwanted scrollbars */}
+          <div className="absolute inset-0 overflow-hidden rounded-2xl sm:rounded-3xl pointer-events-none">
+            <div className="absolute -top-24 -right-24 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl" />
+            <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-slate-500/10 rounded-full blur-3xl" />
+          </div>
 
           <div className="relative z-10 max-w-2xl mx-auto text-center space-y-6">
             {/* Header Icon */}
@@ -212,7 +214,7 @@ export const ProjectLockedOverlay: React.FC<ProjectLockedOverlayProps> = ({
       ref={overlayRef}
       tabIndex={-1}
       onKeyDown={handleKeyDown}
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 outline-none overflow-y-auto"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 outline-none overflow-y-auto overflow-x-hidden"
       role="dialog"
       aria-modal="true"
       aria-label={`${projectTitle} is Currently Locked`}
@@ -221,10 +223,12 @@ export const ProjectLockedOverlay: React.FC<ProjectLockedOverlayProps> = ({
       <div className="absolute inset-0 bg-black/60 backdrop-blur-md" aria-hidden="true" />
 
       {/* Floating card */}
-      <div className="relative z-10 w-full max-w-2xl my-auto max-h-[90vh] overflow-y-auto p-4 sm:p-8 rounded-2xl sm:rounded-3xl bg-card/95 border-2 border-rose-500/30 backdrop-blur-xl shadow-2xl">
-        {/* Background ambient glow */}
-        <div className="absolute -top-24 -right-24 w-72 h-72 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="relative z-10 w-full max-w-2xl my-auto max-h-[90vh] overflow-y-auto overflow-x-hidden custom-scrollbar p-4 sm:p-8 rounded-2xl sm:rounded-3xl bg-card/95 border-2 border-rose-500/30 backdrop-blur-xl shadow-2xl">
+        {/* Background ambient glow - strictly clipped to card boundaries to avoid unwanted scrollbars */}
+        <div className="absolute inset-0 overflow-hidden rounded-2xl sm:rounded-3xl pointer-events-none">
+          <div className="absolute -top-24 -right-24 w-72 h-72 bg-rose-500/10 rounded-full blur-3xl" />
+          <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl" />
+        </div>
 
         <div className="relative z-10 max-w-2xl mx-auto text-center space-y-6">
           {/* Header Icon */}

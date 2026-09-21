@@ -17,7 +17,14 @@ interface UpdateProjectRequest extends CreateProjectRequest {
 
 export class ProjectController {
 
-    private transformPublicProject(project: any, user?: any, blog?: any) {
+    private transformPublicProject(project: any, user?: any, blog?: any, opts?: { membersCount?: number; questionsCount?: number }) {
+        // Compute audience view count from pitch_view_count (actual DB column)
+        // plus audience_members count and question_clusters count for a meaningful total
+        const pitchViews = Number(project.pitch_view_count) || 0;
+        const membersCount = opts?.membersCount ?? 0;
+        const questionsCount = opts?.questionsCount ?? 0;
+        const audienceViewCount = Math.max(pitchViews, membersCount, questionsCount);
+
         return {
             id: project.id,
             title: project.title,
@@ -54,7 +61,9 @@ export class ProjectController {
             early_access_price: project.early_access_price ? Number(project.early_access_price) : null,
             timerDeadline: project.timer_deadline || null,
             timer_deadline: project.timer_deadline || null,
-            audienceViewCount: project.audience_view_count || 0,
+            stage3Deadline: project.stage3_deadline || null,
+            stage3_deadline: project.stage3_deadline || null,
+            audienceViewCount: audienceViewCount,
             coverImageUrl: blog?.cover_image_url || null,
             ownerId: project.owner_id,
             owner_id: project.owner_id,
@@ -73,7 +82,7 @@ export class ProjectController {
 
             const { data: projects, error } = await supabase
                 .from('projects')
-                .select('*')
+                .select('*, audience_members(count), question_clusters(count)')
                 .eq('owner_id', req.user?.id)
                 .eq('deleted', false)
                 .order('created_at', { ascending: false });
@@ -85,8 +94,16 @@ export class ProjectController {
 
             console.log('[ProjectController] Retrieved projects:', projects?.length || 0);
 
-            // Transform to frontend format with full field preservation
-            const transformedProjects = (projects || []).map(project => this.transformPublicProject(project));
+            // Transform to frontend format with audience view counts computed from related tables
+            const transformedProjects = (projects || []).map((project: any) => {
+                const membersCount = Array.isArray(project.audience_members) && project.audience_members[0]?.count != null
+                    ? Number(project.audience_members[0].count)
+                    : 0;
+                const questionsCount = Array.isArray(project.question_clusters) && project.question_clusters[0]?.count != null
+                    ? Number(project.question_clusters[0].count)
+                    : 0;
+                return this.transformPublicProject(project, undefined, undefined, { membersCount, questionsCount });
+            });
 
             res.json(transformedProjects);
         } catch (error) {
