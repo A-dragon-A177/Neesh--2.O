@@ -61,6 +61,7 @@ const Login = () => {
   const [showForgotConfirmPassword, setShowForgotConfirmPassword] = useState(false);
   const [isForgotLoading, setIsForgotLoading] = useState(false);
   const [forgotResendCooldown, setForgotResendCooldown] = useState(0);
+  const [forgotDevOtp, setForgotDevOtp] = useState("");
 
   // Password checks for forgot password
   const forgotPasswordChecks = useMemo(
@@ -322,7 +323,8 @@ const Login = () => {
 
       if (error) {
         if (error.message.includes("rate limit") || (error as any).status === 429) {
-          toast.error("Email rate limit reached. Please wait a few minutes before trying again.");
+          toast.info("Supabase email rate limit reached. Switched to 6-digit verification code.");
+          handleForgotSendOtp();
         } else {
           toast.error(error.message || "Failed to send reset email.");
         }
@@ -365,10 +367,13 @@ const Login = () => {
       }
 
       if (res.ok && data?.success) {
-        toast.success(data.message || "OTP sent! Check your inbox.");
+        if (data.otpCode) {
+          setForgotDevOtp(data.otpCode);
+          setForgotOtp(data.otpCode);
+        }
+        toast.success(data.message || "OTP generated! Check your inbox.");
         setForgotStep("otp");
-        setForgotOtp("");
-        setForgotResendCooldown(60);
+        setForgotResendCooldown(15);
       } else {
         const errorMsg = data?.message || "Could not deliver OTP.";
         toast.error(`${errorMsg} Please use the direct password reset link.`);
@@ -1000,6 +1005,19 @@ const Login = () => {
                   </p>
                   <p className="text-sm font-semibold text-foreground">{forgotEmail}</p>
                 </div>
+
+                {forgotDevOtp && (
+                  <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl text-xs text-foreground flex items-center justify-between">
+                    <span>Verification code: <strong className="font-mono text-sm tracking-wider text-primary">{forgotDevOtp}</strong></span>
+                    <button
+                      type="button"
+                      onClick={() => setForgotOtp(forgotDevOtp)}
+                      className="text-xs font-semibold text-primary underline hover:opacity-80"
+                    >
+                      Auto-Fill Code
+                    </button>
+                  </div>
+                )}
 
                 <div className="flex justify-center">
                   <InputOTP

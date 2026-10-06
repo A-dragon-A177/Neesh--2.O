@@ -268,6 +268,7 @@ const otpController = new OtpController();
 app.post('/api/public/otp/send', publicRateLimiter, (req, res) => otpController.sendOtp(req, res));
 app.post('/api/public/otp/verify', publicRateLimiter, (req, res) => otpController.verifyOtp(req, res));
 app.post('/api/public/otp/reset-password', publicRateLimiter, (req, res) => otpController.resetPassword(req, res));
+app.post('/api/public/auth/signup', publicRateLimiter, (req, res) => otpController.directSignup(req, res));
 
 // Notifications stub routes (not yet implemented)
 app.get('/api/projects/:projectId/notifications', (req, res) => {

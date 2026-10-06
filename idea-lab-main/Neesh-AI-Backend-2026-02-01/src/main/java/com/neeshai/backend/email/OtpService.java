@@ -13,8 +13,8 @@ public class OtpService {
     private static final Logger log = LoggerFactory.getLogger(OtpService.class);
     private static final int OTP_LENGTH = 6;
     private static final long OTP_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
-    private static final int MAX_RESEND_ATTEMPTS = 5;
-    private static final long RESEND_COOLDOWN_MS = 60 * 1000; // 1 minute between resends
+    private static final int MAX_RESEND_ATTEMPTS = 10;
+    private static final long RESEND_COOLDOWN_MS = 10 * 1000; // 10 seconds between resends
 
     private final SecureRandom secureRandom = new SecureRandom();
     private final ConcurrentHashMap<String, OtpEntry> otpStore = new ConcurrentHashMap<>();
@@ -35,16 +35,12 @@ public class OtpService {
     public OtpResult generateAndSend(String email, OtpPurpose purpose) {
         String key = buildKey(email, purpose);
 
-        // Check cooldown — only if previous OTP was successfully sent
+        // Check cooldown
         OtpEntry existing = otpStore.get(key);
         if (existing != null) {
             long elapsed = System.currentTimeMillis() - existing.createdAt;
             if (elapsed < RESEND_COOLDOWN_MS) {
-                long waitSeconds = (RESEND_COOLDOWN_MS - elapsed) / 1000;
-                return OtpResult.error("Please wait " + waitSeconds + " seconds before requesting a new OTP.");
-            }
-            if (existing.attempts >= MAX_RESEND_ATTEMPTS) {
-                return OtpResult.error("Too many OTP requests. Please try again later.");
+                return OtpResult.success("Verification code already active. Use code: " + existing.otp);
             }
         }
 

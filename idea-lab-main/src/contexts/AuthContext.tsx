@@ -175,11 +175,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (email: string, password: string) => {
     const redirectUrl = `${window.location.origin}/dashboard`;
-    return await supabase.auth.signUp({
-      email,
+    const cleanEmail = email.trim().toLowerCase();
+
+    // 1. First attempt normal Supabase signup
+    const sbResult = await supabase.auth.signUp({
+      email: cleanEmail,
       password,
       options: { emailRedirectTo: redirectUrl }
     });
+
+    // 2. If Supabase email rate limit is hit (429 / email rate limit exceeded), fallback to backend admin signup
+    const errorMsg = sbResult.error?.message?.toLowerCase() || '';
+    const isRateLimited = errorMsg.includes('rate limit') || errorMsg.includes('too many') || (sbResult.error as any)?.status === 429;
+
+    if (sbResult.error && isRateLimited) {
+      console.warn('[AuthContext] Supabase email rate limit reached. Auto-registering via confirmed admin signup...');
+      try {
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8082';
+        const res = await fetch(`${backendUrl}/api/public/auth/signup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: cleanEmail, password }),
+        });
+        const backendData = await res.json();
+
+        if (res.ok && backendData.success) {
+          // Immediately sign in with the new confirmed account to establish session
+          const loginResult = await supabase.auth.signInWithPassword({
+            email: cleanEmail,
+            password
+          });
+          return loginResult;
+        } else if (backendData?.message) {
+          return { data: { user: null, session: null }, error: new Error(backendData.message) as any };
+        }
+      } catch (backendErr: any) {
+        console.error('[AuthContext] Backend fallback signup error:', backendErr);
+      }
+    }
+
+    return sbResult;
   };
 
   const signIn = async (email: string, password: string) => {

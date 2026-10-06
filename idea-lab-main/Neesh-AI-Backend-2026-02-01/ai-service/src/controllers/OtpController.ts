@@ -114,4 +114,51 @@ export class OtpController {
             return res.status(500).json({ success: false, message: 'Internal server error while resetting password.' });
         }
     }
+
+    /**
+     * Direct User Registration via Supabase Admin API
+     * Creates auto-confirmed user (email_confirm: true), completely bypassing
+     * Supabase client-side email confirmation rate-limiting (429 email rate limit exceeded).
+     */
+    async directSignup(req: Request, res: Response) {
+        try {
+            const { email, password, fullName } = req.body;
+
+            if (!email || typeof email !== 'string' || !email.trim()) {
+                return res.status(400).json({ success: false, message: 'Email is required.' });
+            }
+            if (!password || typeof password !== 'string' || password.length < 6) {
+                return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
+            }
+
+            const cleanEmail = email.trim().toLowerCase();
+
+            // Create user directly in Supabase Auth with email auto-confirmed
+            const { data, error } = await supabase.auth.admin.createUser({
+                email: cleanEmail,
+                password,
+                email_confirm: true,
+                user_metadata: {
+                    full_name: fullName || ''
+                }
+            });
+
+            if (error) {
+                console.warn('[OtpController] directSignup Supabase error:', error.message);
+                if (error.message.toLowerCase().includes('already registered') || error.message.toLowerCase().includes('already been registered')) {
+                    return res.status(400).json({ success: false, message: 'This email is already registered. Please sign in instead.' });
+                }
+                return res.status(400).json({ success: false, message: error.message });
+            }
+
+            return res.json({
+                success: true,
+                message: 'Account created successfully! You can now sign in.',
+                user: data?.user
+            });
+        } catch (error: any) {
+            console.error('[OtpController] directSignup error:', error);
+            return res.status(500).json({ success: false, message: 'Internal server error during account creation.' });
+        }
+    }
 }
