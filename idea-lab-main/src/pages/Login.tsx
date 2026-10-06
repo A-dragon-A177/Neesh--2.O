@@ -1,7 +1,7 @@
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Eye, EyeOff, ArrowLeft, Check, X, Mail, ShieldCheck, KeyRound, RefreshCw } from "lucide-react";
+import { Loader2, Eye, EyeOff, ArrowLeft, Check, X, Mail, ShieldCheck, KeyRound, RefreshCw, Send } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { SeoHead } from "@/components/SeoHead";
+import { supabase } from "@/integrations/supabase/client";
 
 const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8082";
 
@@ -28,7 +29,7 @@ const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 60;
 const loginAttempts = new Map<string, { count: number; blockedUntil: number }>();
 
-type ForgotStep = "email" | "otp" | "password";
+type ForgotStep = "email" | "otp" | "password" | "link_sent";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -40,6 +41,14 @@ const Login = () => {
   const { signIn, signInWithGoogle, signInWithGithub, user, loading } = useAuth();
   const { adminLogin: setAdminSession } = useAdminAuth();
   const navigate = useNavigate();
+
+  // ─── Sign In Mode State ───
+  const [loginMode, setLoginMode] = useState<"password" | "otp">("password");
+  const [loginOtpSent, setLoginOtpSent] = useState(false);
+  const [loginOtpValue, setLoginOtpValue] = useState("");
+  const [loginOtpCooldown, setLoginOtpCooldown] = useState(0);
+  const [isSendingLoginOtp, setIsSendingLoginOtp] = useState(false);
+  const [isVerifyingLoginOtp, setIsVerifyingLoginOtp] = useState(false);
 
   // ─── Forgot Password State ───
   const [forgotOpen, setForgotOpen] = useState(false);
@@ -84,6 +93,18 @@ const Login = () => {
     return () => clearInterval(timer);
   }, [forgotResendCooldown]);
 
+  // Login OTP cooldown timer
+  useEffect(() => {
+    if (loginOtpCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setLoginOtpCooldown(prev => {
+        if (prev <= 1) { clearInterval(timer); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [loginOtpCooldown]);
+
   const startLockoutTimer = (until: number) => {
     if (lockoutTimerRef.current) clearInterval(lockoutTimerRef.current);
     const update = () => {
@@ -99,6 +120,15 @@ const Login = () => {
   };
 
   const [searchParams] = useSearchParams();
+  const isResetFlow = searchParams.get("reset") === "true" || (typeof window !== "undefined" && window.location.hash.includes("type=recovery"));
+
+  useEffect(() => {
+    if (isResetFlow) {
+      setForgotOpen(true);
+      setForgotStep("password");
+    }
+  }, [isResetFlow]);
+
   const getTargetRedirect = useCallback(() => {
     let target = "/dashboard";
     const fromQuery = searchParams.get("returnTo");
@@ -130,11 +160,11 @@ const Login = () => {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!loading && user) {
+    if (!loading && user && !isResetFlow) {
       const target = getTargetRedirect();
       navigate(target);
     }
-  }, [user, loading, navigate, getTargetRedirect]);
+  }, [user, loading, navigate, getTargetRedirect, isResetFlow]);
 
   // ─── Login Handler ───
   const handleSubmit = async (e: React.FormEvent) => {
@@ -212,7 +242,103 @@ const Login = () => {
     }
   };
 
-  // ─── Forgot Password: Send OTP ───
+  // ─── Sign In with Email OTP ───
+  const handleSendLoginOtp = useCallback(async () => {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+
+    setIsSendingLoginOtp(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+      });
+
+      if (error) {
+        if (error.message.includes("rate limit") || (error as any).status === 429) {
+          toast.error("Email rate limit exceeded. Please try password login or wait a few minutes.");
+        } else {
+          toast.error(error.message || "Failed to send login code.");
+        }
+      } else {
+        toast.success("Login code sent! Check your inbox.");
+        setLoginOtpSent(true);
+        setLoginOtpCooldown(60);
+      }
+    } catch (err: any) {
+      console.error("[Login] OTP send error:", err);
+      toast.error("Failed to send login code. Please try again.");
+    } finally {
+      setIsSendingLoginOtp(false);
+    }
+  }, [email]);
+
+  const handleVerifyLoginOtp = useCallback(async () => {
+    if (loginOtpValue.length !== 6) {
+      toast.error("Please enter the complete 6-digit code.");
+      return;
+    }
+
+    setIsVerifyingLoginOtp(true);
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: loginOtpValue,
+        type: "email",
+      });
+
+      if (error) {
+        toast.error(error.message || "Invalid or expired login code.");
+      } else if (data?.session) {
+        toast.success("Signed in successfully!");
+        const target = getTargetRedirect();
+        if (target.startsWith("http://") || target.startsWith("https://")) {
+          window.location.href = target;
+        } else {
+          navigate(target);
+        }
+      }
+    } catch (err: any) {
+      console.error("[Login] OTP verify error:", err);
+      toast.error("Verification failed. Please try again.");
+    } finally {
+      setIsVerifyingLoginOtp(false);
+    }
+  }, [email, loginOtpValue, getTargetRedirect, navigate]);
+
+  // ─── Forgot Password: Send Supabase Reset Link (Reliable default) ───
+  const handleForgotSendResetLink = useCallback(async () => {
+    if (!forgotEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(forgotEmail)) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+
+    setIsForgotLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
+        redirectTo: `${window.location.origin}/login?reset=true`,
+      });
+
+      if (error) {
+        if (error.message.includes("rate limit") || (error as any).status === 429) {
+          toast.error("Email rate limit reached. Please wait a few minutes before trying again.");
+        } else {
+          toast.error(error.message || "Failed to send reset email.");
+        }
+      } else {
+        toast.success("Password reset link sent! Check your inbox.");
+        setForgotStep("link_sent");
+      }
+    } catch (err: any) {
+      console.error("[ForgotPassword] Reset link error:", err);
+      toast.error("Failed to send reset link. Please try again.");
+    } finally {
+      setIsForgotLoading(false);
+    }
+  }, [forgotEmail]);
+
+  // ─── Forgot Password: Send 6-Digit OTP ───
   const handleForgotSendOtp = useCallback(async () => {
     if (!forgotEmail) {
       toast.error("Please enter your email address.");
@@ -228,7 +354,7 @@ const Login = () => {
       const res = await fetch(`${BASE_URL}/api/public/otp/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: forgotEmail, purpose: "FORGOT_PASSWORD" }),
+        body: JSON.stringify({ email: forgotEmail.trim(), purpose: "FORGOT_PASSWORD" }),
       });
       
       let data: any = null;
@@ -244,11 +370,12 @@ const Login = () => {
         setForgotOtp("");
         setForgotResendCooldown(60);
       } else {
-        toast.error(data?.message || (res.status === 404 ? "OTP service is temporarily unavailable. Please try again later." : "Failed to send OTP."));
+        const errorMsg = data?.message || "Could not deliver OTP.";
+        toast.error(`${errorMsg} Please use the direct password reset link.`);
       }
     } catch (err) {
       console.error("[ForgotPassword] OTP send error:", err);
-      toast.error("Failed to send OTP. Please try again.");
+      toast.error("Could not deliver OTP. Please use the direct password reset link.");
     } finally {
       setIsForgotLoading(false);
     }
@@ -266,7 +393,7 @@ const Login = () => {
       const res = await fetch(`${BASE_URL}/api/public/otp/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: forgotEmail, otp: forgotOtp, purpose: "FORGOT_PASSWORD" }),
+        body: JSON.stringify({ email: forgotEmail.trim(), otp: forgotOtp, purpose: "FORGOT_PASSWORD" }),
       });
 
       let data: any = null;
@@ -290,7 +417,7 @@ const Login = () => {
     }
   }, [forgotEmail, forgotOtp]);
 
-  // ─── Forgot Password: Change Password ───
+  // ─── Forgot Password: Change Password (OTP or Reset Link) ───
   const handleForgotChangePassword = useCallback(async () => {
     if (!allForgotPasswordChecksPassed) {
       toast.error("Please meet all password requirements.");
@@ -303,29 +430,43 @@ const Login = () => {
 
     setIsForgotLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/public/otp/reset-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: forgotEmail,
-          otp: forgotOtp,
-          newPassword: forgotNewPassword,
-        }),
-      });
+      // 1. If we have a verified OTP, try backend reset
+      if (forgotOtp && forgotOtp.length === 6 && forgotEmail) {
+        const res = await fetch(`${BASE_URL}/api/public/otp/reset-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: forgotEmail.trim(),
+            otp: forgotOtp,
+            newPassword: forgotNewPassword,
+          }),
+        });
 
-      let data: any = null;
-      try {
-        data = await res.json();
-      } catch {
-        // Not a JSON response
+        let data: any = null;
+        try {
+          data = await res.json();
+        } catch {}
+
+        if (res.ok && data?.success) {
+          toast.success("Password changed successfully! You can now sign in.");
+          setForgotOpen(false);
+          resetForgotState();
+          return;
+        }
       }
 
-      if (res.ok && data?.success) {
+      // 2. Fall back to Supabase updateUser (used for recovery links or sessions)
+      const { error } = await supabase.auth.updateUser({
+        password: forgotNewPassword,
+      });
+
+      if (error) {
+        toast.error(error.message || "Failed to change password. Please request a new reset link.");
+      } else {
         toast.success("Password changed successfully! You can now sign in.");
         setForgotOpen(false);
         resetForgotState();
-      } else {
-        toast.error(data?.message || "Failed to change password.");
+        navigate("/login", { replace: true });
       }
     } catch (err) {
       console.error("[ForgotPassword] Change password error:", err);
@@ -333,7 +474,7 @@ const Login = () => {
     } finally {
       setIsForgotLoading(false);
     }
-  }, [forgotEmail, forgotOtp, forgotNewPassword, forgotConfirmPassword, allForgotPasswordChecksPassed, passwordsMatch]);
+  }, [forgotEmail, forgotOtp, forgotNewPassword, allForgotPasswordChecksPassed, passwordsMatch, navigate]);
 
   const resetForgotState = () => {
     setForgotStep("email");
@@ -376,7 +517,7 @@ const Login = () => {
           </div>
 
           {/* Title */}
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <h1 className="font-display text-2xl font-bold text-foreground mb-2">
               Welcome Back
             </h1>
@@ -385,122 +526,297 @@ const Login = () => {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email */}
-            <div className="space-y-2">
+          {/* Mode Switcher: Password vs Email OTP */}
+          <div className="flex bg-muted/60 p-1 rounded-xl mb-6">
+            <button
+              type="button"
+              className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
+                loginMode === "password"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => setLoginMode("password")}
+            >
+              Password
+            </button>
+            <button
+              type="button"
+              className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
+                loginMode === "otp"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => setLoginMode("otp")}
+            >
+              Email OTP / Code
+            </button>
+          </div>
+
+          {loginMode === "otp" ? (
+            <div className="space-y-4">
               <Input
                 type="email"
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={isSubmitting}
+                disabled={isSendingLoginOtp || isVerifyingLoginOtp}
                 className="h-12 rounded-xl text-base"
               />
-            </div>
 
-            {/* Password */}
-            <div className="relative">
-              <Input
-                type={showPassword ? "text" : "password"}
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="pr-14 h-12 rounded-xl text-base"
-                disabled={isSubmitting}
-              />
-              <button
-                type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors rounded-lg"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
-            </div>
-
-            {/* Forgot password */}
-            <div className="text-right">
-              <button
-                type="button"
-                className="text-sm text-primary hover:underline font-medium"
-                onClick={() => {
-                  resetForgotState();
-                  setForgotOpen(true);
-                }}
-              >
-                Forgot password?
-              </button>
-            </div>
-
-            {/* Lockout warning */}
-            {lockoutRemaining > 0 && (
-              <div className="text-sm text-destructive text-center p-3 bg-destructive/10 rounded-xl">
-                Account temporarily locked. Try again in <strong>{lockoutRemaining}s</strong>
-              </div>
-            )}
-
-            {/* Submit button */}
-            <Button
-              type="submit"
-              className="w-full h-12 text-base rounded-xl"
-              size="lg"
-              disabled={isSubmitting || lockoutRemaining > 0}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Signing in...
-                </>
-              ) : lockoutRemaining > 0 ? (
-                `Locked (${lockoutRemaining}s)`
+              {!loginOtpSent ? (
+                <Button
+                  type="button"
+                  className="w-full h-12 text-base rounded-xl"
+                  size="lg"
+                  disabled={isSendingLoginOtp || !email}
+                  onClick={handleSendLoginOtp}
+                >
+                  {isSendingLoginOtp ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Sending Code...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-5 h-5" />
+                      Send Login Code
+                    </>
+                  )}
+                </Button>
               ) : (
-                "Sign In"
+                <div className="space-y-4 animate-slide-up">
+                  <div className="text-center space-y-1">
+                    <p className="text-xs text-muted-foreground">
+                      Enter the 6-digit code sent to
+                    </p>
+                    <p className="text-xs font-semibold text-foreground">{email}</p>
+                  </div>
+
+                  <div className="flex justify-center">
+                    <InputOTP
+                      maxLength={6}
+                      value={loginOtpValue}
+                      onChange={(value) => setLoginOtpValue(value)}
+                    >
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                      </InputOTPGroup>
+                      <span className="text-muted-foreground mx-1">-</span>
+                      <InputOTPGroup>
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+
+                  <Button
+                    type="button"
+                    className="w-full h-12 text-base rounded-xl"
+                    size="lg"
+                    disabled={isVerifyingLoginOtp || loginOtpValue.length !== 6}
+                    onClick={handleVerifyLoginOtp}
+                  >
+                    {isVerifyingLoginOtp ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Verifying...
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-5 h-5" />
+                        Verify & Sign In
+                      </>
+                    )}
+                  </Button>
+
+                  <div className="flex items-center justify-between text-xs">
+                    <button
+                      type="button"
+                      className="text-primary hover:underline font-medium disabled:opacity-50 flex items-center gap-1"
+                      disabled={loginOtpCooldown > 0 || isSendingLoginOtp}
+                      onClick={handleSendLoginOtp}
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      {loginOtpCooldown > 0 ? `Resend in ${loginOtpCooldown}s` : "Resend Code"}
+                    </button>
+                    <button
+                      type="button"
+                      className="text-muted-foreground hover:text-foreground hover:underline font-medium"
+                      onClick={() => {
+                        setLoginOtpSent(false);
+                        setLoginOtpValue("");
+                      }}
+                    >
+                      Change Email
+                    </button>
+                  </div>
+                </div>
               )}
-            </Button>
 
-            {/* Divider */}
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border" />
+              {/* Divider */}
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-4 text-muted-foreground">or continue with</span>
+                </div>
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-4 text-muted-foreground">or continue with</span>
+
+              {/* Social Sign Ins */}
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 rounded-xl text-sm font-semibold gap-2"
+                  disabled={isSendingLoginOtp || isVerifyingLoginOtp}
+                  onClick={() => signInWithGoogle(getTargetRedirect())}
+                >
+                  <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                  </svg>
+                  Google
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 rounded-xl text-sm font-semibold gap-2"
+                  disabled={isSendingLoginOtp || isVerifyingLoginOtp}
+                  onClick={() => signInWithGithub(getTargetRedirect())}
+                >
+                  <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
+                  </svg>
+                  GitHub
+                </Button>
               </div>
             </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Email */}
+              <div className="space-y-2">
+                <Input
+                  type="email"
+                  placeholder="Email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={isSubmitting}
+                  className="h-12 rounded-xl text-base"
+                />
+              </div>
 
-            {/* Social Sign Ins */}
-            <div className="grid grid-cols-2 gap-3">
+              {/* Password */}
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="pr-14 h-12 rounded-xl text-base"
+                  disabled={isSubmitting}
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors rounded-lg"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+
+              {/* Forgot password */}
+              <div className="text-right">
+                <button
+                  type="button"
+                  className="text-sm text-primary hover:underline font-medium"
+                  onClick={() => {
+                    resetForgotState();
+                    setForgotOpen(true);
+                  }}
+                >
+                  Forgot password?
+                </button>
+              </div>
+
+              {/* Lockout warning */}
+              {lockoutRemaining > 0 && (
+                <div className="text-sm text-destructive text-center p-3 bg-destructive/10 rounded-xl">
+                  Account temporarily locked. Try again in <strong>{lockoutRemaining}s</strong>
+                </div>
+              )}
+
+              {/* Submit button */}
               <Button
-                type="button"
-                variant="outline"
-                className="h-12 rounded-xl text-sm font-semibold gap-2"
-                disabled={isSubmitting}
-                onClick={() => signInWithGoogle(getTargetRedirect())}
+                type="submit"
+                className="w-full h-12 text-base rounded-xl"
+                size="lg"
+                disabled={isSubmitting || lockoutRemaining > 0}
               >
-                <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                </svg>
-                Google
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Signing in...
+                  </>
+                ) : lockoutRemaining > 0 ? (
+                  `Locked (${lockoutRemaining}s)`
+                ) : (
+                  "Sign In"
+                )}
               </Button>
 
-              <Button
-                type="button"
-                variant="outline"
-                className="h-12 rounded-xl text-sm font-semibold gap-2"
-                disabled={isSubmitting}
-                onClick={() => signInWithGithub(getTargetRedirect())}
-              >
-                <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
-                </svg>
-                GitHub
-              </Button>
-            </div>
-          </form>
+              {/* Divider */}
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-4 text-muted-foreground">or continue with</span>
+                </div>
+              </div>
+
+              {/* Social Sign Ins */}
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 rounded-xl text-sm font-semibold gap-2"
+                  disabled={isSubmitting}
+                  onClick={() => signInWithGoogle(getTargetRedirect())}
+                >
+                  <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                  </svg>
+                  Google
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 rounded-xl text-sm font-semibold gap-2"
+                  disabled={isSubmitting}
+                  onClick={() => signInWithGithub(getTargetRedirect())}
+                >
+                  <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
+                  </svg>
+                  GitHub
+                </Button>
+              </div>
+            </form>
+          )}
 
           {/* Signup link */}
           <p className="mt-8 text-center text-sm text-muted-foreground">
@@ -524,60 +840,64 @@ const Login = () => {
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-center">
               {forgotStep === "email" && "Reset Password"}
+              {forgotStep === "link_sent" && "Reset Link Sent"}
               {forgotStep === "otp" && "Verify OTP"}
               {forgotStep === "password" && "New Password"}
             </DialogTitle>
             <DialogDescription className="text-xs text-center text-muted-foreground">
-              {forgotStep === "email" && "Enter your registered email to receive a 6-digit verification code."}
+              {forgotStep === "email" && "Choose to receive a password reset link or a 6-digit verification code."}
+              {forgotStep === "link_sent" && "A secure password reset link has been dispatched to your email."}
               {forgotStep === "otp" && "Enter the 6-digit code sent to your email inbox."}
               {forgotStep === "password" && "Create a secure new password for your account."}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-5 pt-2">
-            {/* Step progress */}
-            <div className="flex items-center justify-center gap-1">
-              {([
-                { key: "email", label: "Email", icon: Mail },
-                { key: "otp", label: "Verify", icon: ShieldCheck },
-                { key: "password", label: "Reset", icon: KeyRound },
-              ] as const).map((s, i) => {
-                const Icon = s.icon;
-                const stepOrder = ["email", "otp", "password"] as const;
-                const currentIdx = stepOrder.indexOf(forgotStep);
-                const isActive = i === currentIdx;
-                const isCompleted = i < currentIdx;
-                return (
-                  <div key={s.key} className="flex items-center">
-                    <div
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 ${
-                        isActive
-                          ? "bg-primary/10 text-primary border border-primary/30"
-                          : isCompleted
-                          ? "bg-green-500/10 text-green-600 border border-green-500/30"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {isCompleted ? <Check className="w-3.5 h-3.5" /> : <Icon className="w-3.5 h-3.5" />}
-                      {s.label}
-                    </div>
-                    {i < 2 && (
+            {/* Step progress - show for email, otp, password */}
+            {forgotStep !== "link_sent" && (
+              <div className="flex items-center justify-center gap-1">
+                {([
+                  { key: "email", label: "Email", icon: Mail },
+                  { key: "otp", label: "Verify", icon: ShieldCheck },
+                  { key: "password", label: "Reset", icon: KeyRound },
+                ] as const).map((s, i) => {
+                  const Icon = s.icon;
+                  const stepOrder = ["email", "otp", "password"] as const;
+                  const currentIdx = stepOrder.indexOf(forgotStep as any);
+                  const isActive = i === currentIdx;
+                  const isCompleted = i < currentIdx;
+                  return (
+                    <div key={s.key} className="flex items-center">
                       <div
-                        className={`w-6 h-0.5 mx-1 rounded-full transition-colors duration-300 ${
-                          i < currentIdx ? "bg-green-500" : "bg-muted"
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 ${
+                          isActive
+                            ? "bg-primary/10 text-primary border border-primary/30"
+                            : isCompleted
+                            ? "bg-green-500/10 text-green-600 border border-green-500/30"
+                            : "bg-muted text-muted-foreground"
                         }`}
-                      />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                      >
+                        {isCompleted ? <Check className="w-3.5 h-3.5" /> : <Icon className="w-3.5 h-3.5" />}
+                        {s.label}
+                      </div>
+                      {i < 2 && (
+                        <div
+                          className={`w-6 h-0.5 mx-1 rounded-full transition-colors duration-300 ${
+                            i < currentIdx ? "bg-green-500" : "bg-muted"
+                          }`}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Step 1: Email */}
             {forgotStep === "email" && (
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground text-center">
-                  Enter your email address and we'll send you a verification code.
+                  Enter your email address to reset your password.
                 </p>
                 <Input
                   type="email"
@@ -587,25 +907,87 @@ const Login = () => {
                   disabled={isForgotLoading}
                   className="h-12 rounded-xl text-base"
                 />
+                
+                {/* Option A: Send Password Reset Link */}
                 <Button
                   type="button"
                   className="w-full h-12 rounded-xl"
                   size="lg"
                   disabled={isForgotLoading || !forgotEmail}
-                  onClick={handleForgotSendOtp}
+                  onClick={handleForgotSendResetLink}
                 >
                   {isForgotLoading ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Sending OTP...
+                      Sending Reset Link...
                     </>
                   ) : (
                     <>
-                      <Mail className="w-5 h-5" />
-                      Send OTP
+                      <Send className="w-5 h-5" />
+                      Send Password Reset Link
                     </>
                   )}
                 </Button>
+
+                {/* Option B: Send 6-Digit OTP */}
+                <div className="relative my-2">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-border/40" />
+                  </div>
+                  <div className="relative flex justify-center text-[10px] uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">or use 6-digit code</span>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-11 rounded-xl text-xs font-semibold gap-2"
+                  disabled={isForgotLoading || !forgotEmail}
+                  onClick={handleForgotSendOtp}
+                >
+                  <Mail className="w-4 h-4" />
+                  Send 6-Digit OTP Code
+                </Button>
+              </div>
+            )}
+
+            {/* Link Sent confirmation */}
+            {forgotStep === "link_sent" && (
+              <div className="space-y-4 text-center animate-slide-up">
+                <div className="mx-auto w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
+                  <Check className="w-6 h-6 text-green-600" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-base font-semibold text-foreground">
+                    Reset Link Dispatched!
+                  </h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    We've emailed a password reset link to <strong className="text-foreground">{forgotEmail}</strong>. Check your inbox and click the link to reset your password.
+                  </p>
+                </div>
+                <div className="pt-2 flex flex-col gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-11 rounded-xl text-xs"
+                    onClick={handleForgotSendResetLink}
+                    disabled={isForgotLoading}
+                  >
+                    Resend Link
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full h-11 rounded-xl text-xs"
+                    onClick={() => {
+                      setForgotOpen(false);
+                      resetForgotState();
+                    }}
+                  >
+                    Back to Sign In
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -678,6 +1060,18 @@ const Login = () => {
                     }}
                   >
                     Change Email
+                  </button>
+                </div>
+
+                {/* Reset link fallback */}
+                <div className="pt-2 text-center border-t border-border/40">
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline font-medium"
+                    onClick={handleForgotSendResetLink}
+                    disabled={isForgotLoading}
+                  >
+                    Didn't receive the OTP code? Send a password reset link instead →
                   </button>
                 </div>
               </div>

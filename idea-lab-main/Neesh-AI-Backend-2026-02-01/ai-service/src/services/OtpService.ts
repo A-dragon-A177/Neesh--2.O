@@ -66,8 +66,9 @@ class OtpService {
         // Send email via Resend if RESEND_API_KEY is configured
         const resendApiKey = process.env.RESEND_API_KEY;
         const resendFrom = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+        const isDummyKey = !resendApiKey || resendApiKey === 'dummy_resend_key' || resendApiKey.trim() === '';
 
-        if (resendApiKey) {
+        if (!isDummyKey) {
             try {
                 const subject = purpose === 'SIGNUP' ? 'Neesh AI - Verify Your Email' : 'Neesh AI - Password Reset OTP';
                 const htmlBody = `
@@ -103,16 +104,37 @@ class OtpService {
 
                 if (!res.ok) {
                     const errText = await res.text();
-                    console.warn(`[OtpService] Resend email rejected: ${errText}`);
+                    console.warn(`[OtpService] Resend email rejected (${res.status}): ${errText}`);
+                    return {
+                        success: false,
+                        message: `Email delivery failed (${res.status}). The email provider could not deliver to this address. Please use password sign up or reset link.`
+                    };
                 } else {
                     console.log(`[OtpService] OTP email successfully sent to ${email}`);
+                    return { success: true, message: `OTP sent to ${this.maskEmail(email)}` };
                 }
             } catch (err: any) {
                 console.error(`[OtpService] Error sending email via Resend:`, err?.message || err);
+                return {
+                    success: false,
+                    message: `Email delivery error: ${err?.message || 'Could not connect to email server'}`
+                };
             }
         }
 
-        return { success: true, message: `OTP sent to ${this.maskEmail(email)}` };
+        // If no email provider key is configured on server
+        console.warn(`[OtpService] RESEND_API_KEY is not configured or dummy on server. OTP generated: ${otp}`);
+        if (process.env.NODE_ENV !== 'production') {
+            return {
+                success: true,
+                message: `[Dev Mode] OTP: ${otp}. (Configure RESEND_API_KEY on production to send emails)`
+            };
+        }
+
+        return {
+            success: false,
+            message: 'Email service is not configured on the server. Please sign up directly with password or use Google/GitHub sign in.'
+        };
     }
 
     public verify(email: string, otp: string, purpose: OtpPurpose): OtpResult {

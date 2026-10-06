@@ -58,18 +58,18 @@ public class OtpService {
 
         log.info("Generated OTP for {} (purpose: {}): {}", email, purpose, otp);
 
-        // Attempt to send via email (best-effort)
+        // Attempt to send via email
         try {
             String subject = purpose == OtpPurpose.SIGNUP
                     ? "Neesh AI - Verify Your Email"
                     : "Neesh AI - Password Reset OTP";
             emailService.sendOtp(email, otp, subject);
             log.info("OTP email sent successfully to {}", email);
+            return OtpResult.success("OTP sent to " + maskEmail(email));
         } catch (Exception e) {
             log.warn("Could not send OTP email to {} (OTP is still valid and logged above): {}", email, e.getMessage());
+            return OtpResult.error("Email delivery failed. Please use direct password or Google/GitHub options.");
         }
-
-        return OtpResult.success("OTP sent to " + maskEmail(email));
     }
 
     /**

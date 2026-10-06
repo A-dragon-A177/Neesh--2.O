@@ -132,11 +132,12 @@ const Signup = () => {
         setOtpVerified(false);
         setResendCooldown(60);
       } else {
-        toast.error(data?.message || (res.status === 404 ? "OTP service is temporarily unavailable. Please try again or use Google/GitHub sign up." : "Failed to send OTP. Please try again."));
+        const errorMsg = data?.message || "Could not deliver OTP to this email.";
+        toast.error(`${errorMsg} You can continue with direct password signup.`);
       }
     } catch (err) {
       console.error("[Signup] OTP send error:", err);
-      toast.error("Failed to send OTP. Please try again.");
+      toast.error("Failed to send OTP. You can continue with direct password signup.");
     } finally {
       setIsSendingOtp(false);
     }
@@ -185,11 +186,6 @@ const Signup = () => {
 
     if (!email || !password) {
       toast.error("Please fill in all required fields");
-      return;
-    }
-
-    if (!otpVerified) {
-      toast.error("Please verify your email first.");
       return;
     }
 
@@ -371,9 +367,26 @@ const Signup = () => {
                 ) : (
                   <>
                     <Mail className="w-5 h-5" />
-                    Verify Email
+                    Verify Email & Continue
                   </>
                 )}
+              </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full h-10 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground -mt-2"
+                disabled={!email}
+                onClick={() => {
+                  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    toast.error("Please enter a valid email address first.");
+                    return;
+                  }
+                  setOtpVerified(false);
+                  setStep("password");
+                }}
+              >
+                Or continue with password signup directly →
               </Button>
 
               {/* Divider */}
@@ -498,6 +511,21 @@ const Signup = () => {
                   Change Email
                 </button>
               </div>
+
+              {/* Skip OTP fallback */}
+              <div className="pt-2 text-center border-t border-border/40">
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline font-medium"
+                  onClick={() => {
+                    setOtpVerified(false);
+                    setStep("password");
+                    toast.info("Continuing with password setup.");
+                  }}
+                >
+                  Didn't receive the OTP code? Skip & set password directly →
+                </button>
+              </div>
             </div>
           )}
 
@@ -505,10 +533,10 @@ const Signup = () => {
           {step === "password" && (
             <form onSubmit={handleSubmit} className="space-y-5 animate-slide-up">
               {/* Verified email indicator */}
-              <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/30 rounded-xl">
-                <Check className="w-4 h-4 text-green-600 shrink-0" />
-                <span className="text-sm text-green-700 dark:text-green-400 font-medium truncate">
-                  {email} — verified
+              <div className={`flex items-center gap-2 p-3 border rounded-xl ${otpVerified ? 'bg-green-500/10 border-green-500/30' : 'bg-primary/5 border-primary/20'}`}>
+                <Check className={`w-4 h-4 shrink-0 ${otpVerified ? 'text-green-600' : 'text-primary'}`} />
+                <span className="text-sm font-medium truncate text-foreground">
+                  {email} {otpVerified ? '— email verified' : ''}
                 </span>
               </div>
 
