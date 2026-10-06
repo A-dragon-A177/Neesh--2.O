@@ -24,10 +24,18 @@ public class UserController {
         if (principal == null) {
             return ResponseEntity.status(401).build();
         }
-        UUID userId = UUID.fromString(principal.getName());
-        return userService.getUser(userId)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        UUID userId;
+        try {
+            userId = UUID.fromString(principal.getName());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+        String email = null;
+        if (principal instanceof JwtAuthenticationToken jwtAuth) {
+            Jwt jwt = jwtAuth.getToken();
+            email = jwt.getClaimAsString("email");
+        }
+        return ResponseEntity.ok(userService.getUser(userId, email));
     }
 
     @PutMapping("/me")
@@ -36,10 +44,18 @@ public class UserController {
         if (principal == null) {
             return ResponseEntity.status(401).build();
         }
-        UUID userId = UUID.fromString(principal.getName());
-        return userService.updateProfile(userId, request)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        UUID userId;
+        try {
+            userId = UUID.fromString(principal.getName());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+        String email = null;
+        if (principal instanceof JwtAuthenticationToken jwtAuth) {
+            Jwt jwt = jwtAuth.getToken();
+            email = jwt.getClaimAsString("email");
+        }
+        return ResponseEntity.ok(userService.updateProfile(userId, email, request));
     }
 
     // ─── Subscription Endpoints ───

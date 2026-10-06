@@ -44,47 +44,89 @@ public class UserService {
     }
 
     @Transactional
-    public Optional<UserDTO> getUser(UUID id) {
-        return userRepository.findById(id).map(user -> {
-            boolean isPermanentPro = user.getEmail() != null && PERMANENT_PRO_EMAILS.contains(user.getEmail().toLowerCase());
-            if (isPermanentPro) {
-                if (!"PRO".equalsIgnoreCase(user.getSubscriptionPlan())) {
-                    user.setSubscriptionPlan("PRO");
-                    user.setSubscriptionExpiresAt(null);
-                    user = userRepository.save(user);
-                }
-            } else {
-                checkAndDowngradeIfExpired(user);
+    public User findOrCreateUserEntity(UUID userId, String email) {
+        Optional<User> byId = userRepository.findById(userId);
+        if (byId.isPresent()) {
+            return byId.get();
+        }
+
+        if (email != null && !email.isBlank()) {
+            Optional<User> byEmail = userRepository.findByEmail(email.trim().toLowerCase());
+            if (byEmail.isPresent()) {
+                return byEmail.get();
             }
-            return UserDTO.fromEntity(user);
-        });
+        }
+
+        User newUser = new User();
+        newUser.setId(userId);
+        String finalEmail = (email != null && !email.isBlank()) ? email.trim().toLowerCase() : (userId + "@user.local");
+        newUser.setEmail(finalEmail);
+        newUser.setName(finalEmail.contains("@") ? finalEmail.split("@")[0] : "Founder");
+        newUser.setStatus("ACTIVE");
+        newUser.setSubscriptionPlan("FREE");
+        newUser.setCreatedAt(ZonedDateTime.now());
+        newUser.setUpdatedAt(ZonedDateTime.now());
+        try {
+            return userRepository.save(newUser);
+        } catch (Exception e) {
+            log.warn("Direct save failed in findOrCreateUserEntity, reloading: {}", e.getMessage());
+            return userRepository.findById(userId)
+                    .or(() -> (email != null) ? userRepository.findByEmail(email.trim().toLowerCase()) : Optional.empty())
+                    .orElse(newUser);
+        }
+    }
+
+    @Transactional
+    public UserDTO getUser(UUID id, String email) {
+        User user = findOrCreateUserEntity(id, email);
+        boolean isPermanentPro = user.getEmail() != null && PERMANENT_PRO_EMAILS.contains(user.getEmail().toLowerCase());
+        if (isPermanentPro) {
+            if (!"PRO".equalsIgnoreCase(user.getSubscriptionPlan())) {
+                user.setSubscriptionPlan("PRO");
+                user.setSubscriptionExpiresAt(null);
+                user = userRepository.save(user);
+            }
+        } else {
+            checkAndDowngradeIfExpired(user);
+        }
+        return UserDTO.fromEntity(user);
+    }
+
+    @Transactional
+    public Optional<UserDTO> getUser(UUID id) {
+        return Optional.of(getUser(id, null));
+    }
+
+    @Transactional
+    public UserDTO updateProfile(UUID userId, String email, UpdateProfileRequest request) {
+        User user = findOrCreateUserEntity(userId, email);
+        if (request.name() != null) {
+            user.setName(request.name());
+        }
+        if (request.occupation() != null) {
+            user.setOccupation(request.occupation());
+        }
+        if (request.profileImageUrl() != null) {
+            user.setProfileImageUrl(request.profileImageUrl());
+        }
+        if (request.bio() != null) {
+            user.setBio(request.bio());
+        }
+        if (request.phone() != null) {
+            user.setPhone(request.phone());
+        }
+        if (request.location() != null) {
+            user.setLocation(request.location());
+        }
+        user.setUpdatedAt(ZonedDateTime.now());
+        User saved = userRepository.save(user);
+        log.info("Profile updated for user: {}", userId);
+        return UserDTO.fromEntity(saved);
     }
 
     @Transactional
     public Optional<UserDTO> updateProfile(UUID userId, UpdateProfileRequest request) {
-        return userRepository.findById(userId).map(user -> {
-            if (request.name() != null) {
-                user.setName(request.name());
-            }
-            if (request.occupation() != null) {
-                user.setOccupation(request.occupation());
-            }
-            if (request.profileImageUrl() != null) {
-                user.setProfileImageUrl(request.profileImageUrl());
-            }
-            if (request.bio() != null) {
-                user.setBio(request.bio());
-            }
-            if (request.phone() != null) {
-                user.setPhone(request.phone());
-            }
-            if (request.location() != null) {
-                user.setLocation(request.location());
-            }
-            User saved = userRepository.save(user);
-            log.info("Profile updated for user: {}", userId);
-            return UserDTO.fromEntity(saved);
-        });
+        return Optional.of(updateProfile(userId, null, request));
     }
 
     /**
