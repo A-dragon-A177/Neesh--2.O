@@ -67,12 +67,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const redirectUrl = sessionStorage.getItem('post_login_redirect');
         if (redirectUrl) {
           sessionStorage.removeItem('post_login_redirect');
+
+          let safeUrl = redirectUrl;
+          try {
+            if (redirectUrl.startsWith('http://') || redirectUrl.startsWith('https://')) {
+              const parsed = new URL(redirectUrl);
+              // If the saved redirect points to a different origin (e.g. localhost while on Vercel, or vice-versa),
+              // keep only the path on the current origin so the user never jumps to localhost!
+              if (parsed.origin !== window.location.origin) {
+                safeUrl = `${window.location.origin}${parsed.pathname}${parsed.search}${parsed.hash}`;
+              }
+            }
+          } catch {
+            safeUrl = `${window.location.origin}/dashboard`;
+          }
+
           const currentClean = window.location.href.split('#')[0].split('?')[0];
-          const targetClean = redirectUrl.split('#')[0].split('?')[0];
+          const targetClean = safeUrl.split('#')[0].split('?')[0];
           if (currentClean !== targetClean) {
-            console.log('[AuthContext] Restoring post-login redirect to:', redirectUrl);
+            console.log('[AuthContext] Restoring post-login redirect to:', safeUrl);
             setTimeout(() => {
-              window.location.href = redirectUrl;
+              window.location.href = safeUrl;
             }, 100);
           }
         }

@@ -261,6 +261,14 @@ app.get('/api/user/api-keys', (req, res) => apiKeyController.getUserApiKeys(req,
 app.post('/api/user/api-keys', (req, res) => apiKeyController.saveApiKey(req, res));
 app.delete('/api/user/api-keys/:provider', (req, res) => apiKeyController.deleteApiKey(req, res));
 
+// Public OTP endpoints (no auth required)
+import { OtpController } from './controllers/OtpController';
+const otpController = new OtpController();
+
+app.post('/api/public/otp/send', publicRateLimiter, (req, res) => otpController.sendOtp(req, res));
+app.post('/api/public/otp/verify', publicRateLimiter, (req, res) => otpController.verifyOtp(req, res));
+app.post('/api/public/otp/reset-password', publicRateLimiter, (req, res) => otpController.resetPassword(req, res));
+
 // Notifications stub routes (not yet implemented)
 app.get('/api/projects/:projectId/notifications', (req, res) => {
     res.json({ clusters: [], count: 0, unansweredCount: 0 });

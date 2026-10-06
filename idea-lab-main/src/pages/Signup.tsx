@@ -117,15 +117,22 @@ const Signup = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, purpose: "SIGNUP" }),
       });
-      const data = await res.json();
-      if (data.success) {
+      
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {
+        // Not a JSON response
+      }
+
+      if (res.ok && data?.success) {
         toast.success(data.message || "OTP sent! Check your inbox.");
         setStep("otp");
         setOtpValue("");
         setOtpVerified(false);
         setResendCooldown(60);
       } else {
-        toast.error(data.message || "Failed to send OTP.");
+        toast.error(data?.message || (res.status === 404 ? "OTP service is temporarily unavailable. Please try again or use Google/GitHub sign up." : "Failed to send OTP. Please try again."));
       }
     } catch (err) {
       console.error("[Signup] OTP send error:", err);
@@ -149,13 +156,20 @@ const Signup = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp: otpValue, purpose: "SIGNUP" }),
       });
-      const data = await res.json();
-      if (data.success) {
+
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {
+        // Not a JSON response
+      }
+
+      if (res.ok && data?.success) {
         toast.success("Email verified successfully!");
         setOtpVerified(true);
         setStep("password");
       } else {
-        toast.error(data.message || "Invalid OTP. Please try again.");
+        toast.error(data?.message || "Invalid OTP. Please try again.");
       }
     } catch (err) {
       console.error("[Signup] OTP verify error:", err);

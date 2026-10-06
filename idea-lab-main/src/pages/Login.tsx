@@ -230,14 +230,21 @@ const Login = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: forgotEmail, purpose: "FORGOT_PASSWORD" }),
       });
-      const data = await res.json();
-      if (data.success) {
+      
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {
+        // Not a JSON response
+      }
+
+      if (res.ok && data?.success) {
         toast.success(data.message || "OTP sent! Check your inbox.");
         setForgotStep("otp");
         setForgotOtp("");
         setForgotResendCooldown(60);
       } else {
-        toast.error(data.message || "Failed to send OTP.");
+        toast.error(data?.message || (res.status === 404 ? "OTP service is temporarily unavailable. Please try again later." : "Failed to send OTP."));
       }
     } catch (err) {
       console.error("[ForgotPassword] OTP send error:", err);
@@ -261,12 +268,19 @@ const Login = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: forgotEmail, otp: forgotOtp, purpose: "FORGOT_PASSWORD" }),
       });
-      const data = await res.json();
-      if (data.success) {
+
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {
+        // Not a JSON response
+      }
+
+      if (res.ok && data?.success) {
         toast.success("OTP verified! Set your new password.");
         setForgotStep("password");
       } else {
-        toast.error(data.message || "Invalid OTP. Please try again.");
+        toast.error(data?.message || "Invalid OTP. Please try again.");
       }
     } catch (err) {
       console.error("[ForgotPassword] OTP verify error:", err);
@@ -298,13 +312,20 @@ const Login = () => {
           newPassword: forgotNewPassword,
         }),
       });
-      const data = await res.json();
-      if (data.success) {
+
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {
+        // Not a JSON response
+      }
+
+      if (res.ok && data?.success) {
         toast.success("Password changed successfully! You can now sign in.");
         setForgotOpen(false);
         resetForgotState();
       } else {
-        toast.error(data.message || "Failed to change password.");
+        toast.error(data?.message || "Failed to change password.");
       }
     } catch (err) {
       console.error("[ForgotPassword] Change password error:", err);
