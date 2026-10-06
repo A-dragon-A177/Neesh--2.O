@@ -85,7 +85,45 @@ const ProfileSettings = () => {
     }, [subscription]);
 
     const handleSave = async () => {
-        const result = await updateProfile(formData);
+        let payload = { ...formData };
+
+        // If profileImageUrl is base64, compress and upload to Supabase Storage before saving
+        if (payload.profileImageUrl && payload.profileImageUrl.startsWith("data:")) {
+            try {
+                const { uploadAvatarToStorage } = await import("@/lib/storage");
+                const { compressAvatar } = await import("@/lib/imageUtils");
+
+                const [header, data] = payload.profileImageUrl.split(",");
+                const mimeMatch = header.match(/:(.*?);/);
+                const mime = mimeMatch ? mimeMatch[1] : "image/webp";
+                const binary = atob(data);
+                const array = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) {
+                    array[i] = binary.charCodeAt(i);
+                }
+                const file = new File([array], `avatar-${Date.now()}.webp`, { type: mime });
+                const compressed = await compressAvatar(file);
+
+                try {
+                    const storageUrl = await uploadAvatarToStorage(user?.id || "user", compressed);
+                    payload.profileImageUrl = storageUrl;
+                    setFormData(prev => ({ ...prev, profileImageUrl: storageUrl }));
+                } catch (storageErr) {
+                    console.warn("[ProfileSettings] Supabase storage upload failed, using tiny base64:", storageErr);
+                    const reader = new FileReader();
+                    const tinyBase64 = await new Promise<string>((resolve) => {
+                        reader.onload = () => resolve(reader.result as string);
+                        reader.readAsDataURL(compressed);
+                    });
+                    payload.profileImageUrl = tinyBase64;
+                    setFormData(prev => ({ ...prev, profileImageUrl: tinyBase64 }));
+                }
+            } catch (err) {
+                console.warn("[ProfileSettings] Avatar pre-save processing:", err);
+            }
+        }
+
+        const result = await updateProfile(payload);
         if (result.success) {
             toast.success("Profile updated successfully!");
             setIsEditing(false);
@@ -121,7 +159,28 @@ const ProfileSettings = () => {
     const handleSaveBranding = async () => {
         setSavingBranding(true);
         try {
-            const success = await updateBranding(brandingLogoUrl || undefined, brandingText || undefined);
+            let logoUrl = brandingLogoUrl;
+            if (logoUrl && logoUrl.startsWith("data:")) {
+                try {
+                    const { uploadLogoToStorage } = await import("@/lib/storage");
+                    const { compressImage } = await import("@/lib/imageUtils");
+                    const [header, data] = logoUrl.split(",");
+                    const mimeMatch = header.match(/:(.*?);/);
+                    const mime = mimeMatch ? mimeMatch[1] : "image/webp";
+                    const binary = atob(data);
+                    const array = new Uint8Array(binary.length);
+                    for (let i = 0; i < binary.length; i++) {
+                        array[i] = binary.charCodeAt(i);
+                    }
+                    const file = new File([array], `logo-${Date.now()}.webp`, { type: mime });
+                    const compressed = await compressImage(file, { maxDimension: 500, quality: 0.85 });
+                    logoUrl = await uploadLogoToStorage(user?.id || "user", compressed);
+                    setBrandingLogoUrl(logoUrl);
+                } catch (e) {
+                    console.warn("[ProfileSettings] Branding logo upload error:", e);
+                }
+            }
+            const success = await updateBranding(logoUrl || undefined, brandingText || undefined);
             if (success) {
                 toast.success("Branding updated! Your published blogs will reflect these changes.");
             } else {
@@ -146,14 +205,22 @@ const ProfileSettings = () => {
         setLogoUploading(true);
         try {
             const { compressImage } = await import("@/lib/imageUtils");
-            const compressed = await compressImage(file);
-            const base64 = await new Promise<string>((resolve, reject) => {
+            const compressed = await compressImage(file, { maxDimension: 500, quality: 0.85 });
+
+            let finalLogoUrl = "";
+            try {
+                const { uploadLogoToStorage } = await import("@/lib/storage");
+                finalLogoUrl = await uploadLogoToStorage(user?.id || "user", compressed);
+            } catch {
                 const reader = new FileReader();
-                reader.onload = () => resolve(reader.result as string);
-                reader.onerror = () => reject(new Error("Failed to read image"));
-                reader.readAsDataURL(compressed);
-            });
-            setBrandingLogoUrl(base64);
+                finalLogoUrl = await new Promise<string>((resolve, reject) => {
+                    reader.onload = () => resolve(reader.result as string);
+                    reader.onerror = () => reject(new Error("Failed to read image"));
+                    reader.readAsDataURL(compressed);
+                });
+            }
+
+            setBrandingLogoUrl(finalLogoUrl);
             toast.success("Logo uploaded! Click 'Save Branding' to apply.");
         } catch {
             toast.error("Failed to process logo image.");
@@ -170,23 +237,31 @@ const ProfileSettings = () => {
             toast.error("Please upload a valid image file.");
             return;
         }
-        if (file.size > 200 * 1024 * 1024) {
-            toast.error("Image too large. Please upload under 200MB.");
+        if (file.size > 20 * 1024 * 1024) {
+            toast.error("Image too large. Please upload under 20MB.");
             return;
         }
 
         try {
-            const { compressImage } = await import("@/lib/imageUtils");
-            const compressed = await compressImage(file);
+            const { compressAvatar } = await import("@/lib/imageUtils");
+            const compressed = await compressAvatar(file);
 
-            const base64 = await new Promise<string>((resolve, reject) => {
+            // Upload directly to Supabase Storage CDN
+            let finalImageUrl = "";
+            try {
+                const { uploadAvatarToStorage } = await import("@/lib/storage");
+                finalImageUrl = await uploadAvatarToStorage(user?.id || "user", compressed);
+            } catch (storageErr) {
+                console.warn("[ProfileSettings] Supabase storage avatar upload fallback:", storageErr);
                 const reader = new FileReader();
-                reader.onload = () => resolve(reader.result as string);
-                reader.onerror = () => reject(new Error("Failed to read image"));
-                reader.readAsDataURL(compressed);
-            });
+                finalImageUrl = await new Promise<string>((resolve, reject) => {
+                    reader.onload = () => resolve(reader.result as string);
+                    reader.onerror = () => reject(new Error("Failed to read image"));
+                    reader.readAsDataURL(compressed);
+                });
+            }
 
-            setFormData({ ...formData, profileImageUrl: base64 });
+            setFormData(prev => ({ ...prev, profileImageUrl: finalImageUrl }));
             toast.success("Image uploaded! Click Save to apply.");
         } catch (err) {
             console.error("Profile image upload failed:", err);

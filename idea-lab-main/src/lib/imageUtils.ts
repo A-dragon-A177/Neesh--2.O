@@ -33,13 +33,13 @@ export async function compressImage(
         outputType = 'image/webp',
     } = options;
 
-    // Skip compression for small files (under 1MB) and non-raster formats
-    if (file.size < 1024 * 1024) {
+    // Skip SVGs — they're vector and don't benefit from raster compression
+    if (file.type === 'image/svg+xml') {
         return file;
     }
 
-    // Skip SVGs — they're vector and don't benefit from raster compression
-    if (file.type === 'image/svg+xml') {
+    // Skip only if no custom dimension/quality was requested AND file is already tiny (< 100KB)
+    if (!options.maxDimension && !options.quality && file.size < 100 * 1024) {
         return file;
     }
 
@@ -162,3 +162,16 @@ export function getOptimizedImageUrl(
     const separator = url.includes('?') ? '&' : '?';
     return `${url}${separator}width=${width}&quality=${quality}`;
 }
+
+/**
+ * Compresses an avatar image specifically for user profiles.
+ * Resizes to 400x400 max, 0.82 quality WebP (~20-40KB).
+ */
+export async function compressAvatar(file: File): Promise<File> {
+    return compressImage(file, {
+        maxDimension: 400,
+        quality: 0.82,
+        outputType: 'image/webp',
+    });
+}
+

@@ -141,3 +141,62 @@ export async function deleteFromStorage(publicUrl: string): Promise<void> {
     console.error("[Storage] Delete failed:", err);
   }
 }
+
+/**
+ * Uploads a user avatar directly to Supabase Storage and returns the public CDN URL.
+ */
+export async function uploadAvatarToStorage(
+  userId: string,
+  file: File
+): Promise<string> {
+  const ext = file.name.split(".").pop()?.toLowerCase() || "webp";
+  const path = `avatars/${userId}-${Date.now()}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from(BUCKET_NAME)
+    .upload(path, file, {
+      cacheControl: "31536000",
+      upsert: true,
+    });
+
+  if (error) {
+    console.error("[Storage] Avatar upload error:", error);
+    throw new Error(`Failed to upload avatar: ${error.message}`);
+  }
+
+  const { data: urlData } = supabase.storage
+    .from(BUCKET_NAME)
+    .getPublicUrl(path);
+
+  return urlData.publicUrl;
+}
+
+/**
+ * Uploads custom branding logo directly to Supabase Storage.
+ */
+export async function uploadLogoToStorage(
+  userId: string,
+  file: File
+): Promise<string> {
+  const ext = file.name.split(".").pop()?.toLowerCase() || "webp";
+  const path = `branding/${userId}-${Date.now()}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from(BUCKET_NAME)
+    .upload(path, file, {
+      cacheControl: "31536000",
+      upsert: true,
+    });
+
+  if (error) {
+    console.error("[Storage] Logo upload error:", error);
+    throw new Error(`Failed to upload logo: ${error.message}`);
+  }
+
+  const { data: urlData } = supabase.storage
+    .from(BUCKET_NAME)
+    .getPublicUrl(path);
+
+  return urlData.publicUrl;
+}
+
