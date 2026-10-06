@@ -499,19 +499,25 @@ export class ProjectController {
                 return res.status(404).json({ error: 'Project not found' });
             }
 
+            const rawDays = req.body?.days ?? req.query?.days;
+            const parsedDays = rawDays ? parseInt(String(rawDays), 10) : NaN;
+            const customDays = !isNaN(parsedDays) && parsedDays > 0 ? parsedDays : null;
+
             const isStage3 = project.status?.toUpperCase() === 'CLOSED' || 
                              project.status?.toUpperCase() === 'STAGE3_ACTIVE' || 
                              Boolean(project.stage3_deadline);
 
+            const unlockHours = customDays ? customDays * 24 : (isStage3 ? 120 : 48);
+
             const updatePayload = isStage3
                 ? {
                     status: 'STAGE3_ACTIVE',
-                    stage3_deadline: new Date(Date.now() + 120 * 60 * 60 * 1000).toISOString(),
+                    stage3_deadline: new Date(Date.now() + unlockHours * 60 * 60 * 1000).toISOString(),
                     updated_at: new Date().toISOString()
                 }
                 : {
                     status: 'DRAFT',
-                    timer_deadline: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+                    timer_deadline: new Date(Date.now() + unlockHours * 60 * 60 * 1000).toISOString(),
                     updated_at: new Date().toISOString()
                 };
 

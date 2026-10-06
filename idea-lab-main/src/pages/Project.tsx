@@ -808,8 +808,8 @@ const Project = () => {
           goldCount={buyersData?.goldCount || 0}
           silverCount={buyersData?.silverCount || 0}
           bronzeCount={buyersData?.bronzeCount || 0}
-          onUnlock={async () => {
-            const unlocked = await unlockProject(id || "");
+          onUnlock={async (days?: number) => {
+            const unlocked = await unlockProject(id || "", days);
             if (unlocked) {
               setProject(unlocked);
               refetchBuyers();

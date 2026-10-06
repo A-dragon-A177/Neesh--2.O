@@ -198,13 +198,16 @@ public class ProjectController {
         return ResponseEntity.ok(projectService.getTimerStatus(id, ownerId));
     }
 
-    // Unlock Project Endpoint (Allows unlocking locked project via Pro)
+    // Unlock Project Endpoint (Allows unlocking locked project via Pro with custom days)
     @PostMapping("/{id}/unlock")
     public ResponseEntity<ProjectDTOs.PrivateProjectDTO> unlockProject(
             @PathVariable UUID id,
+            @RequestBody(required = false) ProjectDTOs.UnlockProjectRequest request,
+            @RequestParam(required = false) Integer days,
             @AuthenticationPrincipal Jwt jwt) {
         UUID ownerId = getUserIdFromJwt(jwt);
-        return projectService.unlockProject(id, ownerId)
+        Integer unlockDays = (request != null && request.days() != null) ? request.days() : days;
+        return projectService.unlockProject(id, ownerId, unlockDays)
                 .map(ProjectDTOs.PrivateProjectDTO::fromEntity)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());

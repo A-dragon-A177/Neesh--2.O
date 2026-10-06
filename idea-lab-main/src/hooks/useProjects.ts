@@ -558,30 +558,32 @@ export const useProjects = () => {
     }
   };
 
-  const unlockProject = async (id: string): Promise<Project | null> => {
+  const unlockProject = async (id: string, days?: number): Promise<Project | null> => {
     try {
-      console.log("[useProjects] Unlocking project:", id);
+      console.log("[useProjects] Unlocking project:", id, "with days:", days);
       const existing = projects.find(p => p.id === id);
       const isStage3Project =
         existing?.status?.toUpperCase() === "CLOSED" ||
         existing?.status?.toUpperCase() === "STAGE3_ACTIVE" ||
         Boolean(existing?.stage3_deadline);
 
+      const unlockHours = days && days > 0 ? days * 24 : (isStage3Project ? 120 : 48);
+
       let backendProject: BackendProject | null = null;
       try {
-        backendProject = await apiClient.post<BackendProject>(`/api/projects/${id}/unlock`);
+        backendProject = await apiClient.post<BackendProject>(`/api/projects/${id}/unlock`, { days });
       } catch (backendErr) {
         console.warn("[useProjects] Backend unlock failed, updating directly via Supabase:", backendErr);
 
         const updatePayload = isStage3Project
           ? {
               status: "STAGE3_ACTIVE",
-              stage3_deadline: new Date(Date.now() + 200 * 60 * 60 * 1000).toISOString(),
+              stage3_deadline: new Date(Date.now() + unlockHours * 60 * 60 * 1000).toISOString(),
               updated_at: new Date().toISOString(),
             }
           : {
               status: "DRAFT",
-              timer_deadline: new Date(Date.now() + 20 * 60 * 60 * 1000).toISOString(),
+              timer_deadline: new Date(Date.now() + unlockHours * 60 * 60 * 1000).toISOString(),
               updated_at: new Date().toISOString(),
             };
 
@@ -627,10 +629,11 @@ export const useProjects = () => {
 
       const updated = transformProject(backendProject!);
       setProjects(prev => prev.map(p => (p.id === id ? updated : p)));
+      const durationLabel = days ? `${days} day${days > 1 ? "s" : ""}` : (isStage3Project ? "5 days (120h)" : "2 days (48h)");
       toast.success(
         isStage3Project
-          ? "🎉 Stage 3 Pilot window unlocked! (Fresh 120-hour window granted)"
-          : "🎉 Project unlocked successfully! (Fresh 48-hour cycle granted)"
+          ? `🎉 Stage 3 Pilot window unlocked! (Fresh ${durationLabel} granted)`
+          : `🎉 Project unlocked successfully! (Fresh ${durationLabel} cycle granted)`
       );
       return updated;
     } catch (err) {

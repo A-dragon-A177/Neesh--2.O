@@ -182,16 +182,28 @@ public class ProjectService {
 
     @Transactional
     public Optional<Project> unlockProject(UUID id, UUID ownerId) {
+        return unlockProject(id, ownerId, null);
+    }
+
+    @Transactional
+    public Optional<Project> unlockProject(UUID id, UUID ownerId, Integer customDays) {
         return projectRepository.findById(id)
                 .filter(p -> p.getOwnerId().equals(ownerId))
                 .map(project -> {
-                    if ("CLOSED".equalsIgnoreCase(project.getStatus())) {
-                        throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                                "This project is permanently CLOSED and cannot be reopened.");
+                    boolean isStage3 = "CLOSED".equalsIgnoreCase(project.getStatus())
+                            || "STAGE3_ACTIVE".equalsIgnoreCase(project.getStatus())
+                            || project.getStage3Deadline() != null;
+
+                    int days = (customDays != null && customDays > 0) ? customDays : (isStage3 ? 5 : 2);
+                    int hours = days * 24;
+
+                    if (isStage3) {
+                        project.setStatus("STAGE3_ACTIVE");
+                        project.setStage3Deadline(java.time.ZonedDateTime.now().plusHours(hours));
+                    } else {
+                        project.setStatus("DRAFT");
+                        project.setTimerDeadline(java.time.ZonedDateTime.now().plusHours(hours));
                     }
-                    project.setStatus("DRAFT");
-                    // Grant a new 48-hour cycle upon unlock
-                    project.setTimerDeadline(java.time.ZonedDateTime.now().plusHours(48));
                     return projectRepository.save(project);
                 });
     }

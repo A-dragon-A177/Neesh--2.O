@@ -140,4 +140,10 @@ public class ProjectDTOs {
                     project.getUpdatedAt());
         }
     }
+
+    // UNLOCK PROJECT REQUEST DTO
+    public record UnlockProjectRequest(
+            Integer days
+    ) {
+    }
 }
