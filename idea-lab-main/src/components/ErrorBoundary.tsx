@@ -32,9 +32,27 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
     componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error('[ErrorBoundary] Caught render error:', error, errorInfo);
+        const isChunkError =
+            error?.message?.includes('Failed to fetch dynamically imported module') ||
+            error?.message?.includes('Importing a module script failed');
+        if (isChunkError) {
+            const lastReload = sessionStorage.getItem('neesh_chunk_reload');
+            const now = Date.now();
+            if (!lastReload || now - Number(lastReload) > 10000) {
+                sessionStorage.setItem('neesh_chunk_reload', String(now));
+                window.location.reload();
+            }
+        }
     }
 
     handleRetry = () => {
+        const isChunkError =
+            this.state.error?.message?.includes('Failed to fetch dynamically imported module') ||
+            this.state.error?.message?.includes('Importing a module script failed');
+        if (isChunkError) {
+            window.location.reload();
+            return;
+        }
         this.setState({ hasError: false, error: null });
     };
 
