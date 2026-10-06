@@ -46,7 +46,8 @@ const corsOptions: cors.CorsOptions = {
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 
 import { rateLimiter } from './middleware/rateLimit';
 import { tracingMiddleware } from './middleware/tracing';
@@ -242,14 +243,8 @@ import { UserController } from './controllers/UserController';
 const userController = new UserController();
 
 app.get('/api/users/subscription', (req, res) => userController.getSubscription(req, res));
-app.get('/api/users/me', (req, res) => {
-    res.json({
-        id: req.user?.id,
-        email: req.user?.email,
-        name: req.user?.email?.split('@')[0] || 'Founder',
-        role: 'user'
-    });
-});
+app.get('/api/users/me', (req, res) => userController.getCurrentUser(req, res));
+app.put('/api/users/me', (req, res) => userController.updateProfile(req, res));
 app.put('/api/users/subscription/upgrade', (req, res) => userController.upgradeToPro(req, res));
 app.put('/api/users/branding', (req, res) => userController.updateBranding(req, res));
 
