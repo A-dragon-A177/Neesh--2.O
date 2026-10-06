@@ -104,7 +104,7 @@ public class Project {
         this.slug = slug;
         this.status = "DRAFT";
         this.deleted = false;
-        this.timerDeadline = ZonedDateTime.now().plusHours(20);
+        this.timerDeadline = ZonedDateTime.now().plusHours(48);
     }
 
     @PrePersist
@@ -116,7 +116,7 @@ public class Project {
         if (this.status == null)
             this.status = "DRAFT";
         if (this.timerDeadline == null)
-            this.timerDeadline = (this.createdAt != null ? this.createdAt : ZonedDateTime.now()).plusHours(20);
+            this.timerDeadline = (this.createdAt != null ? this.createdAt : ZonedDateTime.now()).plusHours(48);
         if (this.id == null)
             this.id = UUID.randomUUID();
     }

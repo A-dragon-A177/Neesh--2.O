@@ -445,7 +445,7 @@ const Project = () => {
           </div>
 
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            {/* 20-Hour Validation Sprint Timer */}
+            {/* 48-Hour Validation Sprint Timer */}
             <ProjectTimer
               deadline={project.timer_deadline}
               createdAt={project.created_at}
@@ -501,7 +501,7 @@ const Project = () => {
         {/* Desktop Top Header - hidden on mobile */}
         <header className="hidden md:flex h-16 bg-card border-b border-border/50 items-center justify-between px-6 shadow-sm">
           <div className="flex items-center gap-3">
-            {/* 20-Hour Validation Sprint / Stage 3 Timer Pill */}
+            {/* 48-Hour Validation Sprint / Stage 3 Timer Pill */}
             <ProjectTimer
               deadline={project.timer_deadline}
               createdAt={project.created_at}

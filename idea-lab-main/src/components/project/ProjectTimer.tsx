@@ -29,7 +29,7 @@ interface TimeRemaining {
 function calculateTimeRemaining(
   deadlineStr?: string | null,
   createdAtStr?: string | null,
-  defaultHours: number = 20
+  defaultHours: number = 48
 ): TimeRemaining {
   let targetTime: number;
 
@@ -86,7 +86,7 @@ export const ProjectTimer: React.FC<ProjectTimerProps> = ({
 }) => {
   const rawStage3 = isStage3Active || status?.toUpperCase() === "STAGE3_ACTIVE";
   const activeDeadline = rawStage3 ? stage3Deadline : deadline;
-  const defaultHours = rawStage3 ? 200 : 20;
+  const defaultHours = rawStage3 ? 120 : 48;
 
   const [timeLeft, setTimeLeft] = useState<TimeRemaining>(() =>
     calculateTimeRemaining(activeDeadline, createdAt, defaultHours)
@@ -120,15 +120,15 @@ export const ProjectTimer: React.FC<ProjectTimerProps> = ({
   }, [activeDeadline, createdAt, isStage3, defaultHours]);
 
   // Urgency thresholds
-  // For Stage 3 (200 hours): Urgent < 24h, Warning < 72h
-  // For Stage 2 (20 hours): Urgent < 4h, Warning < 10h
+  // For Stage 3 (120 hours / 5 days): Urgent < 24h, Warning < 48h
+  // For Stage 2 (48 hours / 2 days): Urgent < 12h, Warning < 24h
   const isUrgent = isStage3
     ? !timeLeft.isExpired && timeLeft.totalSeconds < 24 * 3600
-    : !timeLeft.isExpired && timeLeft.totalSeconds < 4 * 3600;
+    : !timeLeft.isExpired && timeLeft.totalSeconds < 12 * 3600;
 
   const isWarning = isStage3
-    ? !timeLeft.isExpired && timeLeft.totalSeconds >= 24 * 3600 && timeLeft.totalSeconds < 72 * 3600
-    : !timeLeft.isExpired && timeLeft.totalSeconds >= 4 * 3600 && timeLeft.totalSeconds < 10 * 3600;
+    ? !timeLeft.isExpired && timeLeft.totalSeconds >= 24 * 3600 && timeLeft.totalSeconds < 48 * 3600
+    : !timeLeft.isExpired && timeLeft.totalSeconds >= 12 * 3600 && timeLeft.totalSeconds < 24 * 3600;
 
   // Format string: display days if > 0, otherwise hours & minutes
   const formattedTime = timeLeft.days > 0
@@ -157,7 +157,7 @@ export const ProjectTimer: React.FC<ProjectTimerProps> = ({
                 Permanent Lifecycle Conclusion
               </p>
               <p className="text-muted-foreground text-[11px] leading-relaxed">
-                The 200-hour Stage 3 Pilot MVP sprint has concluded. This project has completed its lifecycle and is permanently preserved in read-only archive mode.
+                The 120-hour Stage 3 Pilot MVP sprint has concluded. This project has completed its lifecycle and is permanently preserved in read-only archive mode.
               </p>
             </div>
           </TooltipContent>
@@ -190,7 +190,7 @@ export const ProjectTimer: React.FC<ProjectTimerProps> = ({
   }
 
   // ==========================================
-  // 3. Render for STAGE 3 (200-Hour Pilot MVP Sprint)
+  // 3. Render for STAGE 3 (120-Hour Pilot MVP Sprint)
   // ==========================================
   if (isStage3) {
     let colorClasses = "bg-purple-50/90 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800/60 shadow-[0_0_12px_rgba(168,85,247,0.15)]";
@@ -209,12 +209,12 @@ export const ProjectTimer: React.FC<ProjectTimerProps> = ({
         <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
           <span className="font-semibold text-foreground flex items-center gap-1.5">
             <Rocket className="w-3.5 h-3.5 text-purple-600" />
-            Stage 3: Pilot MVP Sprint (200h)
+            Stage 3: Pilot MVP Sprint (120h)
           </span>
           <span className="text-purple-600 dark:text-purple-400 font-bold font-mono">{formattedTime}</span>
         </div>
         <p className="text-muted-foreground text-[11px] leading-relaxed">
-          Stage 2 validated! You have a <strong>200-hour window</strong> to engage your pilot cohort and deploy MVP prototypes.
+          Stage 2 validated! You have a <strong>120-hour window (5 days)</strong> to engage your pilot cohort and deploy MVP prototypes.
         </p>
         <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-[11px] space-y-1">
           <div className="flex items-center justify-between font-semibold text-purple-700 dark:text-purple-300">
@@ -295,7 +295,7 @@ export const ProjectTimer: React.FC<ProjectTimerProps> = ({
           className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-sm ${className}`}
         >
           <CheckCircle2 className="w-3.5 h-3.5" />
-          <span>Sprint Passed (20h)</span>
+          <span>Sprint Passed (48h)</span>
         </div>
       );
     }
@@ -310,14 +310,14 @@ export const ProjectTimer: React.FC<ProjectTimerProps> = ({
   }
 
   // ==========================================
-  // 5. Default: Stage 2 20-Hour Sprint
+  // 5. Default: Stage 2 48-Hour Sprint
   // ==========================================
   const tooltipContent = (
     <div className="space-y-2 p-1 text-xs max-w-xs">
       <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
         <span className="font-semibold text-foreground flex items-center gap-1.5">
           <Clock className="w-3.5 h-3.5 text-primary" />
-          20-Hour Validation Sprint
+          48-Hour Validation Sprint (2 Days)
         </span>
         <span className="text-primary font-bold">{formattedTime}</span>
       </div>

@@ -629,8 +629,8 @@ export const useProjects = () => {
       setProjects(prev => prev.map(p => (p.id === id ? updated : p)));
       toast.success(
         isStage3Project
-          ? "🎉 Stage 3 Pilot window unlocked! (Fresh 200-hour window granted)"
-          : "🎉 Project unlocked successfully! (Fresh 20-hour cycle granted)"
+          ? "🎉 Stage 3 Pilot window unlocked! (Fresh 120-hour window granted)"
+          : "🎉 Project unlocked successfully! (Fresh 48-hour cycle granted)"
       );
       return updated;
     } catch (err) {

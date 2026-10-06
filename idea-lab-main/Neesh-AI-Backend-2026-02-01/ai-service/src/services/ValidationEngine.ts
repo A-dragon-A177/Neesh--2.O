@@ -55,7 +55,7 @@ export class ValidationEngine {
             if (hasFatalFlaw) {
                 nextStep = "CRITICAL STOP: You have at least one fatal flaw (Score 0). Stop all execution and fix the fundamental gaps identified before building further.";
             } else if (overallConfidence >= 80) {
-                nextStep = "Proceed to the 20-Hour Validation Framework. Launch your Spotlight blog to collect real-world waitlist signups.";
+                nextStep = "Proceed to the 48-Hour Validation Framework. Launch your Spotlight blog to collect real-world waitlist signups.";
             } else {
                 nextStep = "Focus on strengthening your weak areas. Do not spend money on scaling until you have stronger evidence.";
             }

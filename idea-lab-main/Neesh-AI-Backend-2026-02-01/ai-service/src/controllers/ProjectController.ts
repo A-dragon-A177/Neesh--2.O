@@ -144,7 +144,7 @@ export class ProjectController {
                 status: 'draft',
                 slug: `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`,
                 deleted: false,
-                timer_deadline: new Date(Date.now() + 20 * 60 * 60 * 1000).toISOString(),
+                timer_deadline: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             };
@@ -506,12 +506,12 @@ export class ProjectController {
             const updatePayload = isStage3
                 ? {
                     status: 'STAGE3_ACTIVE',
-                    stage3_deadline: new Date(Date.now() + 200 * 60 * 60 * 1000).toISOString(),
+                    stage3_deadline: new Date(Date.now() + 120 * 60 * 60 * 1000).toISOString(),
                     updated_at: new Date().toISOString()
                 }
                 : {
                     status: 'DRAFT',
-                    timer_deadline: new Date(Date.now() + 20 * 60 * 60 * 1000).toISOString(),
+                    timer_deadline: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
                     updated_at: new Date().toISOString()
                 };
 
@@ -579,7 +579,7 @@ export class ProjectController {
             const now = new Date();
             let deadline = project.timer_deadline
                 ? new Date(project.timer_deadline)
-                : new Date(new Date(project.created_at || now).getTime() + 20 * 60 * 60 * 1000);
+                : new Date(new Date(project.created_at || now).getTime() + 48 * 60 * 60 * 1000);
 
             // Fetch audience member validation counts
             const { data: members } = await supabase
@@ -605,7 +605,7 @@ export class ProjectController {
             // Auto-promote to Stage 3 if requirements met under Stage 2
             if (meetsRequirements && (currentStatus.toUpperCase() === 'DRAFT' || currentStatus.toUpperCase() === 'PUBLISHED')) {
                 currentStatus = 'STAGE3_ACTIVE';
-                const stage3Deadline = project.stage3_deadline || new Date(now.getTime() + 200 * 60 * 60 * 1000).toISOString();
+                const stage3Deadline = project.stage3_deadline || new Date(now.getTime() + 120 * 60 * 60 * 1000).toISOString();
                 await supabase.from('projects').update({
                     status: 'STAGE3_ACTIVE',
                     stage3_deadline: stage3Deadline
@@ -618,7 +618,7 @@ export class ProjectController {
                 await supabase.from('projects').update({ status: 'LOCKED' }).eq('id', id);
             }
 
-            // Auto-close Stage 3 project if 200-hour Pilot MVP timer has expired
+            // Auto-close Stage 3 project if 120-hour Pilot MVP timer has expired
             if (currentStatus.toUpperCase() === 'STAGE3_ACTIVE' && project.stage3_deadline && now.getTime() > new Date(project.stage3_deadline).getTime()) {
                 currentStatus = 'CLOSED';
                 await supabase.from('projects').update({ status: 'CLOSED' }).eq('id', id);

@@ -84,7 +84,7 @@ export const ProjectLockedOverlay: React.FC<ProjectLockedOverlayProps> = ({
     }
   };
 
-  // If permanently CLOSED after 200h Stage 3 window
+  // If permanently CLOSED after 120h Stage 3 window
   if (isClosed) {
     return createPortal(
       <div
@@ -124,7 +124,7 @@ export const ProjectLockedOverlay: React.FC<ProjectLockedOverlayProps> = ({
                 {projectTitle} Stage 3 is Currently Locked
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground max-w-lg mx-auto leading-relaxed font-sans">
-                The 200-hour Pilot MVP sprint for this project has closed. To continue testing prototypes, engaging your pilot cohort, and viewing AI validation reports, unlock a fresh 200-hour window below.
+                The 120-hour Pilot MVP sprint for this project has closed. To continue testing prototypes, engaging your pilot cohort, and viewing AI validation reports, unlock a fresh 120-hour window below.
               </p>
             </div>
 
@@ -195,7 +195,7 @@ export const ProjectLockedOverlay: React.FC<ProjectLockedOverlayProps> = ({
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4" />
-                      <span>Unlock Stage 3 Window (200h) ⚡</span>
+                      <span>Unlock Stage 3 Window (120h) ⚡</span>
                     </>
                   )}
                 </Button>
@@ -208,7 +208,7 @@ export const ProjectLockedOverlay: React.FC<ProjectLockedOverlayProps> = ({
     );
   }
 
-  // Otherwise: 20-Hour Sprint LOCKED state (Can unlock via Pro)
+  // Otherwise: 48-Hour Sprint LOCKED state (Can unlock via Pro)
   return createPortal(
     <div
       ref={overlayRef}
@@ -240,14 +240,14 @@ export const ProjectLockedOverlay: React.FC<ProjectLockedOverlayProps> = ({
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 mb-1">
               <span className="text-xs font-bold uppercase tracking-wider text-rose-500 bg-rose-500/10 px-3 py-1 rounded-full border border-rose-500/20">
-                20-Hour Validation Sprint Concluded
+                48-Hour Validation Sprint Concluded
               </span>
             </div>
             <h2 className="text-xl sm:text-3xl font-display font-bold text-foreground">
               {projectTitle} is Currently Locked
             </h2>
             <p className="text-xs sm:text-sm text-muted-foreground max-w-lg mx-auto leading-relaxed">
-              The initial 20-hour validation sprint for this project has closed. To continue building, collecting feedback, and accessing AI insights, upgrade to Pro or unlock your project.
+              The initial 48-hour validation sprint for this project has closed. To continue building, collecting feedback, and accessing AI insights, upgrade to Pro or unlock your project.
             </p>
           </div>
 

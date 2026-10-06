@@ -79,7 +79,7 @@ public class ProjectDTOs {
                     project.getElevatorPitchThumbnail(),
                     project.getElevatorPitchDuration(),
                     project.getEarlyAccessPrice(),
-                    project.getTimerDeadline() != null ? project.getTimerDeadline() : (project.getCreatedAt() != null ? project.getCreatedAt().plusHours(20) : null),
+                    project.getTimerDeadline() != null ? project.getTimerDeadline() : (project.getCreatedAt() != null ? project.getCreatedAt().plusHours(48) : null),
                     project.getCreatedAt(),
                     project.getUpdatedAt(),
                     totalAudienceViews,

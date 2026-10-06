@@ -27,12 +27,12 @@ public class ProjectTimerService {
 
     /**
      * Scheduled background job running every 5 minutes.
-     * Checks non-locked projects whose 20-hour timer has expired.
+     * Checks non-locked projects whose 48-hour timer has expired.
      * Evaluates audience qualification:
      * - Gold >= 5
      * - Silver >= 10
      * - Bronze >= 15
-     * If requirements are not met within the 20 hours, the project is locked.
+     * If requirements are not met within the 48 hours, the project is locked.
      */
     @Scheduled(fixedDelay = 300000, initialDelay = 15000)
     public void evaluateExpiredProjectTimers() {
@@ -78,7 +78,7 @@ public class ProjectTimerService {
         boolean meetsRequirements = (gold >= 5 && silver >= 10 && bronze >= 15);
 
         if (!meetsRequirements) {
-            log.warn("Project {} ('{}') failed 20-hour sprint goals (Gold: {}/5, Silver: {}/10, Bronze: {}/15). Locking project.",
+            log.warn("Project {} ('{}') failed 48-hour sprint goals (Gold: {}/5, Silver: {}/10, Bronze: {}/15). Locking project.",
                     project.getId(), project.getTitle(), gold, silver, bronze);
             project.setStatus("LOCKED");
             projectRepository.save(project);
@@ -87,7 +87,7 @@ public class ProjectTimerService {
                     project.getId(), project.getTitle(), gold, silver, bronze);
             project.setStatus("STAGE3_ACTIVE");
             if (project.getStage3Deadline() == null) {
-                project.setStage3Deadline(now.plusHours(200));
+                project.setStage3Deadline(now.plusHours(120));
             }
             projectRepository.save(project);
         }
@@ -95,7 +95,7 @@ public class ProjectTimerService {
 
     /**
      * Scheduled background job running every 5 minutes.
-     * Checks STAGE3_ACTIVE projects whose 200-hour Pilot MVP timer has expired.
+     * Checks STAGE3_ACTIVE projects whose 120-hour Pilot MVP timer has expired.
      * When expired, permanently closes the project (terminal state, can never be reopened).
      */
     @Scheduled(fixedDelay = 300000, initialDelay = 30000)
@@ -127,7 +127,7 @@ public class ProjectTimerService {
 
     @Transactional
     public void closeStage3Project(Project project) {
-        log.warn("Project {} ('{}') Stage 3 200-hour Pilot MVP timer expired. Permanently CLOSING project.",
+        log.warn("Project {} ('{}') Stage 3 120-hour Pilot MVP timer expired. Permanently CLOSING project.",
                 project.getId(), project.getTitle());
         project.setStatus("CLOSED");
         projectRepository.save(project);

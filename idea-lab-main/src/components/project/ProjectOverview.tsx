@@ -1126,16 +1126,16 @@ const ProjectOverview = ({
                     </p>
                   </div>
 
-                  {/* 20-Hour Validation Sprint & Stage 3 Qualification Card */}
+                  {/* 48-Hour Validation Sprint & Stage 3 Qualification Card */}
                   <div className="bg-gradient-to-br from-indigo-50/80 via-white to-cyan-50/60 border-2 border-indigo-200/80 rounded-2xl p-5 shadow-sm space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div>
                         <h4 className="font-bold text-gray-900 text-sm font-display flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
-                          20-Hour Stage 2 Sprint & Stage 3 Qualification
+                          48-Hour Stage 2 Sprint & Stage 3 Qualification
                         </h4>
                         <p className="text-xs text-slate-500 font-sans mt-0.5">
-                          Acquire <strong>5 Gold + 10 Silver + 15 Bronze</strong> verified audience members within 20 hours to auto-qualify for Stage 3 Pilot MVP.
+                          Acquire <strong>5 Gold + 10 Silver + 15 Bronze</strong> verified audience members within 48 hours (2 days) to auto-qualify for Stage 3 Pilot MVP.
                         </p>
                       </div>
                       <div className="shrink-0">
@@ -1295,7 +1295,7 @@ const ProjectOverview = ({
                 Stage 3: Pilot MVP Cohort & Growth
                 {isStage3Active && (
                   <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-300 animate-pulse font-sans">
-                    Active (200h)
+                    Active (120h / 5d)
                   </span>
                 )}
                 {isClosed && (
@@ -1306,9 +1306,9 @@ const ProjectOverview = ({
               </h3>
               <p className="text-xs text-gray-500 mt-0.5 font-sans">
                 {isClosed 
-                  ? "The 200-hour Pilot MVP window has ended. Project is permanently closed and archived." 
+                  ? "The 120-hour Pilot MVP window has ended. Project is permanently closed and archived." 
                   : isStage3Active 
-                  ? "200-hour Pilot MVP window is LIVE! Engage pilot members and deliver prototypes." 
+                  ? "120-hour (5 days) Pilot MVP window is LIVE! Engage pilot members and deliver prototypes." 
                   : "Recruit your pilot batch for MVP validation using spotlight metrics and pitch loop feedback."}
               </p>
             </div>
@@ -1361,13 +1361,13 @@ const ProjectOverview = ({
                       </div>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-extrabold text-gray-900 text-base font-display">Stage 3 Pilot MVP Window (200 Hours)</h4>
+                          <h4 className="font-extrabold text-gray-900 text-base font-display">Stage 3 Pilot MVP Window (120 Hours / 5 Days)</h4>
                           <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-300 uppercase tracking-wider font-display animate-pulse">
                             Active Window ⚡
                           </span>
                         </div>
                         <p className="text-sm text-slate-700 leading-relaxed font-sans max-w-xl">
-                          Stage 2 validation targets were successfully met! You have a <strong>200-hour sprint</strong> to engage your enrolled pilot cohort, test prototypes, and iterate. Once the 200 hours end, this project will permanently close and archive.
+                          Stage 2 validation targets were successfully met! You have a <strong>120-hour (5-day) sprint</strong> to engage your enrolled pilot cohort, test prototypes, and iterate. Once the 120 hours end, this project will permanently close and archive.
                         </p>
                       </div>
                     </div>
@@ -1395,7 +1395,7 @@ const ProjectOverview = ({
                     </span>
                   </div>
                   <p className="text-xs text-slate-400 leading-relaxed font-sans">
-                    The 200-hour Pilot MVP countdown has ended. This project has completed its lifecycle on Neesh AI and is preserved in permanent read-only archive mode.
+                    The 120-hour (5-day) Pilot MVP countdown has ended. This project has completed its lifecycle on Neesh AI and is preserved in permanent read-only archive mode.
                   </p>
                 </div>
               )}
