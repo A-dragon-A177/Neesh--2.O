@@ -247,7 +247,6 @@ export const ProjectLockedOverlay: React.FC<ProjectLockedOverlayProps> = ({
     setIsUnlocking(true);
     try {
       await onUnlock(selectedDays);
-      toast.success(`🎉 Project unlocked for ${selectedDays} day${selectedDays > 1 ? "s" : ""}!`);
     } catch (err) {
       toast.error("Failed to unlock project. Please try again.");
     } finally {

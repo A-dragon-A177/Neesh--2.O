@@ -1643,3 +1643,41 @@
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
+
+/* ─── Global Sonner Toast Centering ─── */
+[data-sonner-toaster] {
+  position: fixed !important;
+  z-index: 999999 !important;
+  pointer-events: none !important;
+  box-sizing: border-box !important;
+}
+
+[data-sonner-toaster][data-x-position="center"] {
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+  width: calc(100% - 32px) !important;
+  max-width: 440px !important;
+  margin: 0 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+[data-sonner-toaster][data-y-position="top"] {
+  top: 1.5rem !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast] {
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  margin: 0 auto !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  pointer-events: auto !important;
+  box-sizing: border-box !important;
+}
+

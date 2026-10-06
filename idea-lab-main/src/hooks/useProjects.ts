@@ -629,11 +629,12 @@ export const useProjects = () => {
 
       const updated = transformProject(backendProject!);
       setProjects(prev => prev.map(p => (p.id === id ? updated : p)));
-      const durationLabel = days ? `${days} day${days > 1 ? "s" : ""}` : (isStage3Project ? "5 days (120h)" : "2 days (48h)");
+      const durationLabel = days ? `${days} day${days > 1 ? "s" : ""}` : (isStage3Project ? "5 days" : "2 days");
+      toast.dismiss();
       toast.success(
         isStage3Project
-          ? `🎉 Stage 3 Pilot window unlocked! (Fresh ${durationLabel} granted)`
-          : `🎉 Project unlocked successfully! (Fresh ${durationLabel} cycle granted)`
+          ? `🎉 Stage 3 window unlocked for ${durationLabel}!`
+          : `🎉 Project unlocked for ${durationLabel}!`
       );
       return updated;
     } catch (err) {
