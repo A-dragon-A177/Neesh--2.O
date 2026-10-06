@@ -220,6 +220,29 @@ const Login = () => {
       } else if (error.message.includes("Invalid login credentials")) {
         toast.error(`Invalid email or password. (${MAX_ATTEMPTS - prev.count} attempts remaining)`);
       } else if (error.message.includes("Email not confirmed")) {
+        try {
+          const confRes = await fetch(`${BASE_URL}/api/public/auth/confirm-user`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: emailLower, password }),
+          });
+          const confData = await confRes.json();
+          if (confRes.ok && confData.success) {
+            toast.success("Account verified! Signing you in...");
+            const retry = await signIn(emailLower, password);
+            if (!retry.error) {
+              const target = getTargetRedirect();
+              if (target.startsWith("http://") || target.startsWith("https://")) {
+                window.location.href = target;
+              } else {
+                navigate(target);
+              }
+              return;
+            }
+          }
+        } catch (e) {
+          console.error("[Login] Confirm fallback error:", e);
+        }
         toast.error("Please verify your email before signing in.");
       } else if (error.message.includes("User not found")) {
         toast.error("No account found with this email. Please sign up first.");

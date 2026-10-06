@@ -184,12 +184,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       options: { emailRedirectTo: redirectUrl }
     });
 
-    // 2. If Supabase email rate limit is hit (429 / email rate limit exceeded), fallback to backend admin signup
+    // 2. If Supabase email rate limit is hit (429) or unconfirmed user is already registered, fallback to backend admin signup
     const errorMsg = sbResult.error?.message?.toLowerCase() || '';
-    const isRateLimited = errorMsg.includes('rate limit') || errorMsg.includes('too many') || (sbResult.error as any)?.status === 429;
+    const shouldFallback = errorMsg.includes('rate limit') || errorMsg.includes('too many') || (sbResult.error as any)?.status === 429 || errorMsg.includes('already registered');
 
-    if (sbResult.error && isRateLimited) {
-      console.warn('[AuthContext] Supabase email rate limit reached. Auto-registering via confirmed admin signup...');
+    if (sbResult.error && shouldFallback) {
+      console.warn('[AuthContext] Supabase signup error. Auto-registering/confirming via admin API...');
       try {
         const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8082';
         const res = await fetch(`${backendUrl}/api/public/auth/signup`, {
@@ -200,7 +200,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const backendData = await res.json();
 
         if (res.ok && backendData.success) {
-          // Immediately sign in with the new confirmed account to establish session
+          // Immediately sign in with the confirmed account to establish session
           const loginResult = await supabase.auth.signInWithPassword({
             email: cleanEmail,
             password
@@ -249,7 +249,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       currentUserIdRef.current = mockUser.id;
       return { data: { user: mockUser, session: mockSession }, error: null };
     }
-    return await supabase.auth.signInWithPassword({ email, password });
+
+    const cleanEmail = email.trim().toLowerCase();
+    let result = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
+
+    // If Supabase returns "Email not confirmed", auto-confirm via backend admin API
+    if (result.error && result.error.message.toLowerCase().includes('email not confirmed')) {
+      console.warn('[AuthContext] Detected "Email not confirmed". Resolving via backend admin auto-confirmation...');
+      try {
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8082';
+        const res = await fetch(`${backendUrl}/api/public/auth/confirm-user`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: cleanEmail, password }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          result = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
+        }
+      } catch (confirmErr) {
+        console.error('[AuthContext] Auto-confirm error:', confirmErr);
+      }
+    }
+
+    return result;
   };
 
   const resolveAbsoluteRedirectUrl = (redirectTo?: string): string => {

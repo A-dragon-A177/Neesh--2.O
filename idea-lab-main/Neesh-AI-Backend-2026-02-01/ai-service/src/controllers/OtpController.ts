@@ -146,6 +146,24 @@ export class OtpController {
             if (error) {
                 console.warn('[OtpController] directSignup Supabase error:', error.message);
                 if (error.message.toLowerCase().includes('already registered') || error.message.toLowerCase().includes('already been registered')) {
+                    // Check if existing user exists in user registry
+                    const { data: usersData } = await supabase.auth.admin.listUsers();
+                    const existingUser = (usersData?.users || []).find(u => u.email?.toLowerCase() === cleanEmail);
+                    if (existingUser) {
+                        // Confirm email and synchronize password so user can sign in immediately
+                        const { data: updated, error: updateErr } = await supabase.auth.admin.updateUserById(existingUser.id, {
+                            email_confirm: true,
+                            password: password
+                        });
+                        if (!updateErr) {
+                            console.log(`[OtpController] Successfully auto-confirmed existing user: ${cleanEmail}`);
+                            return res.json({
+                                success: true,
+                                message: 'Account verified and ready! Signing you in...',
+                                user: updated?.user
+                            });
+                        }
+                    }
                     return res.status(400).json({ success: false, message: 'This email is already registered. Please sign in instead.' });
                 }
                 return res.status(400).json({ success: false, message: error.message });
@@ -159,6 +177,54 @@ export class OtpController {
         } catch (error: any) {
             console.error('[OtpController] directSignup error:', error);
             return res.status(500).json({ success: false, message: 'Internal server error during account creation.' });
+        }
+    }
+
+    /**
+     * Confirms an unconfirmed user and updates password so they can log in immediately
+     * Resolves Supabase "Email not confirmed" error caused by shared email rate limits
+     */
+    async confirmUser(req: Request, res: Response) {
+        try {
+            const { email, password } = req.body;
+            if (!email || !password) {
+                return res.status(400).json({ success: false, message: 'Email and password are required.' });
+            }
+
+            const cleanEmail = email.trim().toLowerCase();
+
+            // Find user in Supabase Auth
+            const { data: usersData, error: listErr } = await supabase.auth.admin.listUsers();
+            if (listErr) {
+                console.error('[OtpController] confirmUser listUsers error:', listErr);
+                return res.status(500).json({ success: false, message: 'Failed to access user registry.' });
+            }
+
+            const user = (usersData?.users || []).find(u => u.email?.toLowerCase() === cleanEmail);
+            if (!user) {
+                return res.status(404).json({ success: false, message: 'No account found with this email.' });
+            }
+
+            // Confirm email and set password
+            const { data: updated, error: updateErr } = await supabase.auth.admin.updateUserById(user.id, {
+                email_confirm: true,
+                password: password
+            });
+
+            if (updateErr) {
+                console.error('[OtpController] confirmUser updateUserById error:', updateErr);
+                return res.status(500).json({ success: false, message: updateErr.message });
+            }
+
+            console.log(`[OtpController] Auto-confirmed account for ${cleanEmail}`);
+            return res.json({
+                success: true,
+                message: 'Account confirmed successfully!',
+                user: updated?.user
+            });
+        } catch (error: any) {
+            console.error('[OtpController] confirmUser error:', error);
+            return res.status(500).json({ success: false, message: 'Internal server error confirming account.' });
         }
     }
 }
