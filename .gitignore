@@ -60,8 +60,12 @@ Thumbs.db
 
 # Scratch and test runner scripts
 neesh-ref-repo/
+neesh-pilot-portal/
 run-*.mjs
 test-*.mjs
 idea-lab-main/*.mjs
 idea-lab-main/*.class
+extracted_guide_images/
+extracted_raw_screenshots/
+pdf_extracted_text.txt
 
