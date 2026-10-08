@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
   Volume2, VolumeX, Share2, BookOpen, MessageCircle, ChevronUp, ChevronDown,
-  ArrowRight, X, Loader2, Play, Clapperboard, LogIn, SkipForward, ArrowLeft, Flame
+  ArrowRight, X, Loader2, Play, Pause, Clapperboard, LogIn, SkipForward, ArrowLeft, Flame
 } from "lucide-react";
 import { usePitches, type PitchFeedItem } from "@/hooks/usePitches";
 import { useAuth } from "@/hooks/useAuth";
@@ -92,6 +92,26 @@ const PitchCard = ({ pitch, isActive, onBlogOpen }: PitchCardProps) => {
   const [copied, setCopied] = useState(false);
   const [neeshCount, setNeeshCount] = useState<number>(0);
   const [showDetailsSheet, setShowDetailsSheet] = useState(false);
+  const [centerIconVisible, setCenterIconVisible] = useState(false);
+  const hideIconTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showCenterIconTemporarily = () => {
+    setCenterIconVisible(true);
+    if (hideIconTimerRef.current) {
+      clearTimeout(hideIconTimerRef.current);
+    }
+    hideIconTimerRef.current = setTimeout(() => {
+      setCenterIconVisible(false);
+    }, 2000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (hideIconTimerRef.current) {
+        clearTimeout(hideIconTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -146,10 +166,11 @@ const PitchCard = ({ pitch, isActive, onBlogOpen }: PitchCardProps) => {
     setProgress(isNaN(pct) ? 0 : pct);
   };
 
-  const togglePlay = (e?: React.MouseEvent) => {
+  const togglePlay = (e?: React.MouseEvent | React.TouchEvent) => {
     e?.stopPropagation();
     const video = videoRef.current;
     if (!video) return;
+    showCenterIconTemporarily();
 
     if (video.paused) {
       // User clicked play -> enable audio
@@ -265,14 +286,22 @@ const PitchCard = ({ pitch, isActive, onBlogOpen }: PitchCardProps) => {
         </div>
       )}
 
-      {/* Play/Pause center overlay button (White/Cyan theme) */}
-      {!playing && isActive && pitch.elevatorPitchUrl && (
+      {/* Play/Pause center overlay button — tap anywhere on pitch to toggle, icon disappears after 2 seconds */}
+      {isActive && pitch.elevatorPitchUrl && (
         <button
           onClick={togglePlay}
-          className="absolute inset-0 flex items-center justify-center z-20 group"
+          className="absolute inset-0 w-full h-full flex items-center justify-center z-20 cursor-pointer bg-transparent border-0 p-0 focus:outline-none"
+          aria-label={playing ? "Pause video" : "Play video"}
         >
-          <div className="w-16 h-16 rounded-full bg-white/95 text-cyan-600 backdrop-blur-md flex items-center justify-center border-2 border-cyan-400/80 shadow-[0_0_25px_rgba(9,218,237,0.4)] transition-all hover:scale-110 active:scale-95 group-hover:border-cyan-300">
-            <Play className="w-8 h-8 text-cyan-600 fill-cyan-500 ml-1 transition-colors" />
+          <div
+            className={`w-16 h-16 rounded-full bg-white/95 text-cyan-600 backdrop-blur-md flex items-center justify-center border-2 border-cyan-400/80 shadow-[0_0_25px_rgba(9,218,237,0.4)] transition-all duration-300 pointer-events-none ${
+              centerIconVisible ? "opacity-100 scale-100" : "opacity-0 scale-90"
+            }`}
+          >
+            {playing
+              ? <Play className="w-8 h-8 text-cyan-600 fill-cyan-500 ml-1 transition-colors" />
+              : <Pause className="w-8 h-8 text-cyan-600 fill-cyan-500 transition-colors" />
+            }
           </div>
         </button>
       )}

@@ -65,6 +65,26 @@ const VideoPlayer = ({
   const [progress, setProgress] = useState(0);
   const [videoError, setVideoError] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
+  const [centerIconVisible, setCenterIconVisible] = useState(false);
+  const hideIconTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showCenterIconTemporarily = () => {
+    setCenterIconVisible(true);
+    if (hideIconTimerRef.current) {
+      clearTimeout(hideIconTimerRef.current);
+    }
+    hideIconTimerRef.current = setTimeout(() => {
+      setCenterIconVisible(false);
+    }, 2000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (hideIconTimerRef.current) {
+        clearTimeout(hideIconTimerRef.current);
+      }
+    };
+  }, []);
 
   // Auto-play when this card becomes active, pause when not
   useEffect(() => {
@@ -95,9 +115,10 @@ const VideoPlayer = ({
     }
   }, [isActive, videoUrl]);
 
-  const togglePlay = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const togglePlay = (e?: React.MouseEvent | React.TouchEvent) => {
+    e?.stopPropagation();
     if (!videoRef.current) return;
+    showCenterIconTemporarily();
     if (videoRef.current.paused) {
       // User gesture -> unmute so audio is heard clearly
       videoRef.current.muted = false;
@@ -180,17 +201,20 @@ const VideoPlayer = ({
       {/* Gradient overlay for controls */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
-      {/* Centre play/pause button — always visible when paused, hover-visible when playing */}
+      {/* Centre play/pause button — tap anywhere on pitch to toggle, icon disappears after 2 seconds */}
       <button
         onClick={togglePlay}
-        className={`absolute inset-0 flex items-center justify-center z-20 transition-opacity duration-300 ${
-          playing ? "opacity-0 group-hover:opacity-100" : "opacity-100"
-        }`}
+        className="absolute inset-0 w-full h-full flex items-center justify-center z-20 cursor-pointer bg-transparent border-0 p-0 focus:outline-none"
+        aria-label={playing ? "Pause video" : "Play video"}
       >
-        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/95 text-cyan-600 backdrop-blur-md flex items-center justify-center border-2 border-cyan-400/80 shadow-[0_0_25px_rgba(9,218,237,0.4)] transition-all hover:scale-110 active:scale-95 group-hover:border-cyan-300">
+        <div
+          className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/95 text-cyan-600 backdrop-blur-md flex items-center justify-center border-2 border-cyan-400/80 shadow-[0_0_25px_rgba(9,218,237,0.4)] transition-all duration-300 pointer-events-none ${
+            centerIconVisible ? "opacity-100 scale-100" : "opacity-0 scale-90"
+          }`}
+        >
           {playing
-            ? <Pause className="w-8 h-8 text-cyan-600 fill-cyan-500" />
-            : <Play className="w-8 h-8 text-cyan-600 fill-cyan-500 ml-1" />
+            ? <Play className="w-8 h-8 text-cyan-600 fill-cyan-500 ml-1" />
+            : <Pause className="w-8 h-8 text-cyan-600 fill-cyan-500" />
           }
         </div>
       </button>

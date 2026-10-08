@@ -2,7 +2,7 @@ import { useParams, Link } from "react-router-dom";
 import { getSpotlightTitle } from "@/lib/spotlightTitles";
 import { buildSectionsFromValidationAnswers, isExcludedDataSection } from "@/lib/spotlightSections";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Image, Share2, Clock, Send, MessageCircle, Copy, Check, Link2, Loader2, Sparkles, Volume2, VolumeX, ArrowRight, Clapperboard, Play, X, Flame, Star, Upload, Mail, Lock, Eye, EyeOff, AlertCircle, PenLine } from "lucide-react";
+import { ChevronLeft, Image, Share2, Clock, Send, MessageCircle, Copy, Check, Link2, Loader2, Sparkles, Volume2, VolumeX, ArrowRight, Clapperboard, Play, Pause, X, Flame, Star, Upload, Mail, Lock, Eye, EyeOff, AlertCircle, PenLine } from "lucide-react";
 import { NeeshLogo } from "@/components/NeeshLogo";
 import ReactMarkdown from 'react-markdown';
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
@@ -166,6 +166,27 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
   const [activeView, setActiveView] = useState<"pitch" | "blog">("blog");
   const [pitchMuted, setPitchMuted] = useState(false);
   const [pitchPlaying, setPitchPlaying] = useState(true);
+  const [pitchCenterIconVisible, setPitchCenterIconVisible] = useState(false);
+  const pitchHideIconTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showPitchCenterIconTemporarily = () => {
+    setPitchCenterIconVisible(true);
+    if (pitchHideIconTimerRef.current) {
+      clearTimeout(pitchHideIconTimerRef.current);
+    }
+    pitchHideIconTimerRef.current = setTimeout(() => {
+      setPitchCenterIconVisible(false);
+    }, 2000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (pitchHideIconTimerRef.current) {
+        clearTimeout(pitchHideIconTimerRef.current);
+      }
+    };
+  }, []);
+
   const touchStartRef = useRef<number | null>(null);
 
   // Chatbot settings derived from blogData
@@ -1435,30 +1456,49 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
           /* Fulscreen Elevator Pitch / Cover Page Landing View */
           <div className="fixed inset-0 z-40 bg-black flex items-center justify-center select-none">
             {blogData.elevatorPitchUrl ? (
-              <video
-                src={blogData.elevatorPitchUrl}
-                poster={blogData.elevatorPitchThumbnail || undefined}
-                muted={pitchMuted}
-                autoPlay
-                loop
-                playsInline
-                preload="metadata"
+              <div
                 onClick={() => {
+                  showPitchCenterIconTemporarily();
                   setPitchPlaying(p => !p);
                   setPitchMuted(false);
                 }}
-                ref={el => {
-                  if (el) {
-                    try {
-                      el.playbackRate = 1.0;
-                      el.defaultPlaybackRate = 1.0;
-                    } catch {}
-                    if (pitchPlaying) el.play().catch(() => {});
-                    else el.pause();
-                  }
-                }}
-                className="w-full h-full object-contain"
-              />
+                className="relative w-full h-full flex items-center justify-center cursor-pointer"
+              >
+                <video
+                  src={blogData.elevatorPitchUrl}
+                  poster={blogData.elevatorPitchThumbnail || undefined}
+                  muted={pitchMuted}
+                  autoPlay
+                  loop
+                  playsInline
+                  preload="metadata"
+                  ref={el => {
+                    if (el) {
+                      try {
+                        el.playbackRate = 1.0;
+                        el.defaultPlaybackRate = 1.0;
+                      } catch {}
+                      if (pitchPlaying) el.play().catch(() => {});
+                      else el.pause();
+                    }
+                  }}
+                  className="w-full h-full object-contain"
+                />
+
+                {/* Centre play/pause icon: appears on tap and disappears after 2 seconds */}
+                <div
+                  className={`absolute inset-0 flex items-center justify-center z-20 pointer-events-none transition-all duration-300 ${
+                    pitchCenterIconVisible ? "opacity-100 scale-100" : "opacity-0 scale-90"
+                  }`}
+                >
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/95 text-cyan-600 backdrop-blur-md flex items-center justify-center border-2 border-cyan-400/80 shadow-[0_0_25px_rgba(9,218,237,0.4)]">
+                    {pitchPlaying
+                      ? <Play className="w-8 h-8 text-cyan-600 fill-cyan-500 ml-1" />
+                      : <Pause className="w-8 h-8 text-cyan-600 fill-cyan-500" />
+                    }
+                  </div>
+                </div>
+              </div>
             ) : (
               <div className="absolute inset-0 w-full h-full">
                 <img
@@ -1477,15 +1517,18 @@ const BlogPreview = ({ publicId, defaultView }: BlogPreviewProps) => {
             {/* Mute toggle (only if video exists) */}
             {blogData.elevatorPitchUrl && (
               <button
-                onClick={() => setPitchMuted(!pitchMuted)}
-                className="absolute top-6 right-4 w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors z-50"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPitchMuted(!pitchMuted);
+                }}
+                className="absolute top-6 right-4 w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors z-50 cursor-pointer"
               >
                 {pitchMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
               </button>
             )}
 
             {/* Content overlay */}
-            <div className="absolute bottom-12 left-6 right-6 z-50 space-y-4 font-sans">
+            <div onClick={(e) => e.stopPropagation()} className="absolute bottom-12 left-6 right-6 z-50 space-y-4 font-sans">
               <div>
                 <div className="flex items-center gap-3 flex-wrap">
                   <span className="px-3.5 py-1 rounded-full text-xs font-bold bg-cyan-500/20 border border-cyan-400/40 text-cyan-300">
