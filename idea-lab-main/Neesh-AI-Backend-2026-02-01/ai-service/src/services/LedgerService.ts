@@ -70,8 +70,14 @@ export class LedgerService {
   /**
    * Appends an immutable entry to ledger_entries.
    * If an entry with the idempotencyKey already exists, returns that existing entry.
+   * For 0n paise (e.g. SCOUT free interactions), gracefully returns { success: true, skipped: true }.
    */
-  public static async createEntry(input: CreateLedgerEntryInput): Promise<LedgerEntryRecord> {
+  public static async createEntry(input: CreateLedgerEntryInput): Promise<LedgerEntryRecord | { success: boolean; skipped: boolean }> {
+    if (input.amountPaise === 0n) {
+      // SCOUT interaction — no ledger entries needed
+      return { success: true, skipped: true };
+    }
+
     if (input.amountPaise <= 0n) {
       throw new Error(`Invalid amount_paise: ${input.amountPaise}. Amount must be strictly positive.`);
     }
@@ -222,6 +228,69 @@ export class LedgerService {
     }
 
     return balance;
+  }
+
+  /**
+   * V20 helper for escrow hold (SCOUT interactions with 0n are skipped)
+   */
+  public static async holdEscrow(amountPaise: bigint, data?: any): Promise<{ success: boolean; skipped?: boolean } | LedgerEntryRecord> {
+    if (amountPaise === 0n) {
+      // SCOUT interaction — no ledger entries needed
+      return { success: true, skipped: true };
+    }
+    return this.createEntry({
+      entryType: 'ESCROW_HOLD',
+      direction: 'DEBIT',
+      amountPaise,
+      userId: data?.userId || data?.founderId,
+      referenceType: data?.referenceType || 'INTERACTION',
+      referenceId: data?.referenceId || data?.interactionId,
+      idempotencyKey: data?.idempotencyKey || `ESCROW_HOLD_${Date.now()}`,
+      status: 'COMPLETED',
+      metadata: data?.metadata,
+    });
+  }
+
+  /**
+   * V20 helper for escrow release (SCOUT interactions with 0n are skipped)
+   */
+  public static async releaseEscrow(amountPaise: bigint, data?: any): Promise<{ success: boolean; skipped?: boolean } | LedgerEntryRecord> {
+    if (amountPaise === 0n) {
+      // SCOUT interaction — no ledger entries needed
+      return { success: true, skipped: true };
+    }
+    return this.createEntry({
+      entryType: 'ESCROW_RELEASE',
+      direction: 'CREDIT',
+      amountPaise,
+      userId: data?.userId,
+      referenceType: data?.referenceType || 'DIRECT_REQUEST',
+      referenceId: data?.referenceId,
+      idempotencyKey: data?.idempotencyKey || `ESCROW_RELEASE_${Date.now()}`,
+      status: 'COMPLETED',
+      metadata: data?.metadata,
+    });
+  }
+
+  /**
+   * V20 helper for commission credit (SCOUT interactions with 0n are skipped)
+   */
+  public static async creditCommission(amountPaise: bigint, data?: any): Promise<{ success: boolean; skipped?: boolean } | LedgerEntryRecord> {
+    if (amountPaise === 0n) {
+      // SCOUT interaction — no ledger entries needed
+      return { success: true, skipped: true };
+    }
+    return this.createEntry({
+      entryType: 'COMMISSION_CREDIT',
+      direction: 'CREDIT',
+      amountPaise,
+      userId: data?.userId,
+      referenceType: data?.referenceType || 'DIRECT_REQUEST',
+      referenceId: data?.referenceId,
+      idempotencyKey: data?.idempotencyKey || `COMM_CREDIT_${Date.now()}`,
+      status: 'COMPLETED',
+      metadata: data?.metadata,
+    });
   }
 }
 

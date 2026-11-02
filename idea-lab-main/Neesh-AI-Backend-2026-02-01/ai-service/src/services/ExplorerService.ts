@@ -146,12 +146,18 @@ export class ExplorerService {
     }
 
     // 3. Update explorer_profiles
+    // V20: Founding Explorer enrollment bypasses SCOUT — starts at SEED (the scarcity urgency warrants it)
+    // Default for new explorers is 'SCOUT' (set at application layer)
+    // Database column default remains 'SEED' for legacy safety
     await supabase
       .from('explorer_profiles')
       .update({
         is_founding_explorer: true,
         founding_explorer_enrolled_at: now.toISOString(),
         commission_free_until: commissionFreeUntil,
+        pioneer_grade: 'SEED',
+        fee_min_paise: '10000',
+        fee_max_paise: '50000',
       })
       .eq('id', explorerProfileId);
 

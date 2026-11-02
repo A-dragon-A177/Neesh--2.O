@@ -131,20 +131,27 @@ export class ExplorerController {
       const tenureResult = ExplorerService.calculateTenureMonths(roles);
 
       // 2. Insert or update explorer_profiles
+      // V20: General new Explorer starts as SCOUT. Senior Fast-Track starts at PRO.
+      // Default for new explorers is 'SCOUT' (set at application layer)
+      // Database column default remains 'SEED' for legacy safety
+      const initialGrade = tenureResult.isSeniorFastTrackEligible ? 'PRO' : 'SCOUT';
+      const initialFeeMin = tenureResult.isSeniorFastTrackEligible ? '80000' : '0';
+      const initialFeeMax = tenureResult.isSeniorFastTrackEligible ? '300000' : '0';
+
       const profileData: any = {
         user_id: userId,
         username: username.trim().toLowerCase(),
         display_name: displayName || username,
         domain_id: domain.id,
-        pioneer_grade: 'SEED',
+        pioneer_grade: initialGrade,
         linkedin_verified: true,
         linkedin_verified_at: new Date().toISOString(),
         linkedin_domain_tenure_years: tenureResult.qualifyingYears,
         linkedin_tenure_months: tenureResult.totalQualifyingMonths,
         linkedin_profile_url: linkedinProfileUrl || null,
         bio: bio || null,
-        fee_min_paise: '10000', // ₹100
-        fee_max_paise: '50000',  // ₹500
+        fee_min_paise: initialFeeMin,
+        fee_max_paise: initialFeeMax,
         senior_fast_track: tenureResult.isSeniorFastTrackEligible,
       };
 
@@ -162,12 +169,13 @@ export class ExplorerController {
 
       // 3. Founding Explorer cumulative platform-wide check (Section O.2)
       const foundingResult = await ExplorerService.checkAndEnrollFoundingExplorer(profile.id);
+      const effectiveGrade = foundingResult.enrolled && initialGrade === 'SCOUT' ? 'SEED' : initialGrade;
 
       // 4. Return profile state + eligibility
       res.status(200).json({
         profileId: profile.id,
         username: profile.username,
-        grade: 'SEED',
+        grade: effectiveGrade,
         tenureMonths: tenureResult.totalQualifyingMonths,
         isFoundingExplorer: foundingResult.enrolled,
         foundingEnrollmentNumber: foundingResult.enrollmentNumber || null,
@@ -298,9 +306,13 @@ export class ExplorerController {
       }
 
       const years = Number(yearsInDomain) || 1;
-      let initialGrade: 'SEED' | 'RISING' | 'PRO' = 'SEED';
-      let feeMin = '10000'; // ₹100
-      let feeMax = '50000'; // ₹500
+      // V20: General new Explorer starts as SCOUT (0n fee).
+      // Senior Fast-Track (>= 5 years / 60 months) starts at PRO.
+      // Default for new explorers is 'SCOUT' (set at application layer)
+      // Database column default remains 'SEED' for legacy safety
+      let initialGrade: 'SCOUT' | 'SEED' | 'RISING' | 'PRO' = 'SCOUT';
+      let feeMin = '0';
+      let feeMax = '0';
       let isSeniorFastTrack = false;
 
       if (years >= 5 && !startAsRising) {
@@ -312,6 +324,10 @@ export class ExplorerController {
         initialGrade = 'RISING';
         feeMin = '20000';  // ₹200
         feeMax = '80000';  // ₹800
+      } else {
+        initialGrade = 'SCOUT';
+        feeMin = '0';
+        feeMax = '0';
       }
 
       const cleanUsername = (username || `pioneer_${Date.now().toString().slice(-6)}`).toLowerCase().trim();
@@ -349,11 +365,12 @@ export class ExplorerController {
 
       // Check Founding Explorer status
       const foundingResult = await ExplorerService.checkAndEnrollFoundingExplorer(profile.id);
+      const returnGrade = foundingResult.enrolled && initialGrade === 'SCOUT' ? 'SEED' : profile.pioneer_grade;
 
       res.status(201).json({
         profileId: profile.id,
         username: profile.username,
-        pioneerGrade: profile.pioneer_grade,
+        pioneerGrade: returnGrade,
         isFoundingExplorer: foundingResult.enrolled,
         foundingPosition: foundingResult.enrollmentNumber || null,
         commissionFreeUntil: foundingResult.commissionFreeUntil || null,

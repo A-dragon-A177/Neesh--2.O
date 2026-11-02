@@ -27,6 +27,17 @@ export const ExplorerFAQ: React.FC = () => {
         </div>
 
         <div className="space-y-6">
+          {/* V20 Phase 1: Scout Pioneer FAQ Entry */}
+          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-lg">
+            <div className="flex items-center gap-3 mb-3">
+              <PioneerGradeBadge grade="SCOUT" size="sm" />
+              <h2 className="text-xl font-bold text-white">What is Scout Pioneer grade and how do I graduate to Seed grade?</h2>
+            </div>
+            <p className="text-slate-300 text-sm leading-relaxed">
+              All new Explorers start at Scout grade as an unpaid entry tier. Scout interactions are completely free (₹0 fee, no escrow, no payment). Founders still rate your feedback on a 1–5 scale, which computes toward your Weighted Average Rating (WAR). Once you complete at least 3 free interactions with a WAR of 3.50 or higher and verified LinkedIn, you automatically graduate to Seed Pioneer grade and can begin charging founders ₹100–₹500 per interaction.
+            </p>
+          </div>
+
           {/* Canonical Task 9 FAQ Entry */}
           <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-lg">
             <div className="flex items-center gap-3 mb-3">
@@ -34,7 +45,7 @@ export const ExplorerFAQ: React.FC = () => {
               <h2 className="text-xl font-bold text-white">How do I reach Elite grade?</h2>
             </div>
             <p className="text-slate-300 text-sm leading-relaxed">
-              Elite requires 50 completed interactions and a weighted average rating of 4.5 or above. Reaching Master first (30 interactions, 4.3+ rating) is required, after which your final advancement to Elite includes admin review.
+              Elite is the highest Pioneer grade on Neesh. Reaching Elite requires 50 completed paid interactions and a weighted average rating of 4.5 or above. Reaching Master first (30 interactions, 4.3+ rating) is required, after which your final advancement to Elite includes admin review.
             </p>
           </div>
 
@@ -53,9 +64,15 @@ export const ExplorerFAQ: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 text-slate-300">
                   <tr className="hover:bg-slate-800/20">
-                    <td className="py-2.5 px-3"><PioneerGradeBadge grade="SEED" size="sm" /></td>
-                    <td className="py-2.5 px-3">0</td>
+                    <td className="py-2.5 px-3"><PioneerGradeBadge grade="SCOUT" size="sm" /></td>
+                    <td className="py-2.5 px-3">0 (Entry)</td>
                     <td className="py-2.5 px-3">—</td>
+                    <td className="py-2.5 px-3 text-slate-400">Free (Unpaid)</td>
+                  </tr>
+                  <tr className="hover:bg-slate-800/20">
+                    <td className="py-2.5 px-3"><PioneerGradeBadge grade="SEED" size="sm" /></td>
+                    <td className="py-2.5 px-3">3 free</td>
+                    <td className="py-2.5 px-3">3.50+</td>
                     <td className="py-2.5 px-3 text-emerald-400">₹100–₹500</td>
                   </tr>
                   <tr className="hover:bg-slate-800/20">

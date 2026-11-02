@@ -14,7 +14,7 @@
 import { supabase } from '../config/supabase';
 import { GRADE_FEE_RANGES } from '../constants/pricing';
 
-export type PioneerGrade = 'SEED' | 'RISING' | 'PRO' | 'MASTER' | 'ELITE';
+export type PioneerGrade = 'SCOUT' | 'SEED' | 'RISING' | 'PRO' | 'MASTER' | 'ELITE';
 
 export interface InteractionScoringItem {
   id?: string;
@@ -46,6 +46,16 @@ export interface GradeEvaluationResult {
 }
 
 export class PioneerGradeService {
+  public static readonly SCOUT_GRADUATION_MIN_INTERACTIONS = 3;
+  public static readonly SCOUT_GRADUATION_MIN_WAR = 3.50;
+
+  /**
+   * Checks if a Pioneer grade is an earned, fee-eligible paid grade (SEED and above).
+   */
+  public static isPaidGrade(grade: PioneerGrade): boolean {
+    return grade !== 'SCOUT';
+  }
+
   /**
    * Computes the Weighted Average Rating (WAR) and Pioneer Points.
    * Exact PRD formula:
@@ -151,7 +161,7 @@ export class PioneerGradeService {
     linkedinTenureMonths?: number;
     seniorFastTrackCompleted?: boolean;
     masterFounderInteractionsCount?: number;
-    spikeFlagged: boolean;
+    spikeFlagged?: boolean;
     nowDate?: Date;
   }): GradeEvaluationResult {
     const {
@@ -163,7 +173,7 @@ export class PioneerGradeService {
       linkedinTenureMonths = 0,
       seniorFastTrackCompleted = false,
       masterFounderInteractionsCount = 0,
-      spikeFlagged,
+      spikeFlagged = false,
       nowDate = new Date(),
     } = params;
 
@@ -239,6 +249,27 @@ export class PioneerGradeService {
           n,
           points: Math.floor(war * 100) + n * 10,
           reasons: ['Crossed PRO thresholds (N>=10, WAR>=4.00, tenure/fast-track verified)'],
+          spikeFlagged: false,
+          requiresAdmin: false,
+        };
+      }
+    }
+
+    // Check SEED eligibility (graduation from SCOUT)
+    if (currentGrade === 'SCOUT') {
+      if (
+        n >= PioneerGradeService.SCOUT_GRADUATION_MIN_INTERACTIONS &&
+        war >= PioneerGradeService.SCOUT_GRADUATION_MIN_WAR &&
+        linkedinVerified
+      ) {
+        return {
+          currentGrade,
+          targetGrade: 'SEED',
+          qualifies: true,
+          war,
+          n,
+          points: Math.floor(war * 100) + n * 10,
+          reasons: [`Crossed SEED thresholds (N>=${PioneerGradeService.SCOUT_GRADUATION_MIN_INTERACTIONS}, WAR>=${PioneerGradeService.SCOUT_GRADUATION_MIN_WAR}, LinkedIn verified)`],
           spikeFlagged: false,
           requiresAdmin: false,
         };
