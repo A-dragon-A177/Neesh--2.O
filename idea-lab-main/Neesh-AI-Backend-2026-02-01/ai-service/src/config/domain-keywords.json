@@ -1,0 +1,74 @@
+{
+  "b2b-saas": [
+    "churn",
+    "MRR",
+    "ARR",
+    "retention",
+    "CAC",
+    "LTV",
+    "pipeline",
+    "integration",
+    "API",
+    "enterprise",
+    "SMB",
+    "onboarding",
+    "activation",
+    "expansion",
+    "NRR",
+    "ACV"
+  ],
+  "fintech": [
+    "KYC",
+    "AML",
+    "NBFC",
+    "RBI",
+    "UPI",
+    "NEFT",
+    "reconciliation",
+    "float",
+    "credit score",
+    "lending",
+    "payments",
+    "escrow",
+    "settlement"
+  ],
+  "edtech": [
+    "cohort",
+    "retention",
+    "LMS",
+    "completion rate",
+    "curriculum",
+    "pedagogy",
+    "B2B",
+    "B2C",
+    "placement",
+    "upskilling",
+    "certification"
+  ],
+  "health-tech": [
+    "EMR",
+    "EHR",
+    "telemedicine",
+    "HIPAA",
+    "patient",
+    "diagnosis",
+    "clinical",
+    "therapy",
+    "pharma",
+    "insurance"
+  ],
+  "consumer": [
+    "DAU",
+    "MAU",
+    "churn",
+    "LTV",
+    "CAC",
+    "viral",
+    "NPS",
+    "referral",
+    "cohort",
+    "retention",
+    "engagement"
+  ]
+}
+

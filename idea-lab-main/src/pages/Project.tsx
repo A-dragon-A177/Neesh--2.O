@@ -755,10 +755,10 @@ const Project = () => {
                 <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                   Open the full chatbot testing interface to test responses, manage FAQs, and customize settings.
                 </p>
-                <Link to={`/project/${id}/chatbot`}>
+                <Link to="/spotlight-info">
                   <Button size="lg" className="rounded-xl gap-2">
                     <ExternalLink className="w-5 h-5" />
-                    Open Chatbot Tester
+                    Spotlight Preview
                   </Button>
                 </Link>
               </div>

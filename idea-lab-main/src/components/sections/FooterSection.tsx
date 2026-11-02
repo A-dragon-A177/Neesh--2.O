@@ -4,12 +4,13 @@ import { useInView } from "../../hooks/useScrollProgress";
 
 const NAV_LINKS = {
   Product: [
-    { label: "Ecosystem", to: "/innovation-ecosystem" },
+    { label: "For Founders", to: "/for-founders" },
     { label: "Features", to: "/features" },
-    { label: "Simulation", to: "/simulation" },
+    { label: "For Explorers", to: "/for-explorers" },
     { label: "Pricing", to: "/pricing" },
   ],
   Resources: [
+    { label: "FAQ", to: "/explorer-faq" },
     { label: "Blog", to: "/blog-info" },
   ],
 };

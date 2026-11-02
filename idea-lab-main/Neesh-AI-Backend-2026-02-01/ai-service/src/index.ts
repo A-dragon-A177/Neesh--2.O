@@ -9,6 +9,8 @@ import { RagController } from './controllers/RagController';
 import { validateEnvironment } from './config/validateEnv';
 import { requireProjectOwnership } from './middleware/projectOwnership';
 import { publicRateLimiter } from './middleware/publicRateLimit';
+import { signupRateLimiter, otpRateLimiter, passwordResetRateLimiter } from './middleware/authRateLimit';
+import { requireRole } from './middleware/requireRole';
 import { sanitizeChatInput } from './middleware/inputSanitizer';
 
 // Validate required environment variables on startup (fail fast)
@@ -19,24 +21,49 @@ const port = process.env.PORT || 3000;
 
 app.use(compression());
 
-const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:8080,http://localhost:7000,http://localhost:7001,https://neesh-2-o.vercel.app')
+// Strict approved production and staging origins (P0 CORS Hardening)
+// NEVER allow arbitrary *.vercel.app origins for credentialed requests.
+const approvedProductionOrigins = [
+    'https://neesh.ai',
+    'https://www.neesh.ai',
+    'https://neeshglobal.com',
+    'https://www.neeshglobal.com',
+    'https://neesh-2-o.vercel.app'
+];
+
+const developmentOrigins = [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:7000',
+    'http://localhost:7001',
+    'http://localhost:8080'
+];
+
+const extraOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
     .split(',')
-    .map(o => o.trim());
+    .map(o => o.trim())
+    .filter(Boolean);
+
+const isProduction = process.env.NODE_ENV === 'production';
+const allowedOriginsSet = new Set([
+    ...approvedProductionOrigins,
+    ...extraOrigins,
+    ...(isProduction ? [] : developmentOrigins)
+]);
 
 const corsOptions: cors.CorsOptions = {
     origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps, curl, or server-to-server)
+        // Allow requests with no origin (mobile native apps, internal server-to-server, curl)
         if (!origin) return callback(null, true);
 
-        // Allow explicitly listed origins
-        if (allowedOrigins.includes(origin)) return callback(null, true);
+        // Check against explicitly permitted origins
+        if (allowedOriginsSet.has(origin)) return callback(null, true);
 
-        // Allow all Vercel deployments (production, preview, staging)
-        if (/^https:\/\/[a-zA-Z0-9_\-]+\.vercel\.app$/.test(origin)) return callback(null, true);
-
-        // Allow Neesh Global domain
+        // Allow approved apex & subdomains of neesh.ai and neeshglobal.com
+        if (/^https:\/\/(.*\.)?neesh\.ai$/.test(origin)) return callback(null, true);
         if (/^https:\/\/(.*\.)?neeshglobal\.com$/.test(origin)) return callback(null, true);
 
+        // Disallow all other origins (including arbitrary third-party *.vercel.app)
         callback(null, false);
     },
     credentials: true,
@@ -46,7 +73,12 @@ const corsOptions: cors.CorsOptions = {
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
-app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.json({
+    limit: '10mb',
+    verify: (req: any, _res: any, buf: Buffer) => {
+        req.rawBody = buf.toString();
+    }
+}));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 
 import { rateLimiter } from './middleware/rateLimit';
@@ -97,7 +129,17 @@ app.use('/api', (req, res, next) => {
         return next();
     }
     // Skip auth for public endpoints
-    if (req.path.startsWith('/public/')) {
+    const isPublicPath =
+        req.path.startsWith('/public/') ||
+        req.path.startsWith('/webhooks/') ||
+        req.path.startsWith('/webhook/') ||
+        req.path.startsWith('/explorer/preview-feed') ||
+        req.path.startsWith('/explorer/onboarding') ||
+        req.path.startsWith('/explorer/signup') ||
+        req.path.startsWith('/domains') ||
+        req.path.startsWith('/ssr/');
+
+    if (isPublicPath) {
         return next();
     }
     return supabaseAuth(req, res, next);
@@ -118,9 +160,79 @@ app.use('/api/documents/project/:projectId', (req, res, next) => {
 
 const ragController = new RagController();
 
+// ── V19 Core Controllers & Jobs ──────────────────────────────────────
+import { SprintController } from './controllers/SprintController';
+import { WebhookController } from './controllers/WebhookController';
+import { ExplorerController } from './controllers/ExplorerController';
+import { DomainController } from './controllers/DomainController';
+import { ProfileSsrController } from './controllers/ProfileSsrController';
+import { InteractionController } from './controllers/InteractionController';
+import { DirectRequestController } from './controllers/DirectRequestController';
+import { InteractionBlogController } from './controllers/InteractionBlogController';
+import { DomainSsrController } from './controllers/DomainSsrController';
+import { SparkController } from './controllers/SparkController';
+import { DashboardController } from './controllers/DashboardController';
+import { initV19BackgroundJobs, stopV19BackgroundJobs } from './jobs';
+
 // Public API routes (user-facing)
 import { ProjectController } from './controllers/ProjectController';
 const projectController = new ProjectController();
+
+// ── V19 Sprint Endpoints ─────────────────────────────────────────────
+app.post('/api/sprints/purchase', requireRole('FOUNDER', 'ADMIN'), (req, res) => SprintController.purchase(req, res));
+app.get('/api/sprints/:id', (req, res) => SprintController.getById(req, res));
+app.post('/api/sprints/:id/guarantee-claim', requireRole('FOUNDER', 'ADMIN'), (req, res) => SprintController.claimGuarantee(req, res));
+
+// ── V19 Interactions Endpoints ───────────────────────────────────────
+app.post('/api/interactions', requireRole('EXPLORER', 'ADMIN'), (req, res) => InteractionController.submit(req, res));
+app.post('/api/interactions/:id/respond', requireRole('FOUNDER', 'ADMIN'), (req, res) => InteractionController.respond(req, res));
+app.post('/api/interactions/:id/rate', requireRole('FOUNDER', 'ADMIN'), (req, res) => InteractionController.rate(req, res));
+app.get('/api/interactions/:id', (req, res) => InteractionController.getById(req, res));
+
+// ── V19 Direct Requests Endpoints ────────────────────────────────────
+app.post('/api/direct-requests', requireRole('FOUNDER', 'ADMIN'), (req, res) => DirectRequestController.create(req, res));
+app.post('/api/direct-requests/:id/accept', requireRole('EXPLORER', 'ADMIN'), (req, res) => DirectRequestController.accept(req, res));
+app.post('/api/direct-requests/:id/decline', requireRole('EXPLORER', 'ADMIN'), (req, res) => DirectRequestController.decline(req, res));
+app.get('/api/direct-requests/inbox', requireRole('EXPLORER', 'ADMIN'), (req, res) => DirectRequestController.getInbox(req, res));
+
+// ── V19 Cashfree Webhook Endpoints ───────────────────────────────────
+app.post('/api/webhooks/cashfree', (req, res) => WebhookController.handleCashfree(req, res));
+app.post('/api/webhook/cashfree', (req, res) => WebhookController.handleCashfree(req, res));
+
+// ── V19 Explorer & Domain Endpoints ──────────────────────────────────
+app.get('/api/explorer/onboarding', (req, res) => ExplorerController.checkOnboarding(req, res));
+app.post('/api/explorer/signup', (req, res) => ExplorerController.signup(req, res));
+app.post('/api/explorer/linkedin-verify', (req, res) => ExplorerController.verifyLinkedIn(req, res));
+app.post('/api/explorer/verify-linkedin', (req, res) => ExplorerController.verifyLinkedInUrl(req, res));
+app.post('/api/explorer/enroll', (req, res) => ExplorerController.enrollExplorer(req, res));
+app.get('/api/explorer/founding-status', (req, res) => ExplorerController.getFoundingStatus(req, res));
+app.get('/api/explorer/preview-feed', publicRateLimiter, (req, res) => ExplorerController.getPreviewFeed(req, res));
+app.post('/api/explorer/senior-fast-track/choice', requireRole('EXPLORER', 'ADMIN'), (req, res) => ExplorerController.chooseFastTrack(req, res));
+
+// ── V19 Spark Endpoints (Task 1 & 2) ──────────────────────────────────
+app.post('/api/sparks', (req, res) => SparkController.createSpark(req, res));
+app.get('/api/sparks/preview', (req, res) => SparkController.getPreviewSparks(req, res));
+app.get('/api/sparks/:id', (req, res) => SparkController.getSparkById(req, res));
+
+// ── V19 Dashboard & Wallet Endpoints (Task 5, 6, 7) ───────────────────
+app.get('/api/dashboard/founder', (req, res) => DashboardController.getFounderDashboard(req, res));
+app.get('/api/dashboard/explorer', (req, res) => DashboardController.getExplorerDashboard(req, res));
+app.get('/api/wallet', (req, res) => DashboardController.getWallet(req, res));
+
+app.get('/api/domains', (req, res) => DomainController.listDomains(req, res));
+app.get('/api/domains/:slug', (req, res) => DomainController.getDomainBySlug(req, res));
+app.post('/api/domains/:slug/waitlist', (req, res) => DomainController.joinWaitlist(req, res));
+
+// ── V19 Pioneer Profile SSR Endpoints ─────────────────────────────────
+app.get('/explorer/:username', (req, res) => ProfileSsrController.renderProfile(req, res));
+app.get('/api/ssr/explorer/:username', (req, res) => ProfileSsrController.renderProfile(req, res));
+
+// ── V19 Domain & Blog SSR Endpoints (Task 2 & 3) ──────────────────────
+app.get('/api/blog/:slug', (req, res) => InteractionBlogController.getBySlug(req, res));
+app.get('/blog/:slug', (req, res) => InteractionBlogController.renderBlogSsr(req, res));
+app.get('/api/ssr/blog/:slug', (req, res) => InteractionBlogController.renderBlogSsr(req, res));
+app.get('/domain/:slug', (req, res) => DomainSsrController.renderDomain(req, res));
+app.get('/api/ssr/domain/:slug', (req, res) => DomainSsrController.renderDomain(req, res));
 
 app.get('/api/projects', (req, res) => projectController.getProjects(req, res));
 app.post('/api/projects', (req, res) => projectController.createProject(req, res));
@@ -260,11 +372,16 @@ app.delete('/api/user/api-keys/:provider', (req, res) => apiKeyController.delete
 import { OtpController } from './controllers/OtpController';
 const otpController = new OtpController();
 
-app.post('/api/public/otp/send', publicRateLimiter, (req, res) => otpController.sendOtp(req, res));
-app.post('/api/public/otp/verify', publicRateLimiter, (req, res) => otpController.verifyOtp(req, res));
-app.post('/api/public/otp/reset-password', publicRateLimiter, (req, res) => otpController.resetPassword(req, res));
-app.post('/api/public/auth/signup', publicRateLimiter, (req, res) => otpController.directSignup(req, res));
-app.post('/api/public/auth/confirm-user', publicRateLimiter, (req, res) => otpController.confirmUser(req, res));
+app.post('/api/public/otp/send', otpRateLimiter, (req, res) => otpController.sendOtp(req, res));
+app.post('/api/public/otp/verify', otpRateLimiter, (req, res) => otpController.verifyOtp(req, res));
+app.post('/api/public/otp/reset-password', passwordResetRateLimiter, (req, res) => otpController.resetPassword(req, res));
+app.post('/api/public/auth/signup', signupRateLimiter, (req, res) => otpController.directSignup(req, res));
+// Unauthenticated account takeover endpoint removed (returns 401 Unauthorized per PRD AC.1)
+app.post('/api/public/auth/confirm-user', (req, res) => {
+    return res.status(401).json({ error: 'Unauthorized: Endpoint deprecated. Unauthenticated user confirmation is forbidden.' });
+});
+// Admin-only user confirmation requiring ADMIN role
+app.post('/api/admin/users/confirm', supabaseAuth, requireRole('ADMIN'), (req, res) => otpController.confirmUser(req, res));
 
 // Notifications stub routes (not yet implemented)
 app.get('/api/projects/:projectId/notifications', (req, res) => {
@@ -439,6 +556,7 @@ const server = app.listen(port, () => {
 });
 
 function gracefulShutdown(signal: string) {
+    stopV19BackgroundJobs();
     console.log(`[Shutdown] ${signal} received. Closing server gracefully...`);
     server.close(() => {
         console.log('[Shutdown] HTTP server closed. All in-flight requests completed.');

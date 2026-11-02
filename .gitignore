@@ -69,3 +69,9 @@ extracted_guide_images/
 extracted_raw_screenshots/
 pdf_extracted_text.txt
 
+paperclip/
+**/paperclip/
+*.docx
+*.csv
+neesh-claude-skills-*.json
+Neesh_Claude_Code_Skills_*

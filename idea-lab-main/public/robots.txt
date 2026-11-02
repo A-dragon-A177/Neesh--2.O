@@ -1,29 +1,37 @@
 User-agent: *
+Allow: /explorer/
+Allow: /domain/
+Allow: /blog/
 Allow: /
+Allow: /for-founders
+Allow: /for-explorers
+Allow: /pricing
+Disallow: /dashboard/
+Disallow: /onboarding/
+Disallow: /sprint/
+Disallow: /admin/
+Sitemap: https://neesh.ai/sitemap.xml
 
 User-agent: GPTBot
-Allow: /p/
-Allow: /ideas/
-Allow: /space/
+Allow: /explorer/
+Allow: /domain/
+Allow: /blog/
 Allow: /
+Disallow: /dashboard/
+Disallow: /admin/
 
 User-agent: PerplexityBot
-Allow: /p/
-Allow: /ideas/
-Allow: /space/
+Allow: /explorer/
+Allow: /domain/
+Allow: /blog/
 Allow: /
+Disallow: /dashboard/
+Disallow: /admin/
 
 User-agent: ClaudeBot
-Allow: /p/
-Allow: /ideas/
-Allow: /space/
+Allow: /explorer/
+Allow: /domain/
+Allow: /blog/
 Allow: /
-
-User-agent: Google-Extended
-Allow: /p/
-Allow: /ideas/
-Allow: /space/
-Allow: /
-
-Sitemap: https://neeshglobal.com/sitemap-core.xml
-Sitemap: https://neeshglobal.com/sitemap-ideas.xml
+Disallow: /dashboard/
+Disallow: /admin/

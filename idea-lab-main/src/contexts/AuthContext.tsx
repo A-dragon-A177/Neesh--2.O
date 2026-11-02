@@ -35,10 +35,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ── Guards to prevent the auth event loop ──
-  // Track which user ID we've already synced so we never sync twice for the same session
+  // Guards to prevent auth event loop
   const syncedUserIdRef = useRef<string | null>(null);
-  // Track the current user ID to skip redundant setUser/setSession calls
   const currentUserIdRef = useRef<string | null>(null);
 
   const syncWithBackend = useCallback(async () => {
@@ -48,9 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      console.log('[AuthContext] Syncing user with backend...');
       await apiClient.get('/api/users/me');
-      console.log('[AuthContext] User synced with backend successfully');
     } catch (error: any) {
       if (error?.name !== 'AbortError' && !error?.message?.includes('aborted')) {
         console.warn('[AuthContext] Backend sync failed:', error);
@@ -59,7 +55,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
-    console.log('[AuthContext] Initializing Supabase Auth Provider...');
     let isMounted = true;
 
     const handlePostLoginRedirect = () => {
@@ -72,8 +67,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           try {
             if (redirectUrl.startsWith('http://') || redirectUrl.startsWith('https://')) {
               const parsed = new URL(redirectUrl);
-              // If the saved redirect points to a different origin (e.g. localhost while on Vercel, or vice-versa),
-              // keep only the path on the current origin so the user never jumps to localhost!
               if (parsed.origin !== window.location.origin) {
                 safeUrl = `${window.location.origin}${parsed.pathname}${parsed.search}${parsed.hash}`;
               }
@@ -85,7 +78,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const currentClean = window.location.href.split('#')[0].split('?')[0];
           const targetClean = safeUrl.split('#')[0].split('?')[0];
           if (currentClean !== targetClean) {
-            console.log('[AuthContext] Restoring post-login redirect to:', safeUrl);
             setTimeout(() => {
               window.location.href = safeUrl;
             }, 100);
@@ -97,29 +89,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const initSession = async () => {
-      // Check if we have the mock session in local storage first
-      const mockStorage = localStorage.getItem('sb-mock-auth-token');
-      if (mockStorage) {
-        try {
-          const parsed = JSON.parse(mockStorage);
-          if (parsed.user && parsed.access_token === "mock-token") {
-            const mockSession: Session = {
-              access_token: "mock-token",
-              refresh_token: "mock-refresh-token",
-              expires_in: 3600,
-              token_type: "bearer",
-              user: parsed.user
-            };
-            if (!isMounted) return;
-            setSession(mockSession);
-            setUser(parsed.user);
-            currentUserIdRef.current = parsed.user.id;
-            setLoading(false);
-            return;
-          }
-        } catch (e) { }
-      }
-
       try {
         const { data: { session: initialSession }, error } = await supabase.auth.getSession();
         if (error) {
@@ -133,7 +102,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           handlePostLoginRedirect();
         }
       } catch (err: any) {
-        // AbortError is normal when unmounting or navigating away
         if (err?.name === 'AbortError' || err?.message?.includes('aborted')) {
           return;
         }
@@ -147,13 +115,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initSession();
 
-    // Listen to state changes (but ignore if we are using the mock session)
+    // Listen to state changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, newSession) => {
       if (!isMounted) return;
-      // If we are currently using a mock session, don't overwrite it with real auth changes
-      if (localStorage.getItem('sb-mock-auth-token')) return;
 
       setSession(newSession);
       setUser(newSession?.user ?? null);
@@ -177,102 +143,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const redirectUrl = `${window.location.origin}/dashboard`;
     const cleanEmail = email.trim().toLowerCase();
 
-    // 1. First attempt normal Supabase signup
-    const sbResult = await supabase.auth.signUp({
+    return await supabase.auth.signUp({
       email: cleanEmail,
       password,
       options: { emailRedirectTo: redirectUrl }
     });
-
-    // 2. If Supabase email rate limit is hit (429) or unconfirmed user is already registered, fallback to backend admin signup
-    const errorMsg = sbResult.error?.message?.toLowerCase() || '';
-    const shouldFallback = errorMsg.includes('rate limit') || errorMsg.includes('too many') || (sbResult.error as any)?.status === 429 || errorMsg.includes('already registered');
-
-    if (sbResult.error && shouldFallback) {
-      console.warn('[AuthContext] Supabase signup error. Auto-registering/confirming via admin API...');
-      try {
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8082';
-        const res = await fetch(`${backendUrl}/api/public/auth/signup`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: cleanEmail, password }),
-        });
-        const backendData = await res.json();
-
-        if (res.ok && backendData.success) {
-          // Immediately sign in with the confirmed account to establish session
-          const loginResult = await supabase.auth.signInWithPassword({
-            email: cleanEmail,
-            password
-          });
-          return loginResult;
-        } else if (backendData?.message) {
-          return { data: { user: null, session: null }, error: new Error(backendData.message) as any };
-        }
-      } catch (backendErr: any) {
-        console.error('[AuthContext] Backend fallback signup error:', backendErr);
-      }
-    }
-
-    return sbResult;
   };
 
   const signIn = async (email: string, password: string) => {
-    const isMockAuthEnabled = import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOCK_AUTH === "true";
-    if (isMockAuthEnabled && email.toLowerCase() === "test@example.com" && password === "test1234") {
-      console.log('[AuthContext] Bypassing login with mock credentials');
-      const mockUser: User = {
-        id: "d564fa72-c288-466d-88f2-2bbdf19a6b18",
-        email: "test@example.com",
-        created_at: new Date().toISOString(),
-        app_metadata: {},
-        user_metadata: { name: "Test User" },
-        aud: "authenticated",
-        role: "authenticated"
-      };
-      const mockSession: Session = {
-        access_token: "mock-token",
-        refresh_token: "mock-refresh-token",
-        expires_in: 3600,
-        token_type: "bearer",
-        user: mockUser
-      };
-
-      // Store mock session token in local storage so that safeGetSession in api.ts finds it
-      localStorage.setItem('sb-mock-auth-token', JSON.stringify({
-        access_token: "mock-token",
-        user: mockUser
-      }));
-
-      setSession(mockSession);
-      setUser(mockUser);
-      currentUserIdRef.current = mockUser.id;
-      return { data: { user: mockUser, session: mockSession }, error: null };
-    }
-
     const cleanEmail = email.trim().toLowerCase();
-    let result = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
-
-    // If Supabase returns "Email not confirmed", auto-confirm via backend admin API
-    if (result.error && result.error.message.toLowerCase().includes('email not confirmed')) {
-      console.warn('[AuthContext] Detected "Email not confirmed". Resolving via backend admin auto-confirmation...');
-      try {
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8082';
-        const res = await fetch(`${backendUrl}/api/public/auth/confirm-user`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: cleanEmail, password }),
-        });
-        const data = await res.json();
-        if (res.ok && data.success) {
-          result = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
-        }
-      } catch (confirmErr) {
-        console.error('[AuthContext] Auto-confirm error:', confirmErr);
-      }
-    }
-
-    return result;
+    return await supabase.auth.signInWithPassword({ email: cleanEmail, password });
   };
 
   const resolveAbsoluteRedirectUrl = (redirectTo?: string): string => {
@@ -280,14 +160,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!redirectTo || redirectTo.trim() === '') {
       return origin ? `${origin}/dashboard` : '/dashboard';
     }
-    // If it's a relative path (e.g. "/dashboard" or "dashboard")
     if (redirectTo.startsWith('/')) {
       return `${origin}${redirectTo}`;
     }
     if (!redirectTo.startsWith('http://') && !redirectTo.startsWith('https://')) {
       return `${origin}/${redirectTo}`;
     }
-    // If it's an absolute URL, check whether it points to an old deployment domain
     try {
       const parsed = new URL(redirectTo);
       if (origin && parsed.origin !== origin && (parsed.hostname.includes('vercel.app') || parsed.hostname.includes('localhost'))) {
@@ -323,7 +201,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
-      localStorage.removeItem('sb-mock-auth-token');
       const { error } = await supabase.auth.signOut();
       syncedUserIdRef.current = null;
       currentUserIdRef.current = null;
@@ -332,7 +209,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { error };
     } catch (error) {
       console.error('[AuthContext] signOut exception:', error);
-      localStorage.removeItem('sb-mock-auth-token');
       syncedUserIdRef.current = null;
       currentUserIdRef.current = null;
       setSession(null);
