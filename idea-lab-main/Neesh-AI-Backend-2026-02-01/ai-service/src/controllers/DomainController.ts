@@ -20,13 +20,15 @@ export class DomainController {
         .order('name', { ascending: true });
 
       if (error) {
-        res.status(500).json({ error: error.message });
+        console.error('[DomainController] listDomains DB error:', error);
+        res.status(500).json({ error: 'Internal server error' });
         return;
       }
 
       res.status(200).json({ domains: domains || [] });
     } catch (err: any) {
-      res.status(500).json({ error: err.message || 'Internal server error' });
+      console.error('[DomainController] listDomains error:', err);
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 
@@ -106,7 +108,8 @@ export class DomainController {
         gradeBreakdown,
       });
     } catch (err: any) {
-      res.status(500).json({ error: err.message || 'Internal server error' });
+      console.error('[DomainController] getDomainBySlug error:', err);
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 

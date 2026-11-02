@@ -511,8 +511,9 @@ app.get('/internal/debug/gemini-models', async (req, res) => {
         });
 
     } catch (error) {
+        console.error('[API] /ai-models error:', error);
         res.status(500).json({
-            error: error instanceof Error ? error.message : String(error),
+            error: 'Internal server error',
             apiKeyStatus: 'unknown'
         });
     }
