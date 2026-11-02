@@ -42,9 +42,10 @@ export const ForExplorers: React.FC = () => {
     },
   ];
 
-  // Task 9 (V19-B): Grade progression table
+  // V20 Phase 1: Grade progression table with Scout unpaid entry tier
   const gradeRoadmap = [
-    { grade: 'SEED', interactions: 0, war: '—', range: '₹100–₹500' },
+    { grade: 'SCOUT', interactions: 0, war: '—', range: 'Free' },
+    { grade: 'SEED', interactions: 3, war: '3.50+', range: '₹100–₹500' },
     { grade: 'RISING', interactions: 5, war: '3.80+', range: '₹200–₹800' },
     { grade: 'PRO', interactions: 15, war: '4.00+', range: '₹800–₹3,000' },
     { grade: 'MASTER', interactions: 30, war: '4.30+', range: '₹3,000–₹6,000' },
@@ -117,7 +118,7 @@ export const ForExplorers: React.FC = () => {
           </div>
           <h2 className="text-2xl font-bold mb-3">Pioneer Grade Progression & Fee Ceilings</h2>
           <p className="text-slate-400 text-sm mb-6 leading-relaxed">
-            Your Pioneer grade grows with every interaction. Elite grade (50 completed paid interactions, 4.5+ average rating) unlocks ₹10,000/interaction and direct outreach from top-tier founders. Your profile and grade are permanent — they compound over time.
+            Your Pioneer grade grows with every interaction. All new Explorers start at Scout (free entry tier). Completing 3 free interactions with 3.50+ WAR graduates you to Seed Pioneer (₹100–₹500/interaction). Elite grade (50 completed paid interactions, 4.5+ average rating) unlocks ₹10,000/interaction and direct outreach from top-tier founders. Your profile and grade are permanent — they compound over time.
           </p>
 
           <div className="overflow-x-auto">
@@ -137,7 +138,11 @@ export const ForExplorers: React.FC = () => {
                       <PioneerGradeBadge grade={tier.grade} size="sm" />
                     </td>
                     <td className="py-3 px-4 text-slate-300 font-medium">
-                      {tier.interactions === 0 ? '0 (Entry)' : `${tier.interactions}+ verified`}
+                      {tier.grade === 'SCOUT'
+                        ? '0 (Entry)'
+                        : tier.grade === 'SEED'
+                        ? '3 free interactions'
+                        : `${tier.interactions}+ verified`}
                     </td>
                     <td className="py-3 px-4 text-slate-300 font-medium">
                       {tier.war}

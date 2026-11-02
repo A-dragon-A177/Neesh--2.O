@@ -37,6 +37,13 @@ export class DirectRequestController {
       });
     } catch (err: any) {
       console.error('[DirectRequestController] Create exception:', err);
+      if (err.message?.includes('SCOUT_GRADE_INELIGIBLE')) {
+        res.status(422).json({
+          error: err.message,
+          code: 'SCOUT_GRADE_INELIGIBLE',
+        });
+        return;
+      }
       const isValidation = err.message?.includes('characters') || err.message?.includes('required');
       res.status(isValidation ? 400 : 500).json({ error: err.message || 'Internal Server Error' });
     }

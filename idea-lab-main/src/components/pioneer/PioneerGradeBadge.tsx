@@ -1,9 +1,10 @@
 import React from 'react';
 
-export type PioneerGrade = 'SEED' | 'RISING' | 'PRO' | 'MASTER' | 'ELITE';
+export type PioneerGrade = 'SCOUT' | 'SEED' | 'RISING' | 'PRO' | 'MASTER' | 'ELITE';
 
 // Canonical Section AA.2 Grade Color Tokens
 export const GRADE_COLORS: Record<PioneerGrade, string> = {
+  SCOUT: '#94A3B8', // slate grey (unpaid entry tier)
   SEED: '#6B7280', // neutral grey
   RISING: '#3B82F6', // blue
   PRO: '#10B981', // emerald green
@@ -15,6 +16,12 @@ export const GRADE_COLOR_TOKENS: Record<
   string,
   { bg: string; text: string; border: string; label: string }
 > = {
+  SCOUT: {
+    bg: 'rgba(148, 163, 184, 0.1)',
+    text: '#94A3B8',
+    border: 'rgba(148, 163, 184, 0.3)',
+    label: 'Scout Pioneer',
+  },
   SEED: {
     bg: 'rgba(107, 114, 128, 0.1)',
     text: '#6B7280',

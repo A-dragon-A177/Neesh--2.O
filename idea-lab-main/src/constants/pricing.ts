@@ -7,12 +7,14 @@
 export const SPRINT_DAY_PRICE_PAISE: bigint = 8400n;
 
 // Recommended Sprint purchase duration options
+// Note: SCOUT grade cannot participate in Sprint Guarantee evaluations
 export const ALLOWED_SPRINT_DAYS: readonly number[] = [1, 3, 7, 14, 30] as const;
 
 // Founding Explorer Constants
 export const FOUNDING_EXPLORER_BASELINE_PAISE: bigint = 250000n;
 export const FOUNDING_EXPLORER_MAX_CAP: number = 65;
 export const FOUNDING_EXPLORER_COMMISSION_FREE_DAYS: number = 90;
+export const SCOUT_INTERACTION_FEE_PAISE: bigint = 0n;
 
 // Grade Fee Ranges
 export interface GradeFeeRange {
@@ -21,6 +23,7 @@ export interface GradeFeeRange {
 }
 
 export const GRADE_FEE_RANGES: Record<string, GradeFeeRange> = {
+  SCOUT: { minPaise: 0n, maxPaise: 0n },               // Free tier — no payment
   SEED: { minPaise: 10000n, maxPaise: 50000n },        // ₹100 – ₹500
   RISING: { minPaise: 20000n, maxPaise: 80000n },      // ₹200 – ₹800
   PRO: { minPaise: 80000n, maxPaise: 300000n },        // ₹800 – ₹3,000

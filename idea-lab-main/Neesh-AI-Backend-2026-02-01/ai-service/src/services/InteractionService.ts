@@ -16,6 +16,7 @@
 import { supabase } from '../config/supabase';
 import { NotificationService } from './NotificationService';
 import { DirectRequestService } from './DirectRequestService';
+import { LedgerService } from './LedgerService';
 
 export interface SubmitInteractionInput {
   founderId: string;
@@ -24,6 +25,7 @@ export interface SubmitInteractionInput {
   sparkId?: string;
   content: string;
   interactionType?: 'ORGANIC' | 'DIRECT_REQUEST' | 'TEST';
+  requestedFeePaise?: bigint;
 }
 
 export class InteractionService {
@@ -70,6 +72,11 @@ export class InteractionService {
     if (explorer.user_id === founderId) {
       throw new Error('Self-interaction forbidden: Founder cannot submit an explorer interaction on their own idea');
     }
+
+    // V20: Fee calibration by Pioneer Grade
+    // Scout grade interactions have fee_paise = 0 — completely free, no payment, no escrow, no ledger entries
+    const isScoutGrade = explorer.pioneer_grade === 'SCOUT';
+    const effectiveFeePaise = isScoutGrade ? 0n : (input.requestedFeePaise || 0n);
 
     // 3. Domain match check
     let targetDomain: string | null = null;
@@ -148,6 +155,24 @@ export class InteractionService {
       interaction_id: interaction.id,
       event_type: 'SUBMITTED',
     });
+
+    // 6b. V20: Escrow hold for paid interactions (skipped completely if fee_paise is 0 / SCOUT)
+    if (effectiveFeePaise > 0n) {
+      await LedgerService.createEntry({
+        entryType: 'ESCROW_HOLD',
+        direction: 'DEBIT',
+        amountPaise: effectiveFeePaise,
+        userId: founderId,
+        referenceType: 'INTERACTION',
+        referenceId: interaction.id,
+        idempotencyKey: `ESCROW_HOLD_INT_${interaction.id}`,
+        status: 'COMPLETED',
+        metadata: {
+          explorer_id: explorerId,
+          fee_paise: effectiveFeePaise.toString(),
+        },
+      });
+    }
 
     // 7. Non-blocking SPARK_FIRST_INTERACTION notification
     try {
@@ -311,6 +336,10 @@ export class InteractionService {
         .maybeSingle();
 
       const grade = explorer?.pioneer_grade;
+      // V20: SCOUT interactions do NOT count as Pioneer-grade interactions for Sprint Guarantee evaluation
+      if (!grade || grade === 'SCOUT') {
+        return;
+      }
       const isRisingOrHigher = ['RISING', 'PRO', 'MASTER', 'ELITE'].includes(grade || '');
 
       if (!isRisingOrHigher) {

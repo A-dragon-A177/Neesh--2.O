@@ -134,11 +134,16 @@ export async function runPioneerGradeEvaluationJob(): Promise<void> {
             updates.fee_max_paise = newFee.maxPaise.toString();
           }
 
+          const advancementReason =
+            profile.pioneer_grade === 'SCOUT' && evalResult.targetGrade === 'SEED'
+              ? 'SCOUT_GRADUATION'
+              : 'AUTO_EVALUATION';
+
           await supabase.from('pioneer_grade_history').insert({
             explorer_id: profile.id,
             from_grade: profile.pioneer_grade,
             to_grade: evalResult.targetGrade,
-            reason: 'AUTO_EVALUATION',
+            reason: advancementReason,
             pioneer_points_at_change: warResult.pioneerPoints,
           });
 

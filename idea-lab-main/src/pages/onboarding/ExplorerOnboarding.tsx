@@ -57,7 +57,7 @@ export const ExplorerOnboarding: React.FC = () => {
   const [startAsRising, setStartAsRising] = useState(false);
 
   // Result state
-  const [assignedGrade, setAssignedGrade] = useState<PioneerGrade>('SEED');
+  const [assignedGrade, setAssignedGrade] = useState<PioneerGrade>('SCOUT');
   const [isFoundingExplorer, setIsFoundingExplorer] = useState(false);
   const [foundingPosition, setFoundingPosition] = useState<number | null>(null);
   const [commissionFreeUntil, setCommissionFreeUntil] = useState<string | null>(null);
@@ -203,7 +203,7 @@ export const ExplorerOnboarding: React.FC = () => {
         throw new Error(data.error || 'Failed to complete explorer enrollment');
       }
 
-      setAssignedGrade(data.pioneerGrade || 'SEED');
+      setAssignedGrade(data.pioneerGrade || 'SCOUT');
       setIsFoundingExplorer(Boolean(data.isFoundingExplorer));
       setFoundingPosition(data.foundingPosition);
       setCommissionFreeUntil(data.commissionFreeUntil);
@@ -223,7 +223,7 @@ export const ExplorerOnboarding: React.FC = () => {
     if (yearsInDomain >= 3 || startAsRising) {
       return { grade: 'RISING' as PioneerGrade, range: '₹200 – ₹800' };
     }
-    return { grade: 'SEED' as PioneerGrade, range: '₹100 – ₹500' };
+    return { grade: 'SCOUT' as PioneerGrade, range: 'Free (Unpaid Entry Tier)' };
   };
 
   const preview = getFeePreview();
@@ -606,6 +606,13 @@ export const ExplorerOnboarding: React.FC = () => {
 
             <div className="flex flex-col items-center justify-center gap-3 mb-8">
               <PioneerGradeBadge grade={assignedGrade} size="md" />
+
+              {assignedGrade === 'SCOUT' && !isFoundingExplorer && (
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs text-slate-300">
+                  <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                  <span>0 / 3 free interactions to Seed Pioneer (WAR ≥ 3.50 required)</span>
+                </div>
+              )}
 
               {isFoundingExplorer && (
                 <FoundingExplorerBadge

@@ -60,6 +60,11 @@ export class DirectRequestService {
       throw new Error('Explorer profile is not active for direct requests');
     }
 
+    // V20: Direct Requests cannot be sent to SCOUT-grade Explorers
+    if (explorer.pioneer_grade === 'SCOUT') {
+      throw new Error('SCOUT_GRADE_INELIGIBLE: Direct Requests cannot be sent to Scout-grade Explorers. The Explorer must reach Seed grade first.');
+    }
+
     // Lock fee to fee_min_paise (or fallback to standard SEED 10000n)
     const feePaise = explorer.fee_min_paise ? BigInt(explorer.fee_min_paise) : 10000n;
     if (feePaise <= 0n) {
