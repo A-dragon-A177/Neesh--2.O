@@ -32,19 +32,31 @@ const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const Project = lazy(() => import("@/pages/Project"));
 const BlogPreview = lazy(() => import("@/pages/BlogPreview"));
 const PublicBlog = lazy(() => import("@/pages/PublicBlog"));
-const FeedbackBuilder = lazy(() => import("@/pages/FeedbackBuilder"));
-const Chatbot = lazy(() => import("@/pages/Chatbot"));
+const ForFounders = lazy(() => import("@/pages/ForFounders"));
+const ForExplorers = lazy(() => import("@/pages/ForExplorers"));
+const ExplorerFAQ = lazy(() => import("@/pages/ExplorerFAQ"));
+const DomainPage = lazy(() => import("@/pages/DomainPage"));
+const BlogPost = lazy(() => import("@/pages/BlogPost"));
+const SeniorFastTrackScreen = lazy(() => import("@/pages/onboarding/SeniorFastTrackScreen"));
+const FounderOnboarding = lazy(() => import("@/pages/onboarding/FounderOnboarding"));
+const ExplorerOnboarding = lazy(() => import("@/pages/onboarding/ExplorerOnboarding"));
+const FounderDashboard = lazy(() => import("@/pages/dashboard/FounderDashboard"));
+const ExplorerDashboard = lazy(() => import("@/pages/dashboard/ExplorerDashboard"));
+const WalletPage = lazy(() => import("@/pages/dashboard/WalletPage"));
+const SparkPage = lazy(() => import("@/pages/SparkPage"));
 const ProfileSettings = lazy(() => import("@/pages/ProfileSettings"));
 const AdminDashboard = lazy(() => import("@/pages/AdminDashboard"));
 
 // Landing page sub-pages
 const FeaturesPage = lazy(() => import("@/pages/FeaturesPage"));
 const SpotlightInfoPage = lazy(() => import("@/pages/SpotlightInfoPage"));
-const SimulationPage = lazy(() => import("@/pages/SimulationPage"));
+
 const PricingPage = lazy(() => import("@/pages/PricingPage"));
 const PitchFeed = lazy(() => import("@/pages/PitchFeed"));
 const Space = lazy(() => import("@/pages/Space"));
-const InnovationEcosystem = lazy(() => import("@/pages/InnovationEcosystem"));
+
+const SprintCheckout = lazy(() => import("@/pages/SprintCheckout"));
+const SprintDashboard = lazy(() => import("@/pages/SprintDashboard"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -79,24 +91,37 @@ const App = () => (
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/innovation-ecosystem" element={<InnovationEcosystem />} />
-              <Route path="/battle-of-innovation" element={<InnovationEcosystem />} />
+              <Route path="/for-founders" element={<ErrorBoundary><ForFounders /></ErrorBoundary>} />
+              <Route path="/for-explorers" element={<ErrorBoundary><ForExplorers /></ErrorBoundary>} />
+              <Route path="/explorer-faq" element={<ErrorBoundary><ExplorerFAQ /></ErrorBoundary>} />
+
               <Route path="/features" element={<FeaturesPage />} />
               <Route path="/spotlight-info" element={<SpotlightInfoPage />} />
-              <Route path="/simulation" element={<SimulationPage />} />
+
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/dashboard" element={<ProtectedRoute><ErrorBoundary><Dashboard /></ErrorBoundary></ProtectedRoute>} />
               <Route path="/project/:id" element={<ProtectedRoute><ErrorBoundary><Project /></ErrorBoundary></ProtectedRoute>} />
               <Route path="/project/:id/preview" element={<ProtectedRoute><ErrorBoundary><BlogPreview /></ErrorBoundary></ProtectedRoute>} />
-              <Route path="/project/:id/feedback" element={<ProtectedRoute><ErrorBoundary><FeedbackBuilder /></ErrorBoundary></ProtectedRoute>} />
-              <Route path="/project/:id/chatbot" element={<ProtectedRoute><ErrorBoundary><Chatbot /></ErrorBoundary></ProtectedRoute>} />
+
+
               <Route path="/p/:slugWithId" element={<ErrorBoundary><PublicBlog /></ErrorBoundary>} />
               <Route path="/pitches" element={<ErrorBoundary><PitchFeed /></ErrorBoundary>} />
               <Route path="/space" element={<ErrorBoundary><Space /></ErrorBoundary>} />
               <Route path="/profile" element={<ProtectedRoute><ErrorBoundary><ProfileSettings /></ErrorBoundary></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedAdminRoute><ErrorBoundary><AdminDashboard /></ErrorBoundary></ProtectedAdminRoute>} />
+              <Route path="/sprint/:spotlightId/checkout" element={<ProtectedRoute><ErrorBoundary><SprintCheckout /></ErrorBoundary></ProtectedRoute>} />
+              <Route path="/sprint/:id" element={<ProtectedRoute><ErrorBoundary><SprintDashboard /></ErrorBoundary></ProtectedRoute>} />
+              <Route path="/domain/:slug" element={<ErrorBoundary><DomainPage /></ErrorBoundary>} />
+              <Route path="/blog/:slug" element={<ErrorBoundary><BlogPost /></ErrorBoundary>} />
+              <Route path="/onboarding/senior-fast-track" element={<ErrorBoundary><SeniorFastTrackScreen /></ErrorBoundary>} />
+              <Route path="/onboarding/founder" element={<ErrorBoundary><FounderOnboarding /></ErrorBoundary>} />
+              <Route path="/onboarding/explorer" element={<ErrorBoundary><ExplorerOnboarding /></ErrorBoundary>} />
+              <Route path="/dashboard/founder" element={<ErrorBoundary><FounderDashboard /></ErrorBoundary>} />
+              <Route path="/dashboard/explorer" element={<ErrorBoundary><ExplorerDashboard /></ErrorBoundary>} />
+              <Route path="/dashboard/wallet" element={<ErrorBoundary><WalletPage /></ErrorBoundary>} />
+              <Route path="/spark/:id" element={<ErrorBoundary><SparkPage /></ErrorBoundary>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

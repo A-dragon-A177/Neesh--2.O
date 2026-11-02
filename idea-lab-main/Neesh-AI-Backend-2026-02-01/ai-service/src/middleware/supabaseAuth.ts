@@ -2,17 +2,33 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { supabase } from '../config/supabase';
 
-interface User {
+export type UserRole = 'FOUNDER' | 'EXPLORER' | 'ADMIN';
+
+export interface AuthenticatedUser {
     id: string;
     email: string;
+    role: UserRole;
+    rawMetadata?: Record<string, any>;
 }
 
 declare global {
     namespace Express {
         interface Request {
-            user?: User;
+            user?: AuthenticatedUser;
         }
     }
+}
+
+/**
+ * Normalizes user role string to one of the canonical V19 roles: FOUNDER, EXPLORER, ADMIN.
+ * Safe default is FOUNDER. Under no circumstance can an invalid or missing role default to ADMIN.
+ */
+function normalizeRole(rawRole?: string | null): UserRole {
+    if (!rawRole) return 'FOUNDER';
+    const normalized = rawRole.toUpperCase().trim();
+    if (normalized === 'ADMIN') return 'ADMIN';
+    if (normalized === 'EXPLORER') return 'EXPLORER';
+    return 'FOUNDER';
 }
 
 export const supabaseAuth = async (req: Request, res: Response, next: NextFunction) => {
@@ -20,6 +36,7 @@ export const supabaseAuth = async (req: Request, res: Response, next: NextFuncti
     if (req.method === 'OPTIONS') {
         return next();
     }
+
     try {
         const authHeader = req.headers.authorization;
 
@@ -27,7 +44,7 @@ export const supabaseAuth = async (req: Request, res: Response, next: NextFuncti
             return res.status(401).json({ error: 'Missing or invalid authorization header' });
         }
 
-        const token = authHeader.substring(7);
+        const token = authHeader.substring(7).trim();
 
         if (!token) {
             return res.status(401).json({ error: 'No token provided' });
@@ -36,20 +53,26 @@ export const supabaseAuth = async (req: Request, res: Response, next: NextFuncti
         const jwtSecret = process.env.SUPABASE_JWT_SECRET;
         let userId: string | undefined;
         let userEmail: string | undefined;
+        let rawRole: string | undefined;
+        let metadata: Record<string, any> = {};
 
         if (jwtSecret) {
             try {
                 const decoded = jwt.verify(token, jwtSecret) as any;
                 userId = decoded.sub;
                 userEmail = decoded.email || decoded.user_metadata?.email || '';
+                metadata = decoded.user_metadata || decoded.app_metadata || {};
+                rawRole = decoded.user_metadata?.role || decoded.app_metadata?.role || decoded.role;
             } catch (jwtErr) {
-                // If local HS256 verify fails (e.g. project upgraded to ES256 / JWKS), fallback to Supabase getUser
+                // If local HS256 verify fails (e.g. project upgraded to ES256 / JWKS), fallback to Supabase getUser API
                 const { data: { user }, error } = await supabase.auth.getUser(token);
                 if (error || !user) {
                     return res.status(401).json({ error: 'Invalid or expired token' });
                 }
                 userId = user.id;
                 userEmail = user.email || '';
+                metadata = user.user_metadata || user.app_metadata || {};
+                rawRole = (user.user_metadata?.role || user.app_metadata?.role) as string | undefined;
             }
         } else {
             // Verify token via Supabase Auth API
@@ -59,6 +82,8 @@ export const supabaseAuth = async (req: Request, res: Response, next: NextFuncti
             }
             userId = user.id;
             userEmail = user.email || '';
+            metadata = user.user_metadata || user.app_metadata || {};
+            rawRole = (user.user_metadata?.role || user.app_metadata?.role) as string | undefined;
         }
 
         if (!userId) {
@@ -67,7 +92,9 @@ export const supabaseAuth = async (req: Request, res: Response, next: NextFuncti
 
         req.user = {
             id: userId,
-            email: userEmail || ''
+            email: userEmail || '',
+            role: normalizeRole(rawRole),
+            rawMetadata: metadata
         };
 
         next();
@@ -75,4 +102,4 @@ export const supabaseAuth = async (req: Request, res: Response, next: NextFuncti
         console.error('[Auth] Token verification error:', error.message || error);
         return res.status(401).json({ error: 'Invalid or expired token' });
     }
-};
+};

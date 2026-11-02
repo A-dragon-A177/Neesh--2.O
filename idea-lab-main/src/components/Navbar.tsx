@@ -7,8 +7,8 @@ import { NeeshLogo } from "./NeeshLogo";
 
 const NAV_ITEMS = [
   { label: "Home", to: "/", icon: Home },
-  { label: "Battlefield", to: "/innovation-ecosystem", icon: Sparkles },
-  { label: "Features", to: "/features", icon: Layers },
+  { label: "For Founders", to: "/for-founders", icon: Sparkles },
+  { label: "For Explorers", to: "/for-explorers", icon: Layers },
   { label: "Spotlight", to: "/spotlight-info", icon: Eye },
   { label: "Pricing", to: "/pricing", icon: CreditCard },
 ];
@@ -62,7 +62,7 @@ export default function Navbar() {
 
         <div className="hidden md:flex items-center gap-8 h-full">
           {NAV_ITEMS.map((item) => {
-            const isActive = location.pathname === item.to || (item.to === "/innovation-ecosystem" && location.pathname === "/battle-of-innovation");
+            const isActive = location.pathname === item.to;
             return (
               <Link
                 key={item.label}
@@ -157,7 +157,7 @@ export default function Navbar() {
               {/* Navigation links */}
               <div className="px-5 pb-2">
                 {NAV_ITEMS.map((item) => {
-                  const isActive = location.pathname === item.to || (item.to === "/innovation-ecosystem" && location.pathname === "/battle-of-innovation");
+                  const isActive = location.pathname === item.to;
                   const Icon = item.icon;
                   return (
                     <Link

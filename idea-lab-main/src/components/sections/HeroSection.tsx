@@ -2,6 +2,7 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import { Link } from "react-router-dom";
 
 import Globe from "@/components/ui/Globe";
+import { DomainProofWidget } from "@/components/DomainProofWidget";
 
 export default function HeroSection() {
   const { scrollYProgress } = useScroll();
@@ -39,6 +40,10 @@ export default function HeroSection() {
         style={{ opacity, y, zIndex: 10, position: "relative" }}
         className="max-w-[1440px] mx-auto px-6 pt-32 pb-16 w-full text-center"
       >
+        <div className="flex justify-center mb-6">
+          <DomainProofWidget />
+        </div>
+
         <div className="flex flex-col items-center">
           <div className="max-w-4xl mx-auto">
             <motion.div

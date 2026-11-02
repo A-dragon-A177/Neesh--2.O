@@ -2,6 +2,9 @@ import { Request, Response } from 'express';
 import { otpService, OtpPurpose } from '../services/OtpService';
 import { supabase } from '../config/supabase';
 
+// RFC 5322 compliant basic email regex
+const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
 export class OtpController {
     /**
      * Send OTP for SIGNUP or FORGOT_PASSWORD
@@ -11,12 +14,15 @@ export class OtpController {
             const { email, purpose } = req.body;
 
             if (!email || typeof email !== 'string' || !email.trim()) {
-                return res.status(400).json({ success: false, message: 'Email is required.' });
+                return res.status(400).json({ success: false, message: 'Valid email is required.' });
             }
 
             const cleanEmail = email.trim().toLowerCase();
-            const cleanPurpose = (purpose || 'SIGNUP').toUpperCase() as OtpPurpose;
+            if (!EMAIL_REGEX.test(cleanEmail) || cleanEmail.length > 255) {
+                return res.status(400).json({ success: false, message: 'Please provide a valid email address.' });
+            }
 
+            const cleanPurpose = (purpose || 'SIGNUP').toUpperCase() as OtpPurpose;
             if (cleanPurpose !== 'SIGNUP' && cleanPurpose !== 'FORGOT_PASSWORD') {
                 return res.status(400).json({ success: false, message: 'Invalid purpose. Use SIGNUP or FORGOT_PASSWORD.' });
             }
@@ -70,11 +76,14 @@ export class OtpController {
                 return res.status(400).json({ success: false, message: 'Email, OTP, and new password are required.' });
             }
 
-            if (typeof newPassword !== 'string' || newPassword.length < 8) {
-                return res.status(400).json({ success: false, message: 'Password must be at least 8 characters.' });
+            if (typeof newPassword !== 'string' || newPassword.length < 8 || newPassword.length > 128) {
+                return res.status(400).json({ success: false, message: 'Password must be between 8 and 128 characters.' });
             }
 
             const cleanEmail = email.trim().toLowerCase();
+            if (!EMAIL_REGEX.test(cleanEmail)) {
+                return res.status(400).json({ success: false, message: 'Invalid email address.' });
+            }
 
             // Verify OTP without consuming first
             const isValid = otpService.verifyWithoutConsuming(cleanEmail, String(otp), 'FORGOT_PASSWORD');
@@ -117,78 +126,101 @@ export class OtpController {
 
     /**
      * Direct User Registration via Supabase Admin API
-     * Creates auto-confirmed user (email_confirm: true), completely bypassing
-     * Supabase client-side email confirmation rate-limiting (429 email rate limit exceeded).
+     * 
+     * Security Hardening (P0 Fix):
+     * - Strict input validation on email (RFC 5322), password (8-128 chars), and role.
+     * - Rate-limited to max 5 attempts/hour/IP via signupRateLimiter.
+     * - CRITICAL: Never overwrites an existing user's password or account state.
+     * - Role is strictly locked to FOUNDER or EXPLORER. Cannot register as ADMIN.
      */
     async directSignup(req: Request, res: Response) {
         try {
-            const { email, password, fullName } = req.body;
+            const { email, password, fullName, role } = req.body;
 
+            // 1. Strict Input Validation
             if (!email || typeof email !== 'string' || !email.trim()) {
                 return res.status(400).json({ success: false, message: 'Email is required.' });
             }
-            if (!password || typeof password !== 'string' || password.length < 6) {
-                return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
+            const cleanEmail = email.trim().toLowerCase();
+            if (!EMAIL_REGEX.test(cleanEmail) || cleanEmail.length > 255) {
+                return res.status(400).json({ success: false, message: 'Please provide a valid email address.' });
             }
 
-            const cleanEmail = email.trim().toLowerCase();
+            if (!password || typeof password !== 'string' || password.length < 8) {
+                return res.status(400).json({ success: false, message: 'Password must be at least 8 characters long.' });
+            }
+            if (password.length > 128) {
+                return res.status(400).json({ success: false, message: 'Password must not exceed 128 characters.' });
+            }
 
-            // Create user directly in Supabase Auth with email auto-confirmed
+            const cleanFullName = typeof fullName === 'string' ? fullName.trim().slice(0, 100) : '';
+
+            // Assign V19 canonical role (strictly FOUNDER or EXPLORER; public signup cannot create ADMIN)
+            let assignedRole = 'FOUNDER';
+            if (typeof role === 'string' && role.toUpperCase().trim() === 'EXPLORER') {
+                assignedRole = 'EXPLORER';
+            }
+
+            // 2. Create user directly in Supabase Auth
             const { data, error } = await supabase.auth.admin.createUser({
                 email: cleanEmail,
                 password,
                 email_confirm: true,
                 user_metadata: {
-                    full_name: fullName || ''
+                    full_name: cleanFullName,
+                    role: assignedRole
                 }
             });
 
             if (error) {
-                console.warn('[OtpController] directSignup Supabase error:', error.message);
-                if (error.message.toLowerCase().includes('already registered') || error.message.toLowerCase().includes('already been registered')) {
-                    // Check if existing user exists in user registry
-                    const { data: usersData } = await supabase.auth.admin.listUsers();
-                    const existingUser = (usersData?.users || []).find(u => u.email?.toLowerCase() === cleanEmail);
-                    if (existingUser) {
-                        // Confirm email and synchronize password so user can sign in immediately
-                        const { data: updated, error: updateErr } = await supabase.auth.admin.updateUserById(existingUser.id, {
-                            email_confirm: true,
-                            password: password
-                        });
-                        if (!updateErr) {
-                            console.log(`[OtpController] Successfully auto-confirmed existing user: ${cleanEmail}`);
-                            return res.json({
-                                success: true,
-                                message: 'Account verified and ready! Signing you in...',
-                                user: updated?.user
-                            });
-                        }
-                    }
-                    return res.status(400).json({ success: false, message: 'This email is already registered. Please sign in instead.' });
+                console.warn('[OtpController] directSignup error:', error.message);
+                const isDuplicate = error.message.toLowerCase().includes('already registered') || 
+                                    error.message.toLowerCase().includes('already been registered') ||
+                                    error.message.toLowerCase().includes('email exists');
+                
+                if (isDuplicate) {
+                    // SAFE REJECTION: Do NOT touch or overwrite existing user's account or password
+                    return res.status(409).json({ 
+                        success: false, 
+                        message: 'This email is already registered. Please sign in instead.' 
+                    });
                 }
                 return res.status(400).json({ success: false, message: error.message });
             }
 
-            return res.json({
+            return res.status(201).json({
                 success: true,
                 message: 'Account created successfully! You can now sign in.',
-                user: data?.user
+                user: {
+                    id: data?.user?.id,
+                    email: data?.user?.email,
+                    role: assignedRole
+                }
             });
         } catch (error: any) {
-            console.error('[OtpController] directSignup error:', error);
+            console.error('[OtpController] directSignup unexpected error:', error);
             return res.status(500).json({ success: false, message: 'Internal server error during account creation.' });
         }
     }
 
     /**
-     * Confirms an unconfirmed user and updates password so they can log in immediately
-     * Resolves Supabase "Email not confirmed" error caused by shared email rate limits
+     * Admin-only user confirmation.
+     * Unauthenticated public confirmation endpoint is removed (P0 Fix).
+     * If called without valid admin JWT, returns 401 Unauthorized.
      */
     async confirmUser(req: Request, res: Response) {
+        // Enforce admin-only authentication
+        if (!req.user || req.user.role !== 'ADMIN') {
+            return res.status(401).json({ 
+                error: 'Unauthorized', 
+                message: 'Admin authorization required to confirm accounts.' 
+            });
+        }
+
         try {
-            const { email, password } = req.body;
-            if (!email || !password) {
-                return res.status(400).json({ success: false, message: 'Email and password are required.' });
+            const { email } = req.body;
+            if (!email) {
+                return res.status(400).json({ success: false, message: 'Email is required.' });
             }
 
             const cleanEmail = email.trim().toLowerCase();
@@ -205,10 +237,9 @@ export class OtpController {
                 return res.status(404).json({ success: false, message: 'No account found with this email.' });
             }
 
-            // Confirm email and set password
+            // Confirm email WITHOUT changing password
             const { data: updated, error: updateErr } = await supabase.auth.admin.updateUserById(user.id, {
-                email_confirm: true,
-                password: password
+                email_confirm: true
             });
 
             if (updateErr) {
@@ -216,11 +247,14 @@ export class OtpController {
                 return res.status(500).json({ success: false, message: updateErr.message });
             }
 
-            console.log(`[OtpController] Auto-confirmed account for ${cleanEmail}`);
+            console.log(`[OtpController] Admin confirmed account for ${cleanEmail} by admin ${req.user.id}`);
             return res.json({
                 success: true,
-                message: 'Account confirmed successfully!',
-                user: updated?.user
+                message: 'Account confirmed successfully by administrator.',
+                user: {
+                    id: updated?.user?.id,
+                    email: updated?.user?.email
+                }
             });
         } catch (error: any) {
             console.error('[OtpController] confirmUser error:', error);
