@@ -357,7 +357,7 @@ const userController = new UserController();
 app.get('/api/users/subscription', (req, res) => userController.getSubscription(req, res));
 app.get('/api/users/me', (req, res) => userController.getCurrentUser(req, res));
 app.put('/api/users/me', (req, res) => userController.updateProfile(req, res));
-app.put('/api/users/subscription/upgrade', (req, res) => userController.upgradeToPro(req, res));
+app.put('/api/users/subscription/upgrade', requireRole('ADMIN'), (req, res) => userController.upgradeToPro(req, res));
 app.put('/api/users/branding', (req, res) => userController.updateBranding(req, res));
 
 // API Key management routes

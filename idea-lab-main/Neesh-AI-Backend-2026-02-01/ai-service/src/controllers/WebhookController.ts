@@ -144,7 +144,7 @@ export class WebhookController {
       }
 
       // Allow 0 amount if credits covered 100%, or verify amount match
-      if (webhookPaise > 0n && internalPaise < webhookPaise) {
+      if (webhookPaise > 0n && webhookPaise !== internalPaise) {
         await CashfreeService.logSecurityAudit({
           eventType: 'amount_mismatch',
           sourceIp,
