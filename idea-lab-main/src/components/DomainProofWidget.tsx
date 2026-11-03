@@ -84,7 +84,7 @@ export const DomainProofWidget: React.FC<DomainProofWidgetProps> = ({
 
   // Build dots list based on grade breakdown
   const dots: Array<{ grade: PioneerGrade; color: string }> = [];
-  const gradesOrder: PioneerGrade[] = ['ELITE', 'MASTER', 'PRO', 'RISING', 'SEED'];
+  const gradesOrder: PioneerGrade[] = ['ELITE', 'MASTER', 'PRO', 'RISING', 'SEED', 'SCOUT'];
 
   gradesOrder.forEach((g) => {
     const count = gradeBreakdown[g] || 0;
