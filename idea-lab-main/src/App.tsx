@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -47,13 +47,7 @@ const SparkPage = lazy(() => import("@/pages/SparkPage"));
 const ProfileSettings = lazy(() => import("@/pages/ProfileSettings"));
 const AdminDashboard = lazy(() => import("@/pages/AdminDashboard"));
 
-// Landing page sub-pages
-const FeaturesPage = lazy(() => import("@/pages/FeaturesPage"));
-const SpotlightInfoPage = lazy(() => import("@/pages/SpotlightInfoPage"));
-
 const PricingPage = lazy(() => import("@/pages/PricingPage"));
-const PitchFeed = lazy(() => import("@/pages/PitchFeed"));
-const Space = lazy(() => import("@/pages/Space"));
 
 const SprintCheckout = lazy(() => import("@/pages/SprintCheckout"));
 const SprintDashboard = lazy(() => import("@/pages/SprintDashboard"));
@@ -95,8 +89,8 @@ const App = () => (
               <Route path="/for-explorers" element={<ErrorBoundary><ForExplorers /></ErrorBoundary>} />
               <Route path="/explorer-faq" element={<ErrorBoundary><ExplorerFAQ /></ErrorBoundary>} />
 
-              <Route path="/features" element={<FeaturesPage />} />
-              <Route path="/spotlight-info" element={<SpotlightInfoPage />} />
+              <Route path="/features" element={<Navigate to="/for-founders" replace />} />
+              <Route path="/spotlight-info" element={<Navigate to="/for-founders" replace />} />
 
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/login" element={<Login />} />
@@ -107,8 +101,8 @@ const App = () => (
 
 
               <Route path="/p/:slugWithId" element={<ErrorBoundary><PublicBlog /></ErrorBoundary>} />
-              <Route path="/pitches" element={<ErrorBoundary><PitchFeed /></ErrorBoundary>} />
-              <Route path="/space" element={<ErrorBoundary><Space /></ErrorBoundary>} />
+              <Route path="/pitches" element={<Navigate to="/" replace />} />
+              <Route path="/space" element={<Navigate to="/" replace />} />
               <Route path="/profile" element={<ProtectedRoute><ErrorBoundary><ProfileSettings /></ErrorBoundary></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedAdminRoute><ErrorBoundary><AdminDashboard /></ErrorBoundary></ProtectedAdminRoute>} />
               <Route path="/sprint/:spotlightId/checkout" element={<ProtectedRoute><ErrorBoundary><SprintCheckout /></ErrorBoundary></ProtectedRoute>} />
@@ -122,6 +116,9 @@ const App = () => (
               <Route path="/dashboard/explorer" element={<ErrorBoundary><ExplorerDashboard /></ErrorBoundary>} />
               <Route path="/dashboard/wallet" element={<ErrorBoundary><WalletPage /></ErrorBoundary>} />
               <Route path="/spark/:id" element={<ErrorBoundary><SparkPage /></ErrorBoundary>} />
+              <Route path="/simulation" element={<Navigate to="/" replace />} />
+              <Route path="/innovation-ecosystem" element={<Navigate to="/" replace />} />
+              <Route path="/battle-of-innovation" element={<Navigate to="/" replace />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -1,10 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(() => ({
   server: {
     host: "::",
     port: 7000,
@@ -12,7 +11,7 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -24,7 +23,7 @@ export default defineConfig(({ mode }) => ({
         manualChunks: {
           // Split heavy vendor libraries into separate, cacheable chunks.
           // This prevents a single 800 KB+ monolith that blocks page render.
-          'vendor-three': ['three', '@react-three/fiber', '@react-three/drei'],
+          'vendor-three': ['three'],
           'vendor-animation': ['gsap', 'gsap/ScrollTrigger', 'framer-motion', 'lenis'],
           'vendor-charts': ['recharts'],
           'vendor-supabase': ['@supabase/supabase-js'],
