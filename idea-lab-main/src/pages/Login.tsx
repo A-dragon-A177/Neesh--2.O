@@ -481,6 +481,25 @@ const Login = () => {
     }
   }, [forgotEmail, forgotOtp, forgotNewPassword, allForgotPasswordChecksPassed, passwordsMatch, navigate]);
 
+  // ─── Dev-only one-click login (only active when import.meta.env.DEV) ───
+  const handleDevLogin = useCallback(async () => {
+    const devEmail = import.meta.env.VITE_DEV_EMAIL;
+    const devPassword = import.meta.env.VITE_DEV_PASSWORD;
+    if (!devEmail || !devPassword) {
+      toast.error("Set VITE_DEV_EMAIL and VITE_DEV_PASSWORD in .env.local");
+      return;
+    }
+    setIsSubmitting(true);
+    const { error } = await signIn(devEmail, devPassword);
+    if (error) {
+      toast.error(`Dev login failed: ${error.message}`);
+      setIsSubmitting(false);
+    } else {
+      toast.success("Dev login successful!");
+      navigate(getTargetRedirect());
+    }
+  }, [signIn, navigate, getTargetRedirect]);
+
   const resetForgotState = () => {
     setForgotStep("email");
     setForgotEmail("");
@@ -821,6 +840,33 @@ const Login = () => {
                 </Button>
               </div>
             </form>
+          )}
+
+          {/* Dev-only one-click login */}
+          {import.meta.env.DEV && (
+            <>
+              <div className="relative mt-8 mb-3">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-amber-200/70" />
+                </div>
+                <div className="relative flex justify-center text-[10px] uppercase">
+                  <span className="bg-card px-2 text-amber-500 font-bold tracking-wider">dev only</span>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-10 text-xs rounded-xl border-amber-300 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/20"
+                disabled={isSubmitting}
+                onClick={handleDevLogin}
+              >
+                {isSubmitting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  "⚡ Dev Login"
+                )}
+              </Button>
+            </>
           )}
 
           {/* Signup link */}
