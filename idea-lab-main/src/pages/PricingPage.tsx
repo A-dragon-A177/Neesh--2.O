@@ -70,7 +70,7 @@ export default function PricingPage() {
                 </div>
 
                 <div className="flex flex-col items-center justify-center p-8 bg-slate-50 border border-slate-200/60 text-center min-w-[240px]">
-                  <div className="text-sm font-bold text-gray-400 line-through">$29.99/mo</div>
+                  <div className="text-sm font-bold text-gray-400 line-through">₹84/day</div>
                   <div className="text-6xl font-extrabold text-gray-950 my-1">$0</div>
                   <div className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-6">Free during Beta</div>
                   <Link to="/signup" className="w-full bg-[#09daed] text-black font-bold py-3.5 px-6 text-sm hover:bg-[#07c4d4] transition-colors block text-center rounded-sm">

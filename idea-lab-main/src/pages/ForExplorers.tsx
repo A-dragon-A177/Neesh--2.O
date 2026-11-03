@@ -46,10 +46,10 @@ export const ForExplorers: React.FC = () => {
   const gradeRoadmap = [
     { grade: 'SCOUT', interactions: 0, war: '—', range: 'Free' },
     { grade: 'SEED', interactions: 3, war: '3.50+', range: '₹100–₹500' },
-    { grade: 'RISING', interactions: 5, war: '3.80+', range: '₹200–₹800' },
-    { grade: 'PRO', interactions: 15, war: '4.00+', range: '₹800–₹3,000' },
-    { grade: 'MASTER', interactions: 30, war: '4.30+', range: '₹3,000–₹6,000' },
-    { grade: 'ELITE', interactions: 50, war: '4.50+', range: '₹6,000–₹10,000' },
+    { grade: 'RISING', interactions: 3, war: '3.80+', range: '₹300–₹1,500' },
+    { grade: 'PRO', interactions: 10, war: '4.00+', range: '₹800–₹3,000' },
+    { grade: 'MASTER', interactions: 25, war: '4.30+', range: '₹1,500–₹6,000' },
+    { grade: 'ELITE', interactions: 50, war: '4.50+', range: '₹3,000–₹10,000' },
   ];
 
   return (
