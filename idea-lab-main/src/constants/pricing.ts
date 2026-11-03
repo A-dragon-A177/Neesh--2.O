@@ -25,10 +25,10 @@ export interface GradeFeeRange {
 export const GRADE_FEE_RANGES: Record<string, GradeFeeRange> = {
   SCOUT: { minPaise: 0n, maxPaise: 0n },               // Free tier — no payment
   SEED: { minPaise: 10000n, maxPaise: 50000n },        // ₹100 – ₹500
-  RISING: { minPaise: 20000n, maxPaise: 80000n },      // ₹200 – ₹800
+  RISING: { minPaise: 30000n, maxPaise: 150000n },     // ₹300 – ₹1,500
   PRO: { minPaise: 80000n, maxPaise: 300000n },        // ₹800 – ₹3,000
-  MASTER: { minPaise: 300000n, maxPaise: 600000n },    // ₹3,000 – ₹6,000
-  ELITE: { minPaise: 600000n, maxPaise: 1000000n },    // ₹6,000 – ₹10,000
+  MASTER: { minPaise: 150000n, maxPaise: 600000n },    // ₹1,500 – ₹6,000
+  ELITE: { minPaise: 300000n, maxPaise: 1000000n },    // ₹3,000 – ₹10,000
 } as const;
 
 export interface CommissionTier {

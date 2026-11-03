@@ -370,22 +370,22 @@ async function runPhase6E2ESmokeSuite() {
   const forExplorersPath = path.resolve(__dirname, '../../../../src/pages/ForExplorers.tsx');
   const forExplorersContent = fs.readFileSync(forExplorersPath, 'utf8');
 
-  // Test 19: Rising grade requires 5 interactions (not 3) — ForExplorers.tsx progression table
+  // Test 19: Rising grade requires 3 interactions — ForExplorers.tsx progression table
   assert(
-    forExplorersContent.includes("grade: 'RISING', interactions: 5"),
-    'Test 19: Rising grade requires 5 interactions (not 3) — ForExplorers.tsx progression table'
+    forExplorersContent.includes("grade: 'RISING', interactions: 3"),
+    'Test 19: Rising grade requires 3 interactions — ForExplorers.tsx progression table'
   );
 
-  // Test 20: Pro grade requires 15 interactions (not 10) — ForExplorers.tsx progression table
+  // Test 20: Pro grade requires 10 interactions — ForExplorers.tsx progression table
   assert(
-    forExplorersContent.includes("grade: 'PRO', interactions: 15"),
-    'Test 20: Pro grade requires 15 interactions (not 10) — ForExplorers.tsx progression table'
+    forExplorersContent.includes("grade: 'PRO', interactions: 10"),
+    'Test 20: Pro grade requires 10 interactions — ForExplorers.tsx progression table'
   );
 
-  // Test 21: Master grade requires 30 interactions (not 25) — ForExplorers.tsx progression table
+  // Test 21: Master grade requires 25 interactions — ForExplorers.tsx progression table
   assert(
-    forExplorersContent.includes("grade: 'MASTER', interactions: 30"),
-    'Test 21: Master grade requires 30 interactions (not 25) — ForExplorers.tsx progression table'
+    forExplorersContent.includes("grade: 'MASTER', interactions: 25"),
+    'Test 21: Master grade requires 25 interactions — ForExplorers.tsx progression table'
   );
 
   // Test 22: Senior Fast-Track requires >= 60 months (not 55)

@@ -52,20 +52,20 @@ async function runPhase2Tests() {
     'Seed fee range: ₹100 – ₹500 (10,000 – 50,000 paise)'
   );
   assert(
-    GRADE_FEE_RANGES.RISING.minPaise === 20000n && GRADE_FEE_RANGES.RISING.maxPaise === 80000n,
-    'Rising fee range: ₹200 – ₹800 (20,000 – 80,000 paise)'
+    GRADE_FEE_RANGES.RISING.minPaise === 30000n && GRADE_FEE_RANGES.RISING.maxPaise === 150000n,
+    'Rising fee range: ₹300 – ₹1,500 (30,000 – 150,000 paise)'
   );
   assert(
     GRADE_FEE_RANGES.PRO.minPaise === 80000n && GRADE_FEE_RANGES.PRO.maxPaise === 300000n,
     'Pro fee range: ₹800 – ₹3,000 (80,000 – 300,000 paise)'
   );
   assert(
-    GRADE_FEE_RANGES.MASTER.minPaise === 300000n && GRADE_FEE_RANGES.MASTER.maxPaise === 600000n,
-    'Master fee range: ₹3,000 – ₹6,000 (300,000 – 600,000 paise)'
+    GRADE_FEE_RANGES.MASTER.minPaise === 150000n && GRADE_FEE_RANGES.MASTER.maxPaise === 600000n,
+    'Master fee range: ₹1,500 – ₹6,000 (150,000 – 600,000 paise)'
   );
   assert(
-    GRADE_FEE_RANGES.ELITE.minPaise === 600000n && GRADE_FEE_RANGES.ELITE.maxPaise === 1000000n,
-    'Elite fee range: ₹6,000 – ₹10,000 (600,000 – 1,000,000 paise)'
+    GRADE_FEE_RANGES.ELITE.minPaise === 300000n && GRADE_FEE_RANGES.ELITE.maxPaise === 1000000n,
+    'Elite fee range: ₹3,000 – ₹10,000 (300,000 – 1,000,000 paise)'
   );
 
   // ── SUITE 2: DOMAIN OPEN COMMITMENT (Section N) ───────────────────────────
