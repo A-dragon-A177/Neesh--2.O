@@ -147,3 +147,7 @@ export const useSubscription = () => {
   }
   return ctx;
 };
+
+// V20 aliases — PaymentProvider / usePayment
+export const PaymentProvider = SubscriptionProvider;
+export const usePayment = useSubscription;
