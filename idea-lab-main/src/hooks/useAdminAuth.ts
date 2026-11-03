@@ -1,34 +1,22 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { storeAdminToken } from '@/lib/adminApi';
 
-// SECURITY NOTE: Admin tokens are currently stored in localStorage for SPA convenience.
-// Because localStorage is accessible to JavaScript, ensure strict XSS prevention across the app.
-// For higher security environments, consider migrating to httpOnly, Secure, SameSite=Strict cookies.
-const ADMIN_TOKEN_KEY = 'neesh_admin_token';
-const ADMIN_NAME_KEY = 'neesh_admin_name';
+// Admin token lives in module memory (adminApi.ts) only — never persisted to localStorage.
+// Re-login is required on page refresh, which is the correct trade-off for an admin session.
 
 export const useAdminAuth = () => {
   const [adminToken, setAdminToken] = useState<string | null>(null);
   const [adminName, setAdminName] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const token = localStorage.getItem(ADMIN_TOKEN_KEY);
-    const name = localStorage.getItem(ADMIN_NAME_KEY);
-    setAdminToken(token);
-    setAdminName(name);
-    setLoading(false);
-  }, []);
+  const [loading] = useState(false);
 
   const adminLogin = useCallback((token: string, displayName: string) => {
-    localStorage.setItem(ADMIN_TOKEN_KEY, token);
-    localStorage.setItem(ADMIN_NAME_KEY, displayName);
+    storeAdminToken(token);
     setAdminToken(token);
     setAdminName(displayName);
   }, []);
 
   const adminLogout = useCallback(() => {
-    localStorage.removeItem(ADMIN_TOKEN_KEY);
-    localStorage.removeItem(ADMIN_NAME_KEY);
+    storeAdminToken(null);
     setAdminToken(null);
     setAdminName(null);
   }, []);

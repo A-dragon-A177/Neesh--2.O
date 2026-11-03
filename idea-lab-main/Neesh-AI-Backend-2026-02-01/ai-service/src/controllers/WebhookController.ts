@@ -18,6 +18,15 @@ import { supabase } from '../config/supabase';
 import { CashfreeService } from '../services/CashfreeService';
 import { LedgerService } from '../services/LedgerService';
 
+// Converts a decimal rupee string (e.g. "1234.56") to paise as BigInt.
+// Avoids IEEE 754 float errors that occur when multiplying by 100.
+function parsePaise(raw: unknown): bigint {
+  const s = String(raw ?? '0').trim();
+  const [int, frac = ''] = s.split('.');
+  const paddedFrac = frac.padEnd(2, '0').slice(0, 2);
+  return BigInt(int + paddedFrac);
+}
+
 export class WebhookController {
   /**
    * POST /api/webhooks/cashfree
@@ -124,13 +133,12 @@ export class WebhookController {
     }
 
     // STEP 5 — AMOUNT/CURRENCY VERIFY
-    const webhookAmount = Number(orderData.order_amount);
     const webhookCurrency = orderData.order_currency || 'INR';
 
     if (sprintSession) {
-      // Internal amount stored in paise; convert to rupees or compare in paise
       const internalPaise = BigInt(sprintSession.amount_paise.toString());
-      const webhookPaise = BigInt(Math.round(webhookAmount * 100));
+      // Parse paise directly from the string representation to avoid IEEE 754 float errors.
+      const webhookPaise = parsePaise(orderData.order_amount);
 
       if (webhookCurrency !== 'INR') {
         await CashfreeService.logSecurityAudit({

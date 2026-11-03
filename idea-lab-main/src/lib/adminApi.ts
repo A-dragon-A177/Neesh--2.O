@@ -1,8 +1,16 @@
 const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8082';
-const ADMIN_TOKEN_KEY = 'neesh_admin_token';
+
+// Token lives in module memory only — never persisted to localStorage.
+// This prevents XSS-based token theft at the cost of requiring re-login on page refresh,
+// which is the correct trade-off for an admin panel.
+let _adminTokenMemory: string | null = null;
+
+export function storeAdminToken(token: string | null): void {
+  _adminTokenMemory = token;
+}
 
 function getToken(): string | null {
-  return localStorage.getItem(ADMIN_TOKEN_KEY);
+  return _adminTokenMemory;
 }
 
 async function adminFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -21,8 +29,7 @@ async function adminFetch<T>(endpoint: string, options: RequestInit = {}): Promi
   });
 
   if (response.status === 401) {
-    localStorage.removeItem(ADMIN_TOKEN_KEY);
-    localStorage.removeItem('neesh_admin_name');
+    storeAdminToken(null);
     window.location.href = '/login';
     throw new Error('Admin session expired');
   }
