@@ -238,6 +238,9 @@ export class LedgerService {
       // SCOUT interaction — no ledger entries needed
       return { success: true, skipped: true };
     }
+    if (!data?.idempotencyKey) {
+      console.warn('[LedgerService] holdEscrow called without idempotencyKey — falling back to Date.now(). This breaks replay safety. Pass data.idempotencyKey explicitly.');
+    }
     return this.createEntry({
       entryType: 'ESCROW_HOLD',
       direction: 'DEBIT',
@@ -259,6 +262,9 @@ export class LedgerService {
       // SCOUT interaction — no ledger entries needed
       return { success: true, skipped: true };
     }
+    if (!data?.idempotencyKey) {
+      console.warn('[LedgerService] releaseEscrow called without idempotencyKey — falling back to Date.now(). This breaks replay safety. Pass data.idempotencyKey explicitly.');
+    }
     return this.createEntry({
       entryType: 'ESCROW_RELEASE',
       direction: 'CREDIT',
@@ -279,6 +285,9 @@ export class LedgerService {
     if (amountPaise === 0n) {
       // SCOUT interaction — no ledger entries needed
       return { success: true, skipped: true };
+    }
+    if (!data?.idempotencyKey) {
+      console.warn('[LedgerService] creditCommission called without idempotencyKey — falling back to Date.now(). This breaks replay safety. Pass data.idempotencyKey explicitly.');
     }
     return this.createEntry({
       entryType: 'COMMISSION_CREDIT',
