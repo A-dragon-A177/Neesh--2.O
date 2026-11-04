@@ -137,7 +137,8 @@ app.use('/api', (req, res, next) => {
         req.path.startsWith('/explorer/onboarding') ||
         req.path.startsWith('/explorer/signup') ||
         req.path.startsWith('/domains') ||
-        req.path.startsWith('/ssr/');
+        req.path.startsWith('/ssr/') ||
+        req.path === '/sparks/preview';
 
     if (isPublicPath) {
         return next();
@@ -211,7 +212,9 @@ app.post('/api/explorer/senior-fast-track/choice', requireRole('EXPLORER', 'ADMI
 
 // ── V19 Spark Endpoints (Task 1 & 2) ──────────────────────────────────
 app.post('/api/sparks', (req, res) => SparkController.createSpark(req, res));
-app.get('/api/sparks/preview', (req, res) => SparkController.getPreviewSparks(req, res));
+// Public unauthenticated preview — rate-limited; accessible under both paths
+app.get('/api/sparks/preview', publicRateLimiter, (req, res) => SparkController.getPreviewSparks(req, res));
+app.get('/api/public/sparks/preview', publicRateLimiter, (req, res) => SparkController.getPreviewSparks(req, res));
 app.get('/api/sparks/:id', (req, res) => SparkController.getSparkById(req, res));
 
 // ── V19 Dashboard & Wallet Endpoints (Task 5, 6, 7) ───────────────────

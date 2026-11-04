@@ -213,6 +213,17 @@ export class SparkController {
         .or(`slug.eq.${domainSlug},name.ilike.${domainSlug}`)
         .maybeSingle();
 
+      // Count distinct paying founders (founders with active sprints) for this domain.
+      // Used by the frontend to show domain-opening progress.
+      let payingFoundersCount = 0;
+      if (domainObj?.id) {
+        const { count } = await supabase
+          .from('sparks')
+          .select('founder_id', { count: 'exact', head: true })
+          .eq('domain_id', domainObj.id);
+        payingFoundersCount = count ?? 0;
+      }
+
       let query = supabase
         .from('sparks')
         .select(`
@@ -261,7 +272,7 @@ export class SparkController {
           },
         ];
 
-        res.status(200).json({ sparks: fallbackSparks });
+        res.status(200).json({ sparks: fallbackSparks, payingFoundersCount });
         return;
       }
 
@@ -276,7 +287,7 @@ export class SparkController {
         interaction_count: s.interaction_count || 0,
       }));
 
-      res.status(200).json({ sparks: anonymized });
+      res.status(200).json({ sparks: anonymized, payingFoundersCount });
     } catch (err: any) {
       console.error('[SparkController] getPreviewSparks error:', err);
       res.status(500).json({ error: 'Internal server error' });
