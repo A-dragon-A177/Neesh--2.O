@@ -38,9 +38,9 @@ export class SprintController {
       }
 
       const days = parseInt(daysInput, 10);
-      if (isNaN(days) || days < 1) {
+      if (isNaN(days) || !ALLOWED_SPRINT_DAYS.includes(days)) {
         res.status(400).json({
-          error: `Invalid days: ${daysInput}. Days must be an integer >= 1 (recommended: ${ALLOWED_SPRINT_DAYS.join(', ')})`,
+          error: `Invalid days: ${daysInput}. Must be one of: ${ALLOWED_SPRINT_DAYS.join(', ')}`,
         });
         return;
       }
@@ -91,10 +91,12 @@ export class SprintController {
       // If existing PAYMENT_PENDING session exists, return it (idempotent recovery)
       const pendingSession = existingSessions?.find((s) => s.state === 'PAYMENT_PENDING');
       if (pendingSession) {
+        // paymentSessionId is not persisted to sprint_sessions (schema TODO: add payment_session_id column).
+        // Return null — the frontend must prompt the user to retry rather than use a stale or fabricated ID.
         res.status(200).json({
           sprintSessionId: pendingSession.id,
           cashfreeOrderId: pendingSession.cashfree_order_id,
-          paymentSessionId: `session_${pendingSession.cashfree_order_id}`,
+          paymentSessionId: null,
           totalAmountPaise: pendingSession.amount_paise,
           creditsAppliedPaise: '0',
           chargeAmountPaise: pendingSession.amount_paise,
@@ -242,7 +244,7 @@ export class SprintController {
       }
 
       // 8. Insert pending ledger_entry
-      const idempotencyKey = `SPRINT_DAY_PURCHASE:${newSession.id}:${uuidv4()}`;
+      const idempotencyKey = `SPRINT_DAY_PURCHASE_PENDING:${newSession.id}`;
       try {
         await LedgerService.createEntry({
           entryType: 'SPRINT_DAY_PURCHASE',
