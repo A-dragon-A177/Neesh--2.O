@@ -140,7 +140,10 @@ app.use('/api', (req, res, next) => {
         req.path.startsWith('/ssr/') ||
         req.path === '/sparks/preview' ||
         req.path.startsWith('/explorer/profile/') ||
-        req.path === '/public/explorer-profiles';
+        req.path === '/public/explorer-profiles' ||
+        // Admin dashboard routes use AdminToken auth, not Supabase JWT
+        req.path === '/admin/login' ||
+        req.path.startsWith('/admin/grade-');
 
     if (isPublicPath) {
         return next();
@@ -391,6 +394,36 @@ app.post('/api/public/auth/confirm-user', (req, res) => {
 });
 // Admin-only user confirmation requiring ADMIN role
 app.post('/api/admin/users/confirm', supabaseAuth, requireRole('ADMIN'), (req, res) => otpController.confirmUser(req, res));
+
+// ── Admin Dashboard Auth + Grade Review Routes (P5.5) ─────────────────
+import { adminTokenAuth, signAdminToken } from './middleware/adminTokenAuth';
+
+app.post('/api/admin/login', (req, res) => {
+  try {
+    const { username, password } = req.body || {};
+    const expectedUsername = process.env.ADMIN_USERNAME;
+    const expectedPassword = process.env.ADMIN_PASSWORD;
+    if (!expectedUsername || !expectedPassword) {
+      return res.status(503).json({ error: 'Admin auth not configured on this server' });
+    }
+    if (!username || !password || username !== expectedUsername || password !== expectedPassword) {
+      return res.status(401).json({ error: 'Invalid admin credentials' });
+    }
+    const token = signAdminToken('admin', 'Admin');
+    return res.status(200).json({ token, displayName: 'Admin' });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.get('/api/admin/grade-reviews', adminTokenAuth, (req, res) =>
+  ExplorerController.listGradeReviewCandidates(req, res));
+
+app.post('/api/admin/grade-approve/:id', adminTokenAuth, (req, res) =>
+  ExplorerController.approveGradeAdvancement(req, res));
+
+app.post('/api/admin/grade-reject/:id', adminTokenAuth, (req, res) =>
+  ExplorerController.rejectGradeAdvancement(req, res));
 
 // Notifications stub routes (not yet implemented)
 app.get('/api/projects/:projectId/notifications', (req, res) => {

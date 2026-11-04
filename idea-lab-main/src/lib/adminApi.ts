@@ -103,6 +103,25 @@ export async function validateCoupon(code: string) {
   });
 }
 
+// --- Grade Reviews ---
+export async function getAdminGradeReviews() {
+  return adminFetch<GradeReviewDTO[]>('/api/admin/grade-reviews');
+}
+
+export async function approveGradeReview(explorerId: string) {
+  return adminFetch<{ success: boolean; newGrade: string; previousGrade: string; newPoints: number }>(
+    `/api/admin/grade-approve/${explorerId}`,
+    { method: 'POST' }
+  );
+}
+
+export async function rejectGradeReview(explorerId: string, reason?: string) {
+  return adminFetch<{ success: boolean }>(
+    `/api/admin/grade-reject/${explorerId}`,
+    { method: 'POST', body: JSON.stringify({ reason: reason || '' }) }
+  );
+}
+
 // --- Types ---
 export interface AdminUser {
   id: string;
@@ -151,4 +170,20 @@ export interface CreateCouponRequest {
   discountPercentage: number;
   expiryDate: string | null;
   maxUses: number;
+}
+
+export interface GradeReviewDTO {
+  id: string;
+  username: string;
+  display_name: string;
+  current_grade: string;
+  next_grade: string;
+  verified_interaction_count: number;
+  avg_founder_rating: number;
+  pioneer_points: number;
+  domain_name: string;
+  qualifies: boolean;
+  requires_admin: boolean;
+  war: number;
+  spike_flagged: boolean;
 }

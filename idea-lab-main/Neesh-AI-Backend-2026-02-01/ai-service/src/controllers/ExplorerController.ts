@@ -7,6 +7,7 @@ import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { DomainGatingService } from '../services/DomainGatingService';
 import { ExplorerService, LinkedInRole } from '../services/ExplorerService';
+import { PioneerGradeService } from '../services/PioneerGradeService';
 
 export class ExplorerController {
   /**
@@ -546,6 +547,191 @@ export class ExplorerController {
       const sparks = await ExplorerService.getPreviewFeed(domainSlug.trim().toLowerCase());
       res.status(200).json({ sparks });
     } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Internal server error' });
+    }
+  }
+
+  // ── Admin Grade Review Endpoints (P5.5) ─────────────────────────────
+
+  /**
+   * GET /api/admin/grade-reviews
+   * Returns all Explorer profiles that qualify for the next Pioneer grade.
+   * Uses PioneerGradeService.evaluateAdvancement to compute eligibility.
+   * Paginated: ?limit=50&offset=0
+   */
+  public static async listGradeReviewCandidates(req: Request, res: Response): Promise<void> {
+    try {
+      const limit = Math.min(parseInt((req.query.limit as string) || '50', 10), 200);
+      const offset = parseInt((req.query.offset as string) || '0', 10);
+
+      // Fetch profiles that could plausibly qualify — pre-filter in DB to avoid scanning all rows
+      const { data: profiles, error } = await supabase
+        .from('explorer_profiles')
+        .select('id, username, display_name, pioneer_grade, pioneer_points, verified_interaction_count, avg_founder_rating, linkedin_verified, linkedin_verified_at, linkedin_tenure_months, senior_fast_track_completed, master_founder_interactions_count, domain_id, domains(name)')
+        .or(
+          'and(pioneer_grade.eq.SCOUT,verified_interaction_count.gte.3,avg_founder_rating.gte.3.5),' +
+          'and(pioneer_grade.eq.SEED,verified_interaction_count.gte.3,avg_founder_rating.gte.3.8),' +
+          'and(pioneer_grade.eq.RISING,verified_interaction_count.gte.10,avg_founder_rating.gte.4.0),' +
+          'and(pioneer_grade.eq.PRO,verified_interaction_count.gte.25,avg_founder_rating.gte.4.3),' +
+          'and(pioneer_grade.eq.MASTER,verified_interaction_count.gte.50,avg_founder_rating.gte.4.5)'
+        )
+        .order('avg_founder_rating', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) {
+        res.status(500).json({ error: 'Failed to fetch grade review candidates' });
+        return;
+      }
+
+      const candidates: any[] = [];
+      const now = new Date();
+
+      for (const p of (profiles || [])) {
+        const result = PioneerGradeService.evaluateAdvancement({
+          currentGrade: p.pioneer_grade,
+          war: Math.floor((parseFloat(p.avg_founder_rating) || 0) * 100) / 100,
+          n: p.verified_interaction_count || 0,
+          linkedinVerified: p.linkedin_verified || false,
+          linkedinVerifiedAt: p.linkedin_verified_at || null,
+          linkedinTenureMonths: p.linkedin_tenure_months || 0,
+          seniorFastTrackCompleted: p.senior_fast_track_completed || false,
+          masterFounderInteractionsCount: p.master_founder_interactions_count || 0,
+          nowDate: now,
+        });
+
+        if (result.qualifies) {
+          candidates.push({
+            id: p.id,
+            username: p.username,
+            display_name: p.display_name || p.username,
+            current_grade: result.currentGrade,
+            next_grade: result.targetGrade,
+            verified_interaction_count: p.verified_interaction_count || 0,
+            avg_founder_rating: parseFloat(p.avg_founder_rating) || 0,
+            pioneer_points: p.pioneer_points || 0,
+            domain_name: (p.domains as any)?.name || 'Unknown',
+            qualifies: result.qualifies,
+            requires_admin: result.requiresAdmin,
+            war: result.war,
+            spike_flagged: result.spikeFlagged,
+          });
+        }
+      }
+
+      res.status(200).json(candidates);
+    } catch (err: any) {
+      console.error('[ExplorerController] listGradeReviewCandidates error:', err);
+      res.status(500).json({ error: err.message || 'Internal server error' });
+    }
+  }
+
+  /**
+   * POST /api/admin/grade-approve/:id
+   * Admin approves a grade advancement for the given Explorer.
+   * Re-verifies eligibility server-side before updating.
+   */
+  public static async approveGradeAdvancement(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ error: 'Explorer ID is required' });
+        return;
+      }
+
+      const { data: profile, error: fetchErr } = await supabase
+        .from('explorer_profiles')
+        .select('id, username, pioneer_grade, verified_interaction_count, avg_founder_rating, linkedin_verified, linkedin_verified_at, linkedin_tenure_months, senior_fast_track_completed, master_founder_interactions_count')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (fetchErr || !profile) {
+        res.status(404).json({ error: 'Explorer profile not found' });
+        return;
+      }
+
+      const result = PioneerGradeService.evaluateAdvancement({
+        currentGrade: profile.pioneer_grade,
+        war: Math.floor((parseFloat(profile.avg_founder_rating) || 0) * 100) / 100,
+        n: profile.verified_interaction_count || 0,
+        linkedinVerified: profile.linkedin_verified || false,
+        linkedinVerifiedAt: profile.linkedin_verified_at || null,
+        linkedinTenureMonths: profile.linkedin_tenure_months || 0,
+        seniorFastTrackCompleted: profile.senior_fast_track_completed || false,
+        masterFounderInteractionsCount: profile.master_founder_interactions_count || 0,
+        nowDate: new Date(),
+      });
+
+      if (!result.qualifies) {
+        res.status(422).json({
+          error: 'Explorer does not currently qualify for grade advancement',
+          reasons: result.reasons,
+          currentGrade: result.currentGrade,
+          war: result.war,
+          n: result.n,
+        });
+        return;
+      }
+
+      const newPoints = Math.floor(result.war * 100) + (result.n * 10);
+
+      const { error: updateErr } = await supabase
+        .from('explorer_profiles')
+        .update({
+          pioneer_grade: result.targetGrade,
+          pioneer_points: newPoints,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+
+      if (updateErr) {
+        res.status(500).json({ error: 'Failed to update Pioneer grade' });
+        return;
+      }
+
+      console.log(`[GradeReview] Admin approved ${profile.username}: ${result.currentGrade} → ${result.targetGrade}`);
+      res.status(200).json({
+        success: true,
+        explorerId: id,
+        username: profile.username,
+        previousGrade: result.currentGrade,
+        newGrade: result.targetGrade,
+        newPoints,
+      });
+    } catch (err: any) {
+      console.error('[ExplorerController] approveGradeAdvancement error:', err);
+      res.status(500).json({ error: err.message || 'Internal server error' });
+    }
+  }
+
+  /**
+   * POST /api/admin/grade-reject/:id
+   * Admin rejects a grade advancement. Logs the reason but does not modify the profile.
+   * Body: { reason?: string }
+   */
+  public static async rejectGradeAdvancement(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body || {};
+      if (!id) {
+        res.status(400).json({ error: 'Explorer ID is required' });
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('explorer_profiles')
+        .select('id, username, pioneer_grade')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (!profile) {
+        res.status(404).json({ error: 'Explorer profile not found' });
+        return;
+      }
+
+      console.log(`[GradeReview] Admin rejected ${profile.username} (grade: ${profile.pioneer_grade}). Reason: ${reason || 'None provided'}`);
+      res.status(200).json({ success: true, explorerId: id, username: profile.username });
+    } catch (err: any) {
+      console.error('[ExplorerController] rejectGradeAdvancement error:', err);
       res.status(500).json({ error: err.message || 'Internal server error' });
     }
   }

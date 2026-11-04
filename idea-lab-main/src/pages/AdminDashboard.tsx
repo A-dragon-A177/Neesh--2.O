@@ -12,6 +12,10 @@ import {
   type AdminUser,
   type AdminRoleDTO,
   type CouponDTO,
+  getAdminGradeReviews,
+  approveGradeReview,
+  rejectGradeReview,
+  type GradeReviewDTO,
 } from "@/lib/adminApi";
 import { toast } from "sonner";
 import {
@@ -35,6 +39,9 @@ import {
   EyeOff,
   DollarSign,
   ChevronDown,
+  Award,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 
 // ─── Helpers ───
@@ -54,7 +61,7 @@ function formatDate(dateStr: string | null): string {
 }
 
 // ─── Tab type ───
-type Tab = "users" | "roles" | "coupons";
+type Tab = "users" | "roles" | "coupons" | "grade-reviews";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -84,6 +91,11 @@ const AdminDashboard = () => {
   const [couponMaxUses, setCouponMaxUses] = useState("");
   const [creatingCoupon, setCreatingCoupon] = useState(false);
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+
+  // Grade reviews
+  const [gradeReviews, setGradeReviews] = useState<GradeReviewDTO[]>([]);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
 
   // Auth guard
   useEffect(() => {
@@ -115,6 +127,22 @@ const AdminDashboard = () => {
   useEffect(() => {
     if (isAdmin) fetchData();
   }, [isAdmin, fetchData]);
+
+  const loadGradeReviews = async () => {
+    try {
+      const reviews = await getAdminGradeReviews();
+      setGradeReviews(reviews);
+    } catch {
+      toast.error("Failed to load grade reviews");
+    }
+  };
+
+  useEffect(() => {
+    if (isAdmin && activeTab === "grade-reviews") {
+      loadGradeReviews();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, activeTab]);
 
   // Handlers
   const handleLogout = () => {
@@ -189,6 +217,32 @@ const AdminDashboard = () => {
       setCoupons((prev) => prev.filter((c) => c.id !== id));
     } catch (err: any) {
       toast.error(err.message || "Failed to delete coupon");
+    }
+  };
+
+  const handleApproveGrade = async (explorerId: string) => {
+    setApprovingId(explorerId);
+    try {
+      const result = await approveGradeReview(explorerId);
+      toast.success(`Promoted to ${result.newGrade}!`);
+      setGradeReviews((prev) => prev.filter((r) => r.id !== explorerId));
+    } catch (err: any) {
+      toast.error(err.message || "Failed to approve grade");
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
+  const handleRejectGrade = async (explorerId: string) => {
+    setRejectingId(explorerId);
+    try {
+      await rejectGradeReview(explorerId);
+      toast.success("Grade review deferred");
+      setGradeReviews((prev) => prev.filter((r) => r.id !== explorerId));
+    } catch (err: any) {
+      toast.error(err.message || "Failed to reject grade");
+    } finally {
+      setRejectingId(null);
     }
   };
 
@@ -573,6 +627,14 @@ const AdminDashboard = () => {
             </button>
             <button className={`tab-btn ${activeTab === "coupons" ? "active" : ""}`} onClick={() => setActiveTab("coupons")}>
               <Ticket className="w-4 h-4" /> Coupon Codes
+            </button>
+            <button className={`tab-btn ${activeTab === "grade-reviews" ? "active" : ""}`} onClick={() => setActiveTab("grade-reviews")}>
+              <Award className="w-4 h-4" /> Grade Reviews
+              {gradeReviews.length > 0 && (
+                <span style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)', borderRadius: '12px', padding: '1px 7px', fontSize: '11px', fontWeight: 700 }}>
+                  {gradeReviews.length}
+                </span>
+              )}
             </button>
           </div>
 
@@ -961,6 +1023,84 @@ const AdminDashboard = () => {
                       <div className="col-span-full text-center py-12 text-gray-500">No coupon codes created yet.</div>
                     )}
                   </div>
+                </div>
+              )}
+              {/* ═══ Grade Reviews Tab ═══ */}
+              {activeTab === "grade-reviews" && (
+                <div className="animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+                  {gradeReviews.length === 0 ? (
+                    <div className="text-center py-16 text-gray-500">No pioneers pending grade review.</div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                      {gradeReviews.map((review) => (
+                        <div key={review.id} className="glass-card p-5 relative">
+                          <div
+                            className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                            style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)' }}
+                          >
+                            <Award className="w-3 h-3" /> {review.current_grade} → {review.next_grade}
+                          </div>
+
+                          <div className="mb-4 pr-28">
+                            <h3 className="text-white font-semibold text-sm">{review.display_name}</h3>
+                            <p className="text-gray-400 text-xs mt-0.5">@{review.username} · {review.domain_name}</p>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-3 mb-4 text-xs">
+                            <div className="text-center px-2 py-1.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                              <span className="block text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">WAR</span>
+                              <span className="font-bold text-white">{review.war.toFixed(2)}</span>
+                            </div>
+                            <div className="text-center px-2 py-1.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                              <span className="block text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">Interactions</span>
+                              <span className="font-bold text-white">{review.verified_interaction_count}</span>
+                            </div>
+                            <div className="text-center px-2 py-1.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                              <span className="block text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">Points</span>
+                              <span className="font-bold" style={{ color: '#00ffff' }}>{review.pioneer_points}</span>
+                            </div>
+                          </div>
+
+                          {review.spike_flagged && (
+                            <div className="mb-3 px-3 py-2 rounded-lg text-xs" style={{ background: 'rgba(255,100,0,0.08)', border: '1px solid rgba(255,100,0,0.25)', color: '#ff9955' }}>
+                              ⚠️ Rating spike detected — manual review recommended
+                            </div>
+                          )}
+
+                          {review.requires_admin && (
+                            <div className="mb-3 px-3 py-2 rounded-lg text-xs" style={{ background: 'rgba(120,0,255,0.08)', border: '1px solid rgba(120,0,255,0.25)', color: '#a78bfa' }}>
+                              Admin approval required (MASTER → ELITE)
+                            </div>
+                          )}
+
+                          <div className="flex gap-2 mt-1">
+                            <button
+                              className="btn-neon flex-1 justify-center"
+                              style={{ padding: '8px 12px', fontSize: '13px' }}
+                              onClick={() => handleApproveGrade(review.id)}
+                              disabled={approvingId === review.id || rejectingId === review.id}
+                            >
+                              {approvingId === review.id
+                                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                : <CheckCircle2 className="w-3.5 h-3.5" />}
+                              Approve
+                            </button>
+                            <button
+                              className="btn-danger flex-1 justify-center"
+                              style={{ padding: '8px 12px', fontSize: '13px' }}
+                              onClick={() => handleRejectGrade(review.id)}
+                              disabled={approvingId === review.id || rejectingId === review.id}
+                            >
+                              {rejectingId === review.id
+                                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                : <XCircle className="w-3.5 h-3.5" />}
+                              Defer
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </>
