@@ -17,6 +17,12 @@ const OPTIONAL_BUT_RECOMMENDED = [
     { name: 'GEMINI_API_KEY', description: 'Required for public chat fallback' },
     { name: 'AI_SERVICE_INTERNAL_API_KEY', alternates: ['INTERNAL_API_KEY'], description: 'Required for Spring Boot ↔ AI-service auth' },
     { name: 'REDIS_URL', description: 'Recommended for persistent cache (falls back to in-memory)' },
+    { name: 'CASHFREE_APP_ID', description: 'Required for Cashfree Payment Gateway integration' },
+    { name: 'CASHFREE_SECRET_KEY', description: 'Required for Cashfree Payment Gateway integration' },
+    { name: 'CASHFREE_WEBHOOK_SECRET', description: 'Required for Cashfree webhook signature verification (falls back to CASHFREE_SECRET_KEY if unset)' },
+    { name: 'ADMIN_TOKEN_SECRET', description: 'Required for admin JWT signing — server will throw at first admin token operation if unset' },
+    { name: 'ADMIN_USERNAME', description: 'Required for admin login endpoint — endpoint will return 503 if unset' },
+    { name: 'ADMIN_PASSWORD', description: 'Required for admin login endpoint — endpoint will return 503 if unset' },
 ];
 
 export function validateEnvironment(): void {

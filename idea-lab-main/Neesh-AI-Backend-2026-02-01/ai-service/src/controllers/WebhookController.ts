@@ -132,24 +132,24 @@ export class WebhookController {
       return;
     }
 
-    // STEP 5 — AMOUNT/CURRENCY VERIFY
+    // STEP 5 — AMOUNT/CURRENCY VERIFY (applies to both sprintSession and directRequest)
     const webhookCurrency = orderData.order_currency || 'INR';
+
+    if (webhookCurrency !== 'INR') {
+      await CashfreeService.logSecurityAudit({
+        eventType: 'currency_mismatch',
+        sourceIp,
+        orderIdAttempted: orderId,
+        reason: `Currency was ${webhookCurrency}, expected INR`,
+      });
+      res.status(200).json({ status: 'ignored', reason: 'currency_mismatch' });
+      return;
+    }
 
     if (sprintSession) {
       const internalPaise = BigInt(sprintSession.amount_paise.toString());
       // Parse paise directly from the string representation to avoid IEEE 754 float errors.
       const webhookPaise = parsePaise(orderData.order_amount);
-
-      if (webhookCurrency !== 'INR') {
-        await CashfreeService.logSecurityAudit({
-          eventType: 'currency_mismatch',
-          sourceIp,
-          orderIdAttempted: orderId,
-          reason: `Currency was ${webhookCurrency}, expected INR`,
-        });
-        res.status(200).json({ status: 'ignored', reason: 'currency_mismatch' });
-        return;
-      }
 
       // Allow 0 amount if credits covered 100%, or verify amount match
       if (webhookPaise > 0n && webhookPaise !== internalPaise) {
@@ -158,6 +158,21 @@ export class WebhookController {
           sourceIp,
           orderIdAttempted: orderId,
           reason: `Amount mismatch: internal=${internalPaise}, webhook=${webhookPaise}`,
+        });
+        res.status(200).json({ status: 'ignored', reason: 'amount_mismatch' });
+        return;
+      }
+    } else if (directRequest) {
+      const internalPaise = BigInt(directRequest.fee_paise.toString());
+      const webhookPaise = parsePaise(orderData.order_amount);
+
+      // Allow 0 amount if balance covered 100% (chargeAmountPaise was 0), or verify amount match
+      if (webhookPaise > 0n && webhookPaise !== internalPaise) {
+        await CashfreeService.logSecurityAudit({
+          eventType: 'amount_mismatch',
+          sourceIp,
+          orderIdAttempted: orderId,
+          reason: `Direct request amount mismatch: internal=${internalPaise}, webhook=${webhookPaise}`,
         });
         res.status(200).json({ status: 'ignored', reason: 'amount_mismatch' });
         return;

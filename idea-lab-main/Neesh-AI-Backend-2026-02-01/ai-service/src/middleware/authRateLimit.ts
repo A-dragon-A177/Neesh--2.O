@@ -98,3 +98,14 @@ export const passwordResetRateLimiter = createRateLimiter({
     errorMessage: 'Too many password reset attempts. Please try again in 15 minutes.'
 });
 
+/**
+ * Admin login rate limiter: maximum 5 attempts per 15 minutes per IP.
+ * Protects the admin credential endpoint against brute-force.
+ */
+export const adminLoginRateLimiter = createRateLimiter({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    maxRequests: 5,
+    limiterName: 'AdminLoginRateLimit',
+    errorMessage: 'Too many admin login attempts. Please try again in 15 minutes.'
+});
+

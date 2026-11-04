@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import crypto from 'crypto';
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
@@ -9,7 +10,7 @@ import { RagController } from './controllers/RagController';
 import { validateEnvironment } from './config/validateEnv';
 import { requireProjectOwnership } from './middleware/projectOwnership';
 import { publicRateLimiter } from './middleware/publicRateLimit';
-import { signupRateLimiter, otpRateLimiter, passwordResetRateLimiter } from './middleware/authRateLimit';
+import { signupRateLimiter, otpRateLimiter, passwordResetRateLimiter, adminLoginRateLimiter } from './middleware/authRateLimit';
 import { requireRole } from './middleware/requireRole';
 import { sanitizeChatInput } from './middleware/inputSanitizer';
 
@@ -399,7 +400,7 @@ app.post('/api/admin/users/confirm', supabaseAuth, requireRole('ADMIN'), (req, r
 // ── Admin Dashboard Auth + Grade Review Routes (P5.5) ─────────────────
 import { adminTokenAuth, signAdminToken } from './middleware/adminTokenAuth';
 
-app.post('/api/admin/login', (req, res) => {
+app.post('/api/admin/login', adminLoginRateLimiter, (req, res) => {
   try {
     const { username, password } = req.body || {};
     const expectedUsername = process.env.ADMIN_USERNAME;
@@ -407,7 +408,20 @@ app.post('/api/admin/login', (req, res) => {
     if (!expectedUsername || !expectedPassword) {
       return res.status(503).json({ error: 'Admin auth not configured on this server' });
     }
-    if (!username || !password || username !== expectedUsername || password !== expectedPassword) {
+    if (!username || !password) {
+      return res.status(401).json({ error: 'Invalid admin credentials' });
+    }
+    // Constant-time comparison prevents timing-based brute-force on credentials.
+    // Pad to equal length before timingSafeEqual to avoid length-leaking short-circuits.
+    const maxLen = Math.max(username.length, expectedUsername.length, password.length, expectedPassword.length) + 1;
+    const pad = (s: string) => { const b = Buffer.alloc(maxLen, 0); Buffer.from(s).copy(b); return b; };
+    const usernameMatch =
+      crypto.timingSafeEqual(pad(username), pad(expectedUsername)) &&
+      username.length === expectedUsername.length;
+    const passwordMatch =
+      crypto.timingSafeEqual(pad(password), pad(expectedPassword)) &&
+      password.length === expectedPassword.length;
+    if (!usernameMatch || !passwordMatch) {
       return res.status(401).json({ error: 'Invalid admin credentials' });
     }
     const token = signAdminToken('admin', 'Admin');
