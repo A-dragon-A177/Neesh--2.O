@@ -65,6 +65,7 @@ export const ExplorerOnboarding: React.FC = () => {
   // UI state
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [feeAckChecked, setFeeAckChecked] = useState(false);
 
   useEffect(() => {
     document.title = "Explorer Onboarding — Become a Pioneer | Neesh";
@@ -486,11 +487,27 @@ export const ExplorerOnboarding: React.FC = () => {
               </div>
             </div>
 
+            {/* P5.1: Fee ceiling acknowledgment checkbox (required for PRO path) */}
+            <label className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 cursor-pointer mb-6">
+              <input
+                type="checkbox"
+                checked={feeAckChecked}
+                onChange={(e) => setFeeAckChecked(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-amber-500/50 accent-amber-500 cursor-pointer flex-shrink-0"
+              />
+              <span className="text-xs text-amber-200 leading-relaxed">
+                I understand that the{' '}
+                <strong className="text-amber-100">maximum fee ceiling for PRO tier is ₹3,000 per interaction</strong>.
+                Fees above this limit will be automatically capped. I confirm this is acceptable before proceeding.
+              </span>
+            </label>
+
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-800">
               <button
                 type="button"
                 onClick={() => {
                   setStartAsRising(true);
+                  setFeeAckChecked(false);
                   setStep(3);
                 }}
                 className="text-sm font-semibold text-slate-400 hover:text-white transition-colors"
@@ -500,11 +517,12 @@ export const ExplorerOnboarding: React.FC = () => {
 
               <button
                 type="button"
+                disabled={!feeAckChecked}
                 onClick={() => {
                   setStartAsRising(false);
                   setStep(3);
                 }}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition-all shadow-md"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Continue as Pro Candidate <ArrowRight className="w-4 h-4" />
               </button>
