@@ -506,6 +506,36 @@ export class ExplorerController {
   }
 
   /**
+   * GET /api/public/explorer-profiles
+   * Paginated list of all active, verified Pioneer profiles for sitemap generation.
+   * Query: ?limit=<n>&offset=<n>
+   */
+  public static async listPublicProfiles(req: Request, res: Response): Promise<void> {
+    try {
+      const limit = Math.min(Number(req.query.limit) || 200, 500);
+      const offset = Number(req.query.offset) || 0;
+
+      const { data: profiles, error } = await supabase
+        .from('explorer_profiles')
+        .select('username, updated_at')
+        .eq('linkedin_verified', true)
+        .not('pioneer_grade', 'in', '("SUSPENDED","DELETED")')
+        .order('updated_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) {
+        res.status(500).json({ error: 'Failed to fetch profiles' });
+        return;
+      }
+
+      res.status(200).json(profiles || []);
+    } catch (err: any) {
+      console.error('[ExplorerController] listPublicProfiles error:', err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
+  /**
    * GET /api/explorer/preview-feed
    * Public preview feed of 3 anonymized Sparks.
    * Query: ?domain=<slug>

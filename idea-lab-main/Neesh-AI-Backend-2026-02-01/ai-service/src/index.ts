@@ -139,7 +139,8 @@ app.use('/api', (req, res, next) => {
         req.path.startsWith('/domains') ||
         req.path.startsWith('/ssr/') ||
         req.path === '/sparks/preview' ||
-        req.path.startsWith('/explorer/profile/');
+        req.path.startsWith('/explorer/profile/') ||
+        req.path === '/public/explorer-profiles';
 
     if (isPublicPath) {
         return next();
@@ -211,6 +212,8 @@ app.get('/api/explorer/founding-status', (req, res) => ExplorerController.getFou
 app.get('/api/explorer/preview-feed', publicRateLimiter, (req, res) => ExplorerController.getPreviewFeed(req, res));
 // Public Pioneer profile — no auth, rate-limited; must come BEFORE /:id generic routes
 app.get('/api/explorer/profile/:username', publicRateLimiter, (req, res) => ExplorerController.getPublicProfile(req, res));
+// Public paginated profile list for sitemap generation — no auth, rate-limited
+app.get('/api/public/explorer-profiles', publicRateLimiter, (req, res) => ExplorerController.listPublicProfiles(req, res));
 app.post('/api/explorer/senior-fast-track/choice', requireRole('EXPLORER', 'ADMIN'), (req, res) => ExplorerController.chooseFastTrack(req, res));
 
 // ── V19 Spark Endpoints (Task 1 & 2) ──────────────────────────────────

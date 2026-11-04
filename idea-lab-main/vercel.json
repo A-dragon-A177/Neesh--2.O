@@ -43,6 +43,10 @@
       "destination": "/api/sitemap-core"
     },
     {
+      "source": "/sitemap-explorers.xml",
+      "destination": "/api/sitemap-explorers"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
