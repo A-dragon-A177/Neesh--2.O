@@ -439,6 +439,73 @@ export class ExplorerController {
   }
 
   /**
+   * GET /api/explorer/profile/:username
+   * Public Pioneer profile — no auth required.
+   * Returns grade, WAR score, fee range, domain, interaction count.
+   * 404 for suspended, deleted, or unverified accounts.
+   */
+  public static async getPublicProfile(req: Request, res: Response): Promise<void> {
+    try {
+      const { username } = req.params;
+      if (!username) {
+        res.status(400).json({ error: 'username is required' });
+        return;
+      }
+
+      const cleanUsername = username.trim().toLowerCase().replace(/^@/, '');
+
+      const { data: profile, error } = await supabase
+        .from('explorer_profiles')
+        .select(`
+          id, username, display_name, pioneer_grade, pioneer_points,
+          verified_interaction_count, avg_founder_rating, bio,
+          linkedin_verified, linkedin_domain_tenure_years,
+          fee_min_paise, fee_max_paise,
+          is_founding_explorer,
+          domains (name, slug)
+        `)
+        .eq('username', cleanUsername)
+        .maybeSingle();
+
+      if (error || !profile) {
+        res.status(404).json({ error: 'Profile not found' });
+        return;
+      }
+
+      // Suspended, deleted, or unverified accounts are hidden (prevents enumeration)
+      if (
+        profile.pioneer_grade === 'SUSPENDED' ||
+        profile.pioneer_grade === 'DELETED' ||
+        !profile.linkedin_verified
+      ) {
+        res.status(404).json({ error: 'Profile not found' });
+        return;
+      }
+
+      res.status(200).json({
+        id: profile.id,
+        username: profile.username,
+        display_name: profile.display_name,
+        pioneer_grade: profile.pioneer_grade,
+        pioneer_points: profile.pioneer_points || 0,
+        interaction_count: profile.verified_interaction_count || 0,
+        avg_rating: profile.avg_founder_rating ?? null,
+        bio: profile.bio || null,
+        linkedin_domain_tenure_years: profile.linkedin_domain_tenure_years || 0,
+        fee_min_paise: profile.fee_min_paise || 0,
+        fee_max_paise: profile.fee_max_paise || 0,
+        is_founding_explorer: profile.is_founding_explorer || false,
+        domain: profile.domains
+          ? { name: (profile.domains as any).name, slug: (profile.domains as any).slug }
+          : null,
+      });
+    } catch (err: any) {
+      console.error('[ExplorerController] getPublicProfile error:', err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
+  /**
    * GET /api/explorer/preview-feed
    * Public preview feed of 3 anonymized Sparks.
    * Query: ?domain=<slug>

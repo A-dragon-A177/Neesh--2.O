@@ -138,7 +138,8 @@ app.use('/api', (req, res, next) => {
         req.path.startsWith('/explorer/signup') ||
         req.path.startsWith('/domains') ||
         req.path.startsWith('/ssr/') ||
-        req.path === '/sparks/preview';
+        req.path === '/sparks/preview' ||
+        req.path.startsWith('/explorer/profile/');
 
     if (isPublicPath) {
         return next();
@@ -208,6 +209,8 @@ app.post('/api/explorer/verify-linkedin', (req, res) => ExplorerController.verif
 app.post('/api/explorer/enroll', (req, res) => ExplorerController.enrollExplorer(req, res));
 app.get('/api/explorer/founding-status', (req, res) => ExplorerController.getFoundingStatus(req, res));
 app.get('/api/explorer/preview-feed', publicRateLimiter, (req, res) => ExplorerController.getPreviewFeed(req, res));
+// Public Pioneer profile — no auth, rate-limited; must come BEFORE /:id generic routes
+app.get('/api/explorer/profile/:username', publicRateLimiter, (req, res) => ExplorerController.getPublicProfile(req, res));
 app.post('/api/explorer/senior-fast-track/choice', requireRole('EXPLORER', 'ADMIN'), (req, res) => ExplorerController.chooseFastTrack(req, res));
 
 // ── V19 Spark Endpoints (Task 1 & 2) ──────────────────────────────────

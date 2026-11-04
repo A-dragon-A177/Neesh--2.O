@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { Loader2, ArrowLeft, Star, Award } from "lucide-react";
+import { Loader2, ArrowLeft, Star, Award, Share2, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import apiClient from "@/lib/api";
@@ -14,15 +14,25 @@ const GRADE_COLORS: Record<string, string> = {
   ELITE: "bg-orange-100 text-orange-700",
 };
 
+function formatFeeRange(minPaise: number, maxPaise: number): string {
+  if (!minPaise && !maxPaise) return "Free (Scout tier)";
+  const fmt = (p: number) => `₹${Math.round(p / 100).toLocaleString("en-IN")}`;
+  return `${fmt(minPaise)}–${fmt(maxPaise)}`;
+}
+
 interface ExplorerProfile {
   id: string;
   username: string;
   display_name: string;
   pioneer_grade: string;
+  pioneer_points: number;
   bio: string | null;
   linkedin_domain_tenure_years: number;
   domain: { name: string; slug: string } | null;
   interaction_count: number;
+  avg_rating: number | null;
+  fee_min_paise: number;
+  fee_max_paise: number;
   is_founding_explorer: boolean;
 }
 
@@ -32,6 +42,7 @@ const ExplorerProfilePage = () => {
   const [profile, setProfile] = useState<ExplorerProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // Strip leading @ if present (from /@:username route)
   const cleanUsername = username?.replace(/^@/, "") ?? "";
@@ -45,6 +56,14 @@ const ExplorerProfilePage = () => {
       .catch(() => setError("Explorer profile not found."))
       .finally(() => setLoading(false));
   }, [cleanUsername]);
+
+  const handleShare = () => {
+    const url = `${window.location.origin}/@${cleanUsername}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   if (loading) {
     return (
@@ -70,9 +89,18 @@ const ExplorerProfilePage = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-2xl mx-auto px-4 py-12">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-6">
-          <ArrowLeft className="w-4 h-4 mr-2" /> Back
-        </Button>
+        <div className="flex items-center justify-between mb-6">
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+            <ArrowLeft className="w-4 h-4 mr-2" /> Back
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleShare}>
+            {copied ? (
+              <><CheckCheck className="w-4 h-4 mr-2 text-green-600" /> Copied!</>
+            ) : (
+              <><Share2 className="w-4 h-4 mr-2" /> Share Profile</>
+            )}
+          </Button>
+        </div>
 
         <div className="space-y-6">
           <div className="flex items-start gap-4">
@@ -100,7 +128,7 @@ const ExplorerProfilePage = () => {
             <p className="text-sm text-muted-foreground leading-relaxed">{profile.bio}</p>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="rounded-lg border p-4 text-center">
               <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
                 <Star className="w-4 h-4" />
@@ -111,9 +139,26 @@ const ExplorerProfilePage = () => {
             <div className="rounded-lg border p-4 text-center">
               <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
                 <Award className="w-4 h-4" />
-                <span className="text-xs">Domain Experience</span>
+                <span className="text-xs">Domain Exp.</span>
               </div>
               <p className="text-2xl font-bold">{profile.linkedin_domain_tenure_years}y</p>
+            </div>
+            {profile.avg_rating !== null && (
+              <div className="rounded-lg border p-4 text-center">
+                <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
+                  <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                  <span className="text-xs">Avg Rating</span>
+                </div>
+                <p className="text-2xl font-bold">{Number(profile.avg_rating).toFixed(2)}</p>
+              </div>
+            )}
+            <div className="rounded-lg border p-4 text-center col-span-2 sm:col-span-1">
+              <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
+                <span className="text-xs">Fee Range</span>
+              </div>
+              <p className="text-sm font-semibold text-emerald-600">
+                {formatFeeRange(profile.fee_min_paise, profile.fee_max_paise)}
+              </p>
             </div>
           </div>
         </div>
