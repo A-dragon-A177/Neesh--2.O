@@ -1,12 +1,23 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, ArrowRight, CheckCircle2, TrendingUp, Award } from 'lucide-react';
+import { Sparkles, ArrowRight, CheckCircle2, TrendingUp, Award, Lock, Mail } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import FooterSection from '@/components/sections/FooterSection';
 import { DomainProofWidget } from '@/components/DomainProofWidget';
 import { PioneerGradeBadge } from '@/components/pioneer/PioneerGradeBadge';
 
 export const ForExplorers: React.FC = () => {
+  const [eliteEmail, setEliteEmail] = useState('');
+  const [eliteInterestSent, setEliteInterestSent] = useState(false);
+
+  const handleEliteInterest = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!eliteEmail.trim()) return;
+    // Mailto fallback — no backend endpoint required for interest capture
+    window.location.href = `mailto:pioneers@neesh.ai?subject=Elite%20Pioneer%20Interest&body=Email%3A%20${encodeURIComponent(eliteEmail.trim())}`;
+    setEliteInterestSent(true);
+  };
+
   useEffect(() => {
     document.title = "Neesh for Explorers — Monetize Your Domain Expertise";
     const metaDesc = document.querySelector('meta[name="description"]');
@@ -154,6 +165,83 @@ export const ForExplorers: React.FC = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        {/* P5.2: Elite Tier Roadmap Section */}
+        <div className="mt-12 bg-gradient-to-br from-orange-950/40 to-slate-900/60 border border-orange-500/30 rounded-2xl p-8 shadow-xl">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-400 text-xs font-semibold uppercase tracking-wider">
+              <Lock className="w-3 h-3" /> Currently in Beta
+            </div>
+          </div>
+
+          <h2 className="text-2xl font-bold text-white mb-3 flex items-center gap-3">
+            <Award className="w-6 h-6 text-orange-400" /> Elite Pioneer Tier
+          </h2>
+          <p className="text-slate-300 text-sm leading-relaxed mb-6">
+            Elite is the highest Pioneer grade — reserved for Explorers who have proven consistent, top-rated domain insight across 50+ verified interactions. It is currently in beta, meaning we are onboarding a small cohort and refining the tier mechanics before opening it broadly.
+          </p>
+
+          <div className="grid sm:grid-cols-2 gap-5 mb-8">
+            {/* Requirements */}
+            <div className="p-5 rounded-xl bg-slate-900/60 border border-slate-800">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-orange-400 mb-4">Requirements to Reach Elite</h3>
+              <ul className="space-y-2.5 text-sm text-slate-300">
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-orange-400 flex-shrink-0" />50+ verified paid interactions</li>
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-orange-400 flex-shrink-0" />4.50+ Weighted Average Rating (WAR)</li>
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-orange-400 flex-shrink-0" />6+ months of continuous active presence</li>
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-orange-400 flex-shrink-0" />No recent disputes or policy violations</li>
+              </ul>
+              <p className="text-xs text-slate-500 mt-4">
+                Estimated time to reach Elite from Scout:{' '}
+                <span className="text-slate-300 font-semibold">typically 8–18 months</span> of consistent activity.
+              </p>
+            </div>
+
+            {/* Benefits */}
+            <div className="p-5 rounded-xl bg-slate-900/60 border border-slate-800">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-orange-400 mb-4">What Elite Unlocks</h3>
+              <ul className="space-y-2.5 text-sm text-slate-300">
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />Fee ceiling ₹3,000–₹10,000 / interaction</li>
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />Priority matching with top-tier founders</li>
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />Direct inbound requests from founders</li>
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />Elite badge on public Pioneer profile</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Express interest CTA */}
+          <div className="p-5 rounded-xl bg-orange-500/5 border border-orange-500/20">
+            <div className="flex items-center gap-2 mb-3">
+              <Mail className="w-4 h-4 text-orange-400" />
+              <h3 className="text-sm font-bold text-orange-300">Express Early Interest in Elite</h3>
+            </div>
+            <p className="text-xs text-slate-400 mb-4">
+              We'll notify you when the Elite beta opens to new Pioneers and give you a head start on requirements.
+            </p>
+            {eliteInterestSent ? (
+              <div className="flex items-center gap-2 text-sm text-emerald-400 font-semibold">
+                <CheckCircle2 className="w-4 h-4" /> Interest noted — we'll reach out when Elite opens.
+              </div>
+            ) : (
+              <form onSubmit={handleEliteInterest} className="flex gap-3 flex-col sm:flex-row">
+                <input
+                  type="email"
+                  required
+                  value={eliteEmail}
+                  onChange={(e) => setEliteEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-orange-500/60 transition-colors"
+                />
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm transition-all whitespace-nowrap"
+                >
+                  Notify Me
+                </button>
+              </form>
+            )}
           </div>
         </div>
       </main>
