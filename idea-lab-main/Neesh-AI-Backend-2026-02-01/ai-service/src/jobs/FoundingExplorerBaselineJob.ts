@@ -82,6 +82,22 @@ export async function runFoundingExplorerBaselineJob(): Promise<{
         continue;
       }
 
+      // Gate: must have >= 5 interactions within first 30 days of enrollment
+      const thirtyDayWindowEnd = new Date(
+        new Date(reg.enrolled_at).getTime() + 30 * 24 * 60 * 60 * 1000
+      ).toISOString();
+      const { count: interactionCount } = await supabase
+        .from('interactions')
+        .select('*', { count: 'exact', head: true })
+        .eq('explorer_id', reg.explorer_id)
+        .gte('created_at', reg.enrolled_at)
+        .lte('created_at', thirtyDayWindowEnd);
+
+      if (!interactionCount || interactionCount < 5) {
+        console.log(`[FoundingExplorerBaselineJob] Explorer ${reg.explorer_id} has ${interactionCount ?? 0}/5 required interactions in first 30 days. Skipping baseline credit.`);
+        continue;
+      }
+
       // Query cumulative interaction fee earnings from ledger
       const { data: earningsEntries } = await supabase
         .from('ledger_entries')
