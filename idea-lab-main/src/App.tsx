@@ -54,6 +54,7 @@ const SprintDashboard = lazy(() => import("@/pages/SprintDashboard"));
 const SpotlightPage = lazy(() => import("@/pages/SpotlightPage"));
 const GuaranteeClaimPage = lazy(() => import("@/pages/GuaranteeClaimPage"));
 const ExplorerProfilePage = lazy(() => import("@/pages/ExplorerProfilePage"));
+const ExplorerMarketplace = lazy(() => import("@/pages/ExplorerMarketplace"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -124,6 +125,7 @@ const App = () => (
               <Route path="/battle-of-innovation" element={<Navigate to="/" replace />} />
               <Route path="/spotlight/:id" element={<ErrorBoundary><SpotlightPage /></ErrorBoundary>} />
               <Route path="/guarantee-claim/:sprintId" element={<ProtectedRoute><ErrorBoundary><GuaranteeClaimPage /></ErrorBoundary></ProtectedRoute>} />
+              <Route path="/explorer/marketplace" element={<ErrorBoundary><ExplorerMarketplace /></ErrorBoundary>} />
               <Route path="/@:username" element={<ErrorBoundary><ExplorerProfilePage /></ErrorBoundary>} />
               <Route path="/explorer/:username" element={<ErrorBoundary><ExplorerProfilePage /></ErrorBoundary>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

@@ -66,6 +66,7 @@ export const ExplorerOnboarding: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [feeAckChecked, setFeeAckChecked] = useState(false);
+  const [requiresManualReview, setRequiresManualReview] = useState(false);
 
   useEffect(() => {
     document.title = "Explorer Onboarding — Become a Pioneer | Neesh";
@@ -162,8 +163,9 @@ export const ExplorerOnboarding: React.FC = () => {
         throw new Error(data.error || 'LinkedIn validation failed');
       }
 
-      if (data.isSeniorFastTrack) {
-        setStep(2.5); // Senior Fast-Track Acknowledgment
+      if (data.isSeniorFastTrack || data.requiresManualReview) {
+        setRequiresManualReview(Boolean(data.requiresManualReview));
+        setStep(2.5); // Senior Fast-Track or Borderline Acknowledgment
       } else {
         setStep(3); // Standard Domain & Profile Setup
       }
@@ -463,70 +465,117 @@ export const ExplorerOnboarding: React.FC = () => {
           </div>
         )}
 
-        {/* STEP 2B: SENIOR FAST-TRACK ACKNOWLEDGMENT */}
+        {/* STEP 2B: SENIOR FAST-TRACK OR BORDERLINE ACKNOWLEDGMENT */}
         {step === 2.5 && (
           <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-4">
-              <Award className="w-3.5 h-3.5" /> Senior Fast-Track Eligible
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">
-              Fast-Track to Pro Pioneer
-            </h1>
-            <p className="text-sm text-slate-300 leading-relaxed mb-6">
-              With 5+ years of domain experience, you are eligible for Pro grade (fee range ₹800–₹3,000 per interaction). Pro pioneers undergo an initial qualification interaction to ensure actionable, domain-specific depth.
-            </p>
+            {requiresManualReview ? (
+              /* BORDERLINE: 55–64 months → manual review */
+              <>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold uppercase tracking-wider mb-4">
+                  <ShieldCheck className="w-3.5 h-3.5" /> Application Under Review
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">
+                  Borderline Tenure Detected
+                </h1>
+                <p className="text-sm text-slate-300 leading-relaxed mb-6">
+                  Your domain experience is close to the 5-year Senior Fast-Track threshold. Our team will review your profile and LinkedIn tenure within <strong className="text-white">48 hours</strong> to determine whether you qualify for the Pro Pioneer fast-track or the standard Rising tier.
+                </p>
 
-            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 mb-8 space-y-2 text-xs text-slate-400">
-              <div className="flex items-center justify-between">
-                <span>Pro Pioneer Fee Ceiling:</span>
-                <span className="font-bold text-white">₹3,000 / interaction</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Elite Roadmap Fee Ceiling:</span>
-                <span className="font-bold text-indigo-400">₹10,000 / interaction</span>
-              </div>
-            </div>
+                <div className="p-4 rounded-xl bg-amber-950/30 border border-amber-500/20 mb-8 space-y-3 text-xs text-amber-200">
+                  <p className="font-semibold text-amber-100">What happens next:</p>
+                  <ul className="space-y-2 pl-1">
+                    <li className="flex items-start gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-amber-400 mt-0.5 flex-shrink-0" /><span>You'll receive an email within 48 hours with your grade assignment.</span></li>
+                    <li className="flex items-start gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-amber-400 mt-0.5 flex-shrink-0" /><span>If approved for Pro, you'll start with the ₹800–₹3,000 fee range.</span></li>
+                    <li className="flex items-start gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-amber-400 mt-0.5 flex-shrink-0" /><span>Otherwise you'll begin as Rising Pioneer (₹200–₹800 range).</span></li>
+                  </ul>
+                </div>
 
-            {/* P5.1: Fee ceiling acknowledgment checkbox (required for PRO path) */}
-            <label className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 cursor-pointer mb-6">
-              <input
-                type="checkbox"
-                checked={feeAckChecked}
-                onChange={(e) => setFeeAckChecked(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-amber-500/50 accent-amber-500 cursor-pointer flex-shrink-0"
-              />
-              <span className="text-xs text-amber-200 leading-relaxed">
-                I understand that the{' '}
-                <strong className="text-amber-100">maximum fee ceiling for PRO tier is ₹3,000 per interaction</strong>.
-                Fees above this limit will be automatically capped. I confirm this is acceptable before proceeding.
-              </span>
-            </label>
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setStep(2)}
+                    className="text-xs font-semibold text-slate-400 hover:text-white transition-colors"
+                  >
+                    ← Back to LinkedIn
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStartAsRising(true);
+                      setStep(3);
+                    }}
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-sm transition-all shadow-md"
+                  >
+                    Continue to Profile Setup <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </>
+            ) : (
+              /* FULL FAST-TRACK: ≥60 months */
+              <>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-4">
+                  <Award className="w-3.5 h-3.5" /> Senior Fast-Track Eligible
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">
+                  Fast-Track to Pro Pioneer
+                </h1>
+                <p className="text-sm text-slate-300 leading-relaxed mb-6">
+                  With 5+ years of domain experience, you are eligible for Pro grade (fee range ₹800–₹3,000 per interaction). Pro pioneers undergo an initial qualification interaction to ensure actionable, domain-specific depth.
+                </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() => {
-                  setStartAsRising(true);
-                  setFeeAckChecked(false);
-                  setStep(3);
-                }}
-                className="text-sm font-semibold text-slate-400 hover:text-white transition-colors"
-              >
-                Start as Rising instead
-              </button>
+                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 mb-8 space-y-2 text-xs text-slate-400">
+                  <div className="flex items-center justify-between">
+                    <span>Pro Pioneer Fee Ceiling:</span>
+                    <span className="font-bold text-white">₹3,000 / interaction</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Elite Roadmap Fee Ceiling:</span>
+                    <span className="font-bold text-indigo-400">₹10,000 / interaction</span>
+                  </div>
+                </div>
 
-              <button
-                type="button"
-                disabled={!feeAckChecked}
-                onClick={() => {
-                  setStartAsRising(false);
-                  setStep(3);
-                }}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Continue as Pro Candidate <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
+                {/* P5.1: Fee ceiling acknowledgment checkbox (required for PRO path) */}
+                <label className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 cursor-pointer mb-6">
+                  <input
+                    type="checkbox"
+                    checked={feeAckChecked}
+                    onChange={(e) => setFeeAckChecked(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-amber-500/50 accent-amber-500 cursor-pointer flex-shrink-0"
+                  />
+                  <span className="text-xs text-amber-200 leading-relaxed">
+                    I understand that the{' '}
+                    <strong className="text-amber-100">maximum fee ceiling for PRO tier is ₹3,000 per interaction</strong>.
+                    Fees above this limit will be automatically capped. I confirm this is acceptable before proceeding.
+                  </span>
+                </label>
+
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStartAsRising(true);
+                      setFeeAckChecked(false);
+                      setStep(3);
+                    }}
+                    className="text-sm font-semibold text-slate-400 hover:text-white transition-colors"
+                  >
+                    Start as Rising instead
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={!feeAckChecked}
+                    onClick={() => {
+                      setStartAsRising(false);
+                      setStep(3);
+                    }}
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Continue as Pro Candidate <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
 

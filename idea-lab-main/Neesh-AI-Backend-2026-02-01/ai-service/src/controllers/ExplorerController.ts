@@ -260,6 +260,8 @@ export class ExplorerController {
         ? Number(req.body.monthsExperience)
         : (Number(yearsInDomain) || 1) * 12;
       const isSeniorCandidate = ExplorerService.isSeniorCandidate(monthsExperience);
+      // Borderline: 55–64 months → manual review; full fast-track: ≥60 months
+      const requiresManualReview = monthsExperience >= 55 && monthsExperience < 60;
       const years = Math.max(1, Math.min(40, Math.floor(monthsExperience / 12)));
       const isSeniorFastTrack = isSeniorCandidate;
 
@@ -267,10 +269,13 @@ export class ExplorerController {
         valid: true,
         isSeniorFastTrack,
         isSeniorCandidate,
+        requiresManualReview,
         monthsExperience,
         yearsInDomain: years,
         message: isSeniorFastTrack
           ? 'Eligible for Senior Fast-Track (5+ years in domain).'
+          : requiresManualReview
+          ? 'Borderline tenure detected — application will be reviewed within 48 hours.'
           : 'Standard verification passed.',
       });
     } catch (err: any) {
@@ -548,6 +553,79 @@ export class ExplorerController {
       res.status(200).json({ sparks });
     } catch (err: any) {
       res.status(500).json({ error: err.message || 'Internal server error' });
+    }
+  }
+
+  /**
+   * GET /api/explorer/marketplace
+   * Public marketplace listing of active, verified Pioneer profiles.
+   * Query: ?domain=<slug>&grade=<grade>&limit=<n>&offset=<n>
+   */
+  public static async getMarketplace(req: Request, res: Response): Promise<void> {
+    try {
+      const domainSlug = (req.query.domain as string) || '';
+      const VALID_GRADES = new Set(['SEED', 'RISING', 'PRO', 'MASTER', 'ELITE']);
+      const rawGrade = ((req.query.grade as string) || '').toUpperCase();
+      const grade = VALID_GRADES.has(rawGrade) ? rawGrade : '';
+      const limit = Math.min(Number(req.query.limit) || 20, 100);
+      const offset = Number(req.query.offset) || 0;
+
+      let query = supabase
+        .from('explorer_profiles')
+        .select(`
+          id, username, display_name, pioneer_grade, pioneer_points,
+          verified_interaction_count, avg_founder_rating, bio,
+          linkedin_domain_tenure_years, fee_min_paise, fee_max_paise,
+          is_founding_explorer, state,
+          domains (name, slug)
+        `)
+        .eq('linkedin_verified', true)
+        .eq('state', 'ACTIVE')
+        .not('pioneer_grade', 'in', '("SUSPENDED","DELETED","SCOUT")')
+        .order('verified_interaction_count', { ascending: false });
+
+      if (domainSlug) {
+        const { data: domain } = await supabase
+          .from('domains')
+          .select('id')
+          .eq('slug', domainSlug.trim().toLowerCase())
+          .maybeSingle();
+        if (domain) {
+          query = query.eq('domain_id', domain.id) as typeof query;
+        }
+      }
+
+      if (grade) {
+        query = query.eq('pioneer_grade', grade) as typeof query;
+      }
+
+      const { data: profiles, error } = await query.range(offset, offset + limit - 1);
+
+      if (error) {
+        res.status(500).json({ error: 'Failed to fetch marketplace profiles' });
+        return;
+      }
+
+      const formatted = (profiles || []).map((p: any) => ({
+        id: p.id,
+        username: p.username,
+        display_name: p.display_name,
+        pioneer_grade: p.pioneer_grade,
+        pioneer_points: p.pioneer_points || 0,
+        interaction_count: p.verified_interaction_count || 0,
+        avg_rating: p.avg_founder_rating ?? null,
+        bio: p.bio || null,
+        tenure_years: p.linkedin_domain_tenure_years || 0,
+        fee_min_paise: p.fee_min_paise || 0,
+        fee_max_paise: p.fee_max_paise || 0,
+        is_founding_explorer: p.is_founding_explorer || false,
+        domain: p.domains ? { name: p.domains.name, slug: p.domains.slug } : null,
+      }));
+
+      res.status(200).json({ profiles: formatted, total: formatted.length, offset, limit });
+    } catch (err: any) {
+      console.error('[ExplorerController] getMarketplace error:', err);
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 

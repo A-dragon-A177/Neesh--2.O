@@ -217,6 +217,7 @@ app.get('/api/explorer/preview-feed', publicRateLimiter, (req, res) => ExplorerC
 app.get('/api/explorer/profile/:username', publicRateLimiter, (req, res) => ExplorerController.getPublicProfile(req, res));
 // Public paginated profile list for sitemap generation — no auth, rate-limited
 app.get('/api/public/explorer-profiles', publicRateLimiter, (req, res) => ExplorerController.listPublicProfiles(req, res));
+app.get('/api/explorer/marketplace', publicRateLimiter, (req, res) => ExplorerController.getMarketplace(req, res));
 app.post('/api/explorer/senior-fast-track/choice', requireRole('EXPLORER', 'ADMIN'), (req, res) => ExplorerController.chooseFastTrack(req, res));
 
 // ── V19 Spark Endpoints (Task 1 & 2) ──────────────────────────────────
