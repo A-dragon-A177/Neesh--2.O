@@ -51,7 +51,7 @@ export class ProfileSsrController {
     const displayName = profile.display_name || cleanUsername;
     const grade = profile.pioneer_grade || 'SEED';
     const interactionsCount = profile.verified_interaction_count || 0;
-    const canonicalUrl = `https://neesh.ai/explorer/${cleanUsername}`;
+    const canonicalUrl = `https://neesh.ai/@${cleanUsername}`;
     const description = `${displayName} has completed ${interactionsCount} verified startup interactions in ${domainName}. Pioneer Grade: ${grade}.`;
 
     const jsonLd = {
@@ -78,9 +78,13 @@ export class ProfileSsrController {
   <meta property="og:url" content="${canonicalUrl}" />
   <meta property="og:type" content="profile" />
   <meta property="og:site_name" content="Neesh" />
+  <meta property="og:image" content="https://neesh.ai/og-pioneer-profile.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
 
   <!-- Twitter -->
-  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://neesh.ai/og-pioneer-profile.png" />
   <meta name="twitter:title" content="${escapeHtml(displayName)} — Pioneer Profile | Neesh" />
   <meta name="twitter:description" content="${escapeHtml(description)}" />
 
