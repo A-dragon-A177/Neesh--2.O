@@ -14,7 +14,7 @@ export class InteractionController {
    */
   public static async submit(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id || (req as any).user?.sub;
+      const userId = req.user?.id;
       if (!userId) {
         res.status(401).json({ error: 'Unauthorized: Authentication required' });
         return;
@@ -67,7 +67,7 @@ export class InteractionController {
    */
   public static async respond(req: Request, res: Response): Promise<void> {
     try {
-      const founderId = (req as any).user?.id || (req as any).user?.sub;
+      const founderId = req.user?.id;
       if (!founderId) {
         res.status(401).json({ error: 'Unauthorized: Authentication required' });
         return;
@@ -101,7 +101,7 @@ export class InteractionController {
    */
   public static async rate(req: Request, res: Response): Promise<void> {
     try {
-      const founderId = (req as any).user?.id || (req as any).user?.sub;
+      const founderId = req.user?.id;
       if (!founderId) {
         res.status(401).json({ error: 'Unauthorized: Authentication required' });
         return;

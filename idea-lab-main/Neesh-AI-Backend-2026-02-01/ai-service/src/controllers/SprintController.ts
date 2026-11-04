@@ -20,7 +20,7 @@ export class SprintController {
    */
   public static async purchase(req: Request, res: Response): Promise<void> {
     try {
-      const founderId = (req as any).user?.id || (req as any).user?.sub;
+      const founderId = req.user?.id;
       if (!founderId) {
         res.status(401).json({ error: 'Unauthorized: Missing founder identity' });
         return;
@@ -196,7 +196,7 @@ export class SprintController {
           }).catch(() => {});
         } catch (e) {}
 
-        res.status(200).json({
+        res.status(201).json({
           sprintSessionId: newSession.id,
           state: 'ACTIVE',
           paidWithBalance: true,
@@ -267,7 +267,7 @@ export class SprintController {
         console.error('[SprintController] Ledger entry creation warning:', ledgerErr);
       }
 
-      res.status(200).json({
+      res.status(201).json({
         sprintSessionId: newSession.id,
         cashfreeOrderId: cfOrder.orderId,
         paymentSessionId: cfOrder.paymentSessionId,
@@ -290,7 +290,7 @@ export class SprintController {
   public static async claimGuarantee(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const founderId = (req as any).user?.id || (req as any).user?.sub;
+      const founderId = req.user?.id;
 
       if (!founderId) {
         res.status(401).json({ error: 'Unauthorized: Missing founder identity' });
@@ -424,7 +424,7 @@ export class SprintController {
   public static async getById(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const userId = (req as any).user?.id || (req as any).user?.sub;
+      const userId = req.user?.id;
 
       const { data: session, error } = await supabase
         .from('sprint_sessions')

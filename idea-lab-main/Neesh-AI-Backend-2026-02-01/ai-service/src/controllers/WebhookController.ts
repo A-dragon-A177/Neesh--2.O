@@ -151,8 +151,11 @@ export class WebhookController {
       // Parse paise directly from the string representation to avoid IEEE 754 float errors.
       const webhookPaise = parsePaise(orderData.order_amount);
 
-      // Allow 0 amount if credits covered 100%, or verify amount match
-      if (webhookPaise > 0n && webhookPaise !== internalPaise) {
+      // Block inflated amounts only. When partial credits were applied,
+      // Cashfree was charged chargeAmountPaise (net) < amount_paise (gross),
+      // so webhookPaise < internalPaise is valid. Full exact check requires
+      // the charge_amount_paise column (QA-4 schema migration).
+      if (webhookPaise > internalPaise) {
         await CashfreeService.logSecurityAudit({
           eventType: 'amount_mismatch',
           sourceIp,
@@ -166,8 +169,9 @@ export class WebhookController {
       const internalPaise = BigInt(directRequest.fee_paise.toString());
       const webhookPaise = parsePaise(orderData.order_amount);
 
-      // Allow 0 amount if balance covered 100% (chargeAmountPaise was 0), or verify amount match
-      if (webhookPaise > 0n && webhookPaise !== internalPaise) {
+      // Block inflated amounts only; 0 (balance-covered 100%) and credit-discounted net are valid.
+      // Full exact check requires charge_amount_paise column (QA-4 schema migration).
+      if (webhookPaise > internalPaise) {
         await CashfreeService.logSecurityAudit({
           eventType: 'amount_mismatch',
           sourceIp,
